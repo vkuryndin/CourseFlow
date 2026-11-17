@@ -1,0 +1,29 @@
+
+package org.courseflow.identity.dto;
+
+import org.courseflow.identity.entity.User;
+import org.courseflow.identity.entity.UserRole;
+import org.courseflow.identity.entity.UserStatus;
+
+import java.util.Set;
+
+public record UserResponse(
+        Long id,
+        String displayName,
+        String email,
+        UserStatus status,
+        Set<UserRole> roles,
+        boolean systemAdmin
+) {
+
+    public static UserResponse from(User user) {
+        return new UserResponse(
+                user.getId(),
+                user.getDisplayName(),
+                user.getEmail(),
+                user.getStatus(),
+                Set.copyOf(user.getRoles()),
+                user.isSystemAdmin()
+        );
+    }
+}

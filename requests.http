@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:8080
+@admin_password = 1234567890!qw
 
 ### 1. Проверка Spring Boot и соединения с PostgreSQL
 GET {{baseUrl}}/api/system/status
@@ -12,3 +13,339 @@ GET {{baseUrl}}/actuator/health
 Accept: application/json
 
 ### Ожидаем 200 OK и общий status = UP, db = UP
+
+
+### Existing endpoint: must work
+GET http://localhost:8080/api/system/status
+
+### Nonexistent endpoint: must return 404
+GET http://localhost:8080/api/does-not-exist
+
+
+
+### 1. Create category - expected 201
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+
+{
+  "name": "Java Programming",
+  "description": "Courses about Java programming"
+}
+
+
+### 2. Create another category - expected 201
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+
+{
+  "name": "Databases",
+  "description": "PostgreSQL, SQL and database design"
+}
+
+
+### 3. Get categories with pagination - expected 200
+GET http://localhost:8080/api/categories?page=0&size=10
+
+
+### 4. Search categories - expected 200
+GET http://localhost:8080/api/categories?search=Java
+
+
+### 5. Sort descending - expected 200
+GET http://localhost:8080/api/categories?sortBy=name&direction=desc
+
+
+### 6. Duplicate category - expected 409
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+
+{
+  "name": "Java Programming",
+  "description": "Duplicate category"
+}
+
+
+### 7. Empty name - expected 400
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+
+{
+  "name": "",
+  "description": "Invalid category"
+}
+
+
+### 8. Invalid page size - expected 400
+GET http://localhost:8080/api/categories?size=0
+
+
+### 9. Category not found - expected 404
+GET http://localhost:8080/api/categories/999999
+
+
+### 10. Invalid sorting field - expected 400
+GET http://localhost:8080/api/categories?sortBy=password
+
+
+
+### 1. Public categories - expected 200
+GET http://localhost:8080/api/categories?page=0&size=10
+
+
+### 2. System status - expected 200
+GET http://localhost:8080/api/system/status
+
+
+### 3. Create category without authentication - expected 401
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+
+{
+  "name": "Security Test",
+  "description": "Test of protected endpoint"
+}
+
+
+
+### 1. Public categories - expected 200
+GET http://localhost:8080/api/categories?page=0&size=10
+
+
+### 2. System status - expected 200
+GET http://localhost:8080/api/system/status
+
+
+### 3. Protected endpoint without JWT - expected 401
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+
+{
+  "name": "JWT Test",
+  "description": "Protected category"
+}
+
+
+### 4. Protected endpoint with invalid JWT - expected 401
+POST http://localhost:8080/api/categories
+Authorization: Bearer invalid.jwt.token
+Content-Type: application/json
+
+{
+  "name": "JWT Test",
+  "description": "Protected category"
+}
+
+
+
+### 1. Register STUDENT - expected 201
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "displayName": "Test Student",
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+
+### 2. Login - expected 200 and JWT
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+> {%
+    client.global.set("courseflow_token", response.body.accessToken);
+%}
+
+
+### 3. Access ADMIN-only endpoint as STUDENT - expected 403
+POST http://localhost:8080/api/categories
+Authorization: Bearer {{courseflow_token}}
+Content-Type: application/json
+
+{
+  "name": "Protected Category Test",
+  "description": "This operation should be forbidden"
+}
+
+
+### 4. Public catalog - expected 200
+GET http://localhost:8080/api/categories?page=0&size=10
+
+
+### 5. Incorrect password - expected 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "WrongPassword"
+}
+
+
+### 6. Duplicate registration - expected 409
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "displayName": "Another Student",
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+
+
+### 1. Login and save JWT
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+> {%
+    client.global.set("courseflow_token", response.body.accessToken);
+%}
+
+
+### 2. Logout - expected 204
+POST http://localhost:8080/api/auth/logout
+Authorization: Bearer {{courseflow_token}}
+
+
+### 3. Reuse revoked JWT - expected 401
+POST http://localhost:8080/api/categories
+Authorization: Bearer {{courseflow_token}}
+Content-Type: application/json
+
+{
+  "name": "Revoked JWT Test",
+  "description": "Must not be created"
+}
+
+
+### 1. Login as system ADMIN
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set(
+        "courseflow_admin_token",
+        response.body.accessToken
+    );
+%}
+
+
+### 2. Create category as ADMIN - expected 201
+POST http://localhost:8080/api/categories
+Authorization: Bearer {{courseflow_admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Spring Security",
+  "description": "Authentication and authorization in Spring"
+}
+
+
+### 3. Logout ADMIN - expected 204
+POST http://localhost:8080/api/auth/logout
+Authorization: Bearer {{courseflow_admin_token}}
+
+
+### 4. Reuse old ADMIN JWT - expected 401
+POST http://localhost:8080/api/categories
+Authorization: Bearer {{courseflow_admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Must Not Be Created",
+  "description": "Checking revoked token"
+}
+
+
+
+### 1. Login as STUDENT
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+> {%
+    client.global.set("student_token", response.body.accessToken);
+%}
+
+
+### 2. STUDENT: own profile - expected 200
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{student_token}}
+
+
+### 3. STUDENT: all users - expected 403
+GET http://localhost:8080/api/users
+Authorization: Bearer {{student_token}}
+
+
+### 4. STUDENT: another user - expected 403
+GET http://localhost:8080/api/users/1
+Authorization: Bearer {{student_token}}
+
+
+### 5. Login as ADMIN
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+%}
+
+
+### 6. ADMIN: all users - expected 200
+GET http://localhost:8080/api/users?page=0&size=10
+Authorization: Bearer {{admin_token}}
+
+
+### 7. ADMIN: search by email - expected 200
+GET http://localhost:8080/api/users?q=student1
+Authorization: Bearer {{admin_token}}
+
+
+### 8. ADMIN: filter active students - expected 200
+GET http://localhost:8080/api/users?status=ACTIVE&role=STUDENT
+Authorization: Bearer {{admin_token}}
+
+
+### 9. ADMIN: list admins - expected 200
+GET http://localhost:8080/api/users?role=ADMIN
+Authorization: Bearer {{admin_token}}
+
+
+### 10. ADMIN: sorting and pagination - expected 200
+GET http://localhost:8080/api/users?page=0&size=5&sortBy=displayName&direction=desc
+Authorization: Bearer {{admin_token}}
+
+
+### 11. ADMIN: nonexistent user - expected 404
+GET http://localhost:8080/api/users/999999
+Authorization: Bearer {{admin_token}}
+
+
+### 12. Without JWT - expected 401
+GET http://localhost:8080/api/users/me

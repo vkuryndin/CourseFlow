@@ -87,4 +87,16 @@ public class User {
     public Set<UserRole> getRoles() {
         return Set.copyOf(roles);
     }
+
+
+    public void markAsSystemAdmin() {
+        if (!roles.contains(UserRole.ADMIN)) {
+            throw new IllegalStateException(
+                    "System administrator must have ADMIN role"
+            );
+        }
+
+        this.systemAdmin = true;
+    }
+
 }

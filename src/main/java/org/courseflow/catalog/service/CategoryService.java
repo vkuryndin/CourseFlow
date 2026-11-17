@@ -1,0 +1,110 @@
+
+package org.courseflow.catalog.service;
+
+import org.courseflow.catalog.dto.CategoryCreateRequest;
+import org.courseflow.catalog.dto.CategoryResponse;
+import org.courseflow.catalog.entity.Category;
+import org.courseflow.catalog.repository.CategoryRepository;
+import org.courseflow.common.api.PageResponse;
+import org.courseflow.common.exception.BadRequestException;
+import org.courseflow.common.exception.BusinessConflictException;
+import org.courseflow.common.exception.ResourceNotFoundException;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class CategoryService {
+
+    private final CategoryRepository categoryRepository;
+
+    public CategoryService(CategoryRepository categoryRepository) {
+        this.categoryRepository = categoryRepository;
+    }
+
+    @Transactional
+    public CategoryResponse create(CategoryCreateRequest request) {
+        String name = request.name().trim();
+
+        if (categoryRepository.existsByName(name)) {
+            throw new BusinessConflictException(
+                    "Category already exists: " + name
+            );
+        }
+
+        Category category = new Category(
+                name,
+                request.description().trim()
+        );
+
+        Category saved = categoryRepository.saveAndFlush(category);
+
+        return CategoryResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public CategoryResponse getById(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Category not found: " + id
+                        )
+                );
+
+        return CategoryResponse.from(category);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<CategoryResponse> findAll(
+            int page,
+            int size,
+            String search,
+            String sortBy,
+            String direction
+    ) {
+        if (!sortBy.equals("id") && !sortBy.equals("name")) {
+            throw new BadRequestException(
+                    "Sorting is supported only by id or name"
+            );
+        }
+
+        Sort.Direction sortDirection;
+
+        if (direction.equalsIgnoreCase("asc")) {
+            sortDirection = Sort.Direction.ASC;
+        } else if (direction.equalsIgnoreCase("desc")) {
+            sortDirection = Sort.Direction.DESC;
+        } else {
+            throw new BadRequestException(
+                    "Direction must be asc or desc"
+            );
+        }
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(sortDirection, sortBy)
+        );
+
+        Page<Category> categories;
+
+        if (search == null || search.isBlank()) {
+            categories = categoryRepository.findAll(pageable);
+        } else {
+            categories =
+                    categoryRepository.findByNameContainingIgnoreCase(
+                            search.trim(),
+                            pageable
+                    );
+        }
+
+        Page<CategoryResponse> responses =
+                categories.map(CategoryResponse::from);
+
+        return PageResponse.from(responses);
+    }
+}

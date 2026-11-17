@@ -44,3 +44,5 @@ bin/
 
 # Local documentation
 /_docs/
+
+/http-client.private.env.json
