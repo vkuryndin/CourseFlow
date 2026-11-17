@@ -1,0 +1,14 @@
+@baseUrl = http://localhost:8080
+
+### 1. Проверка Spring Boot и соединения с PostgreSQL
+GET {{baseUrl}}/api/system/status
+Accept: application/json
+
+### Ожидаем 200 OK:
+### {"application":"study-orm","status":"UP","database":"CONNECTED"}
+
+### 2. Стандартная проверка здоровья приложения (Actuator)
+GET {{baseUrl}}/actuator/health
+Accept: application/json
+
+### Ожидаем 200 OK и общий status = UP, db = UP

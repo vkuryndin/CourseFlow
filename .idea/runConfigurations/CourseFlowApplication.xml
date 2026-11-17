@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="CourseFlowApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+    <envs>
+      <env name="DB_URL" value="jdbc:postgresql://192.168.179.129:5432/courseflow" />
+      <env name="DB_USERNAME" value="appuser" />
+      <env name="DB_PASSWORD" value="Gefsbizd19!" />
+      <env name="SPRING_PROFILES_ACTIVE" value="dev" />
+    </envs>
+    <module name="CourseFlow.main" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="org.courseflow.CourseFlowApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
