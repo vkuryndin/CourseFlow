@@ -48,4 +48,11 @@ public class Profile {
         this.bio = bio;
         this.avatarUrl = avatarUrl;
     }
+
+
+    public void anonymize() {
+        this.bio = null;
+        this.avatarUrl = null;
+    }
+
 }

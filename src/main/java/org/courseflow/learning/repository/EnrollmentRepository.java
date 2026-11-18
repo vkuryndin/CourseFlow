@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+
 import java.util.Optional;
 
 public interface EnrollmentRepository
@@ -40,4 +41,10 @@ public interface EnrollmentRepository
     );
 
     boolean existsByCourse_Id(Long courseId);
+
+    boolean existsByStudent_IdAndStatus(
+            Long studentId,
+            EnrollmentStatus status
+    );
+
 }

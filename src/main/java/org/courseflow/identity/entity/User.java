@@ -99,4 +99,94 @@ public class User {
         this.systemAdmin = true;
     }
 
+    public void changeRoles(Set<UserRole> newRoles) {
+        if (newRoles == null
+                || newRoles.isEmpty()
+                || newRoles.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new IllegalArgumentException(
+                    "User must have at least one valid role"
+            );
+        }
+
+        if (systemAdmin && !newRoles.contains(UserRole.ADMIN)) {
+            throw new IllegalStateException(
+                    "System administrator must retain ADMIN role"
+            );
+        }
+
+        if (status == UserStatus.DELETED) {
+            throw new IllegalStateException(
+                    "Cannot change roles of a deleted user"
+            );
+        }
+
+        roles.clear();
+        roles.addAll(newRoles);
+    }
+
+
+    public void updateDetails(
+            String newDisplayName,
+            String newEmail
+    ) {
+        if (status == UserStatus.DELETED) {
+            throw new IllegalStateException(
+                    "Cannot update a deleted user"
+            );
+        }
+
+        this.displayName = newDisplayName;
+        this.email = newEmail;
+    }
+
+    public void deactivate() {
+        if (systemAdmin) {
+            throw new IllegalStateException(
+                    "Cannot deactivate system administrator"
+            );
+        }
+
+        if (status == UserStatus.DELETED) {
+            throw new IllegalStateException(
+                    "Cannot deactivate a deleted user"
+            );
+        }
+
+        this.status = UserStatus.INACTIVE;
+    }
+
+    public void activate() {
+        if (status == UserStatus.DELETED) {
+            throw new IllegalStateException(
+                    "Cannot reactivate a deleted user"
+            );
+        }
+
+        this.status = UserStatus.ACTIVE;
+    }
+
+
+    public void markDeleted() {
+        if (systemAdmin) {
+            throw new IllegalStateException(
+                    "Cannot delete system administrator"
+            );
+        }
+
+        if (status != UserStatus.INACTIVE) {
+            throw new IllegalStateException(
+                    "User must be inactive before deletion"
+            );
+        }
+
+        this.status = UserStatus.DELETED;
+        this.deletedAt = java.time.Instant.now();
+        this.displayName = "Deleted user";
+        this.email = null;
+        this.roles.clear();
+    }
+
+
+
+
 }

@@ -349,3 +349,416 @@ Authorization: Bearer {{admin_token}}
 
 ### 12. Without JWT - expected 401
 GET http://localhost:8080/api/users/me
+
+
+
+
+### 1. Login ADMIN
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+%}
+
+
+### 2. ADMIN creates TEACHER - expected 201
+POST http://localhost:8080/api/users
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "displayName": "Java Teacher",
+  "email": "teacher1@courseflow.local",
+  "password": "TeacherDemo2026!",
+  "roles": ["STUDENT", "TEACHER"]
+}
+
+> {%
+    client.global.set("teacher_id", response.body.id);
+%}
+
+
+### 3. Login TEACHER - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "teacher1@courseflow.local",
+  "password": "TeacherDemo2026!"
+}
+
+> {%
+    client.global.set("teacher_token", response.body.accessToken);
+%}
+
+
+### 4. TEACHER cannot list users - expected 403
+GET http://localhost:8080/api/users
+Authorization: Bearer {{teacher_token}}
+
+
+### 5. ADMIN promotes TEACHER to ADMIN - expected 200
+PUT http://localhost:8080/api/users/{{teacher_id}}/roles
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roles": ["STUDENT", "TEACHER", "ADMIN"]
+}
+
+
+### 6. Old TEACHER token must be revoked - expected 401
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{teacher_token}}
+
+
+### 7. Login TEACHER again - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "teacher1@courseflow.local",
+  "password": "TeacherDemo2026!"
+}
+
+> {%
+    client.global.set("teacher_token", response.body.accessToken);
+%}
+
+
+### 8. New ADMIN can list users - expected 200
+GET http://localhost:8080/api/users
+Authorization: Bearer {{teacher_token}}
+
+
+### 9. Empty roles - expected 400
+PUT http://localhost:8080/api/users/{{teacher_id}}/roles
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roles": []
+}
+
+
+
+
+### 1. Login ADMIN - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+    client.global.set("admin_id", response.body.userId);
+%}
+
+
+### 2. Create test STUDENT - expected 201
+POST http://localhost:8080/api/users
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "displayName": "Status Demo",
+  "email": "status-demo@courseflow.local",
+  "password": "StatusDemo2026!",
+  "roles": ["STUDENT"]
+}
+
+> {%
+    client.global.set("demo_user_id", response.body.id);
+%}
+
+
+### 3. Login STUDENT - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "status-demo@courseflow.local",
+  "password": "StatusDemo2026!"
+}
+
+> {%
+    client.global.set("demo_token", response.body.accessToken);
+%}
+
+
+### 4. ADMIN changes student details - expected 200
+PUT http://localhost:8080/api/users/{{demo_user_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "displayName": "Updated Status Demo",
+  "email": "status-updated@courseflow.local"
+}
+
+
+### 5. Old JWT after email change - expected 401
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{demo_token}}
+
+
+### 6. Login with new email - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "status-updated@courseflow.local",
+  "password": "StatusDemo2026!"
+}
+
+> {%
+    client.global.set("demo_token", response.body.accessToken);
+%}
+
+
+### 7. ADMIN deactivates student - expected 200
+POST http://localhost:8080/api/users/{{demo_user_id}}/deactivate
+Authorization: Bearer {{admin_token}}
+
+
+### 8. Old JWT after deactivation - expected 401
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{demo_token}}
+
+
+### 9. Login of inactive student - expected 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "status-updated@courseflow.local",
+  "password": "StatusDemo2026!"
+}
+
+
+### 10. ADMIN activates student - expected 200
+POST http://localhost:8080/api/users/{{demo_user_id}}/activate
+Authorization: Bearer {{admin_token}}
+
+
+### 11. Login after activation - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "status-updated@courseflow.local",
+  "password": "StatusDemo2026!"
+}
+
+> {%
+    client.global.set("demo_token", response.body.accessToken);
+%}
+
+
+### 12. System ADMIN deactivation - expected 409
+POST http://localhost:8080/api/users/{{admin_id}}/deactivate
+Authorization: Bearer {{admin_token}}
+
+
+### 13. STUDENT tries to deactivate a user - expected 403
+POST http://localhost:8080/api/users/{{demo_user_id}}/deactivate
+Authorization: Bearer {{demo_token}}
+
+
+### 14. Nonexistent user - expected 404
+POST http://localhost:8080/api/users/999999/deactivate
+Authorization: Bearer {{admin_token}}
+
+
+
+
+### 1. Login ADMIN - 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+    client.global.set("admin_id", response.body.userId);
+%}
+
+
+### 2. Create user for deletion test - 201
+POST http://localhost:8080/api/users
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "displayName": "Archive Demo",
+  "email": "archive-demo@courseflow.local",
+  "password": "ArchiveDemo2026!",
+  "roles": ["STUDENT"]
+}
+
+> {%
+    client.global.set("archive_user_id", response.body.id);
+%}
+
+
+### 3. Delete ACTIVE user - 409
+DELETE http://localhost:8080/api/users/{{archive_user_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 4. Deactivate user - 200
+POST http://localhost:8080/api/users/{{archive_user_id}}/deactivate
+Authorization: Bearer {{admin_token}}
+
+
+### 5. Delete INACTIVE user - 204
+DELETE http://localhost:8080/api/users/{{archive_user_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 6. Read archived User - 200
+GET http://localhost:8080/api/users/{{archive_user_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 7. Login with deleted account - 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "archive-demo@courseflow.local",
+  "password": "ArchiveDemo2026!"
+}
+
+
+### 8. Repeated DELETE - 204
+DELETE http://localhost:8080/api/users/{{archive_user_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 9. Reactivate deleted user - 409
+POST http://localhost:8080/api/users/{{archive_user_id}}/activate
+Authorization: Bearer {{admin_token}}
+
+
+### 10. Delete system ADMIN - 409
+DELETE http://localhost:8080/api/users/{{admin_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 11. Delete nonexistent user - 404
+DELETE http://localhost:8080/api/users/999999
+Authorization: Bearer {{admin_token}}
+
+
+### 12. List archived users - 200
+GET http://localhost:8080/api/users?status=DELETED
+Authorization: Bearer {{admin_token}}
+
+
+
+### 1. Login STUDENT - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+> {%
+    client.global.set("student_token", response.body.accessToken);
+%}
+
+
+### 2. Change password - expected 204
+POST http://localhost:8080/api/auth/change-password
+Authorization: Bearer {{student_token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "StudyPass2026!",
+  "newPassword": "NewStudyPass2026!"
+}
+
+
+### 3. Old JWT must be invalid - expected 401
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{student_token}}
+
+
+### 4. Login with old password - expected 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+
+### 5. Login with new password - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "NewStudyPass2026!"
+}
+
+> {%
+    client.global.set("student_token", response.body.accessToken);
+%}
+
+
+### 6. Restore original password - expected 204
+POST http://localhost:8080/api/auth/change-password
+Authorization: Bearer {{student_token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "NewStudyPass2026!",
+  "newPassword": "StudyPass2026!"
+}
+
+
+### 7. JWT after restoration - expected 401
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{student_token}}
+
+
+### 8. Login with original password - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@courseflow.local",
+  "password": "StudyPass2026!"
+}
+
+> {%
+    client.global.set("student_token", response.body.accessToken);
+%}
+
+
+### 9. Incorrect current password - expected 400
+POST http://localhost:8080/api/auth/change-password
+Authorization: Bearer {{student_token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "WrongPassword2026!",
+  "newPassword": "AnotherStudyPass2026!"
+}

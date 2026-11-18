@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 @Component
 public class JwtSessionValidator
@@ -70,6 +71,23 @@ public class JwtSessionValidator
         if (!user.getId().toString().equals(jwt.getSubject())) {
             return invalid();
         }
+
+        List<String> currentRoles = user.getRoles()
+                .stream()
+                .map(Enum::name)
+                .sorted()
+                .toList();
+
+        List<String> tokenRoles =
+                jwt.getClaimAsStringList("roles");
+
+        if (tokenRoles == null
+                || !currentRoles.equals(
+                tokenRoles.stream().sorted().toList()
+        )) {
+            return invalid();
+        }
+
 
         return OAuth2TokenValidatorResult.success();
     }
