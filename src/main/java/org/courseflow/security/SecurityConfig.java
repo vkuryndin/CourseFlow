@@ -47,11 +47,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers(
-                                HttpMethod.GET,
-                                "/actuator/health",
-                                "/api/system/status",
-                                "/api/categories",
-                                "/api/categories/**"
+                                HttpMethod.POST,
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password"
                         ).permitAll()
 
                         .requestMatchers(

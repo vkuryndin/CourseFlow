@@ -1,6 +1,11 @@
 @baseUrl = http://localhost:8080
 @admin_password = 1234567890!qw
 
+
+@reset_email = vkuryndin@gmail.com
+@reset_token = 72kLhdF7lFApIokjXLb6bmHvmb9drsdZjyTAQCylyDg
+@reset_user_id = 6
+
 ### 1. Проверка Spring Boot и соединения с PostgreSQL
 GET {{baseUrl}}/api/system/status
 Accept: application/json
@@ -669,6 +674,7 @@ Authorization: Bearer {{admin_token}}
 
 
 
+
 ### 1. Login STUDENT - expected 200
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
@@ -761,4 +767,178 @@ Content-Type: application/json
 {
   "currentPassword": "WrongPassword2026!",
   "newPassword": "AnotherStudyPass2026!"
+}
+
+###--------------------------------------
+###Проверка сброса пароля пользователем
+###--------------------------------------
+
+
+### 1. Register test user - expected 201
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "displayName": "Password Reset Demo",
+  "email": "{{reset_email}}",
+  "password": "ResetTest2026!"
+}
+
+
+### 2. Login with original password - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{reset_email}}",
+  "password": "ResetTest2026!"
+}
+
+> {%
+    client.global.set("reset_demo_old_jwt",
+        response.body.accessToken);
+%}
+
+
+### 3. Request password reset - expected 202
+POST http://localhost:8080/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{reset_email}}"
+}
+
+
+### 4. Repeat reset request - expected 202
+### No second email should be issued during cooldown
+POST http://localhost:8080/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{reset_email}}"
+}
+
+
+### 5. Unknown email - expected 202
+POST http://localhost:8080/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "nobody99999@courseflow.local"
+}
+
+
+### 6. Reset using token from email - expected 204
+POST http://localhost:8080/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "{{reset_token}}",
+  "newPassword": "ResetNewPass2026!"
+}
+
+
+### 7. Reuse the token - expected 400
+POST http://localhost:8080/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "{{reset_token}}",
+  "newPassword": "AnotherResetPass2026!"
+}
+
+
+### 8. Previously issued JWT - expected 401
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{reset_demo_old_jwt}}
+
+
+### 9. Login with old password - expected 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{reset_email}}",
+  "password": "ResetTest2026!"
+}
+
+
+### 10. Login with new password - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{reset_email}}",
+  "password": "ResetNewPass2026!"
+}
+
+
+### 11. Invalid token - expected 400
+POST http://localhost:8080/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "invalid-reset-token",
+  "newPassword": "AnotherResetPass2026!"
+}
+
+###--------------------------------------
+###Проверка сброса пароля администратором
+###--------------------------------------
+
+### ADMIN login - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+%}
+
+
+### Find user - expected 200
+GET http://localhost:8080/api/users?q={{reset_email}}
+Authorization: Bearer {{admin_token}}
+
+
+
+### 1. ADMIN requests password reset - 202
+POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset
+Authorization: Bearer {{admin_token}}
+
+
+### 2. Repeat immediately - 202
+### No second email should be sent during cooldown
+POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset
+Authorization: Bearer {{admin_token}}
+
+
+### 3. Nonexistent user - 404
+POST http://localhost:8080/api/users/999999/password-reset
+Authorization: Bearer {{admin_token}}
+
+
+### 4. Without authorization - 401
+POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset
+
+### 5. сбрасываем пароль
+POST http://localhost:8080/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "mk5fxSuD267icPLfJIYq745QFCQG_MbwVoBqbVFlrzk",
+  "newPassword": "AdminReset2026!"
+}
+
+### Проверяем вход с новым паролем
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{reset_email}}",
+  "password": "AdminReset2026!"
 }

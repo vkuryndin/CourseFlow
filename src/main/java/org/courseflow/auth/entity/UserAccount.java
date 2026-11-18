@@ -63,4 +63,16 @@ public class UserAccount {
     public void requirePasswordChange() {
         this.passwordChangeRequired = true;
     }
+
+    public void replacePasswordHash(String newPasswordHash) {
+        if (newPasswordHash == null || newPasswordHash.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Password hash must not be blank"
+            );
+        }
+
+        this.passwordHash = newPasswordHash;
+        this.passwordChangeRequired = false;
+    }
+
 }
