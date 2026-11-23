@@ -1716,3 +1716,29 @@ Authorization: Bearer {{admin_token}}
 
 ### Verify deletion - 404
 GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}
+
+### Reassign course teacher - 200
+PUT http://localhost:8080/api/courses/1/teacher
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "teacherId": 3
+}
+
+### Get all users — ADMIN
+GET http://localhost:8080/api/users?page=0&size=100
+Authorization: Bearer {{admin_token}}
+
+### Courses sorted by title DESC — 200
+GET http://localhost:8080/api/courses?page=0&size=10&sortBy=title&direction=desc
+
+### GET lessons without JWT — expected 401
+GET http://localhost:8080/api/courses/3/modules/1/lessons
+
+### TEACHER cannot list users — expected 403
+GET http://localhost:8080/api/users?page=0&size=10
+Authorization: Bearer {{teacher_token}}
+
+### Users without authorization — expected 401
+GET http://localhost:8080/api/users?page=0&size=10

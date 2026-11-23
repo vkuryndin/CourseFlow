@@ -231,4 +231,8 @@ public class Course {
         this.startDate = newStartDate;
     }
 
+    public void reassignTeacher(User newTeacher) {
+        this.teacher = newTeacher;
+    }
+
 }

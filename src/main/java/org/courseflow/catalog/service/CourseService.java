@@ -38,7 +38,7 @@ import java.util.Set;
 import org.courseflow.catalog.dto.TagResponse;
 import org.courseflow.catalog.entity.Tag;
 import org.courseflow.catalog.repository.TagRepository;
-
+import org.courseflow.catalog.dto.ReassignCourseTeacherRequest;
 
 @Service
 public class CourseService {
@@ -558,6 +558,33 @@ public class CourseService {
         }
 
         return course;
+    }
+
+    @Transactional
+    public CourseResponse reassignTeacher(
+            Long courseId,
+            Long newTeacherId,
+            boolean isAdmin
+    ) {
+        if (!isAdmin) {
+            throw new AccessDeniedException(
+                    "Only ADMIN can reassign course teachers"
+            );
+        }
+
+        Course course = courseRepository
+                .findByIdForUpdate(courseId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Course not found: " + courseId
+                        )
+                );
+
+        User newTeacher = findActiveTeacher(newTeacherId);
+
+        course.reassignTeacher(newTeacher);
+
+        return CourseResponse.from(course);
     }
 
 

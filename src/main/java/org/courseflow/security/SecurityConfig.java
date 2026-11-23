@@ -87,6 +87,10 @@ public class SecurityConfig {
                                 "/api/courses"
                         ).hasAnyRole("ADMIN", "TEACHER")
 
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/courses/*/teacher"
+                        ).hasRole("ADMIN")
 
                         .requestMatchers(
                                 HttpMethod.PUT,
@@ -177,7 +181,7 @@ public class SecurityConfig {
                                 HttpMethod.GET,
                                 "/api/courses/*/modules/*/lessons",
                                 "/api/courses/*/modules/*/lessons/*"
-                        ).permitAll()
+                        ).authenticated()
 
                         .requestMatchers(
                                 HttpMethod.POST,
@@ -205,7 +209,7 @@ public class SecurityConfig {
                                 HttpMethod.GET,
                                 "/api/lessons/*/sessions",
                                 "/api/lessons/*/sessions/*"
-                        ).permitAll()
+                        ).authenticated()
 
                         .requestMatchers(
                                 HttpMethod.POST,

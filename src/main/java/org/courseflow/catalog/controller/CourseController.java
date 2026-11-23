@@ -18,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.catalog.dto.TagResponse;
+import org.courseflow.catalog.dto.ReassignCourseTeacherRequest;
 
 import java.net.URI;
 
@@ -192,6 +193,26 @@ public class CourseController {
     ) {
         return courseService.findCourseTags(
                 courseId, page, size
+        );
+    }
+
+    @PutMapping("/{courseId}/teacher")
+    public CourseResponse reassignTeacher(
+            @PathVariable Long courseId,
+            @Valid @RequestBody ReassignCourseTeacherRequest request,
+            Authentication authentication
+    ) {
+        boolean isAdmin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority()
+                                .equals("ROLE_ADMIN")
+                );
+
+        return courseService.reassignTeacher(
+                courseId,
+                request.teacherId(),
+                isAdmin
         );
     }
 
