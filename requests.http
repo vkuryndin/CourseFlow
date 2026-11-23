@@ -1742,3 +1742,322 @@ Authorization: Bearer {{teacher_token}}
 
 ### Users without authorization — expected 401
 GET http://localhost:8080/api/users?page=0&size=10
+
+
+
+### =========================================================
+### STAGE 5.1.1 — ENROLLMENT
+### Setup + functional tests
+### =========================================================
+
+@enrollment_test_password = CourseFlowTest2026!
+@enrollment_teacher_email = enrollment.teacher.20261123@courseflow.local
+@enrollment_student_email = enrollment.student.20261123@courseflow.local
+
+
+### =========================================================
+### SETUP — CREATE TEST DATA
+### =========================================================
+
+### 1. Login ADMIN - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+    client.global.set("admin_id", response.body.userId);
+%}
+
+
+
+### 1. Create teacher with STUDENT + TEACHER roles — 201
+POST http://localhost:8080/api/users
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "displayName": "Enrollment Test Teacher",
+  "email": "{{enrollment_teacher_email}}",
+  "password": "{{enrollment_test_password}}",
+  "roles": ["STUDENT", "TEACHER"]
+}
+
+> {%
+    client.global.set("enrollment_teacher_id", response.body.id);
+%}
+
+
+### 2. Create student — 201
+POST http://localhost:8080/api/users
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "displayName": "Enrollment Test Student",
+  "email": "{{enrollment_student_email}}",
+  "password": "{{enrollment_test_password}}",
+  "roles": ["STUDENT"]
+}
+
+> {%
+    client.global.set("enrollment_student_id", response.body.id);
+%}
+
+
+### 3. Create category — 201
+POST http://localhost:8080/api/categories
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Enrollment Testing 20261123",
+  "description": "Test category for Enrollment"
+}
+
+> {%
+    client.global.set("enrollment_category_id", response.body.id);
+%}
+
+
+### 4. Create course — 201
+POST http://localhost:8080/api/courses
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Enrollment Test Course 20261123",
+  "description": "Course for testing student enrollment",
+  "categoryId": {{enrollment_category_id}},
+  "teacherId": {{enrollment_teacher_id}},
+  "duration": 56,
+  "startDate": "2026-12-01"
+}
+
+> {%
+    client.global.set("enrollment_course_id", response.body.id);
+%}
+
+
+### 5. Login as student — 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{enrollment_student_email}}",
+  "password": "{{enrollment_test_password}}"
+}
+
+> {%
+    client.global.set("enrollment_student_token", response.body.accessToken);
+%}
+
+
+### 6. Login as teacher — 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{enrollment_teacher_email}}",
+  "password": "{{enrollment_test_password}}"
+}
+
+> {%
+    client.global.set("enrollment_teacher_token", response.body.accessToken);
+%}
+
+
+### =========================================================
+### ENROLLMENT — POSITIVE TESTS
+### =========================================================
+
+### 7. First enrollment — expected 201 Created
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.global.set("enrollment_id", response.body.id);
+%}
+
+
+### 8. Duplicate enrollment — expected 200 OK
+### Must return the SAME enrollment ID
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 9. Get my enrollment — expected 200, ACTIVE
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 10. Withdraw from course — expected 204 No Content
+DELETE http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 11. Check withdrawal — expected 200, WITHDRAWN
+### endedAt must NOT be null
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 12. Re-enroll after withdrawal — expected 200, ACTIVE
+### Must reuse the SAME enrollment ID
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 13. Check reactivation — expected 200, ACTIVE
+### endedAt must be null
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### ENROLLMENT — NEGATIVE TESTS
+### =========================================================
+
+### 14. Teacher enrolls in own course — expected 409
+### Teacher has STUDENT + TEACHER roles
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 15. ADMIN without STUDENT role — expected 403
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{admin_token}}
+
+
+### 16. Enrollment without JWT — expected 401
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+
+
+### 17. Enroll in nonexistent course — expected 404
+POST http://localhost:8080/api/courses/999999/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### ARCHIVED COURSE
+### Run these LAST — course status will change
+### =========================================================
+
+### 18. Archive test course — expected 200
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/archive
+Authorization: Bearer {{admin_token}}
+
+
+### 19. Check archived course — expected 200, ARCHIVED
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}
+
+
+### 20. Enroll in archived course — expected 409
+POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 21. Enrollment history after archive — expected 200
+### Existing enrollment must remain ACTIVE
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+
+### =========================================================
+### STAGE 5.1.2 — ENROLLMENT LISTS
+### =========================================================
+
+### 1. Teacher gets students of own course — 200
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?page=0&size=10
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 2. Teacher gets ACTIVE students — 200
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?status=ACTIVE&page=0&size=10
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 3. Teacher gets WITHDRAWN students — 200
+### Expected: empty content
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?status=WITHDRAWN
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 4. ADMIN gets course enrollments — 200
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{admin_token}}
+
+
+### 5. Student gets own courses — 200
+GET http://localhost:8080/api/users/me/enrollments?page=0&size=10
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 6. Student filters own ACTIVE enrollments — 200
+GET http://localhost:8080/api/users/me/enrollments?status=ACTIVE
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 7. Student filters own WITHDRAWN enrollments — 200
+### Expected: empty content
+GET http://localhost:8080/api/users/me/enrollments?status=WITHDRAWN
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 8. Pagination and sorting — 200
+GET http://localhost:8080/api/users/me/enrollments?page=0&size=1&sortBy=enrolledAt&direction=desc
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### NEGATIVE TESTS
+### =========================================================
+
+### 9. Student cannot list all course participants — 403
+GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 10. Teacher cannot list another teacher's course — 403
+### Course 3 belongs to another teacher
+GET http://localhost:8080/api/courses/3/enrollments
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 11. ADMIN without STUDENT role cannot use student endpoint — 403
+GET http://localhost:8080/api/users/me/enrollments
+Authorization: Bearer {{admin_token}}
+
+
+### 12. Unauthenticated user — 401
+GET http://localhost:8080/api/users/me/enrollments
+
+
+### 13. Invalid page — 400
+GET http://localhost:8080/api/users/me/enrollments?page=-1
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 14. Invalid size — 400
+GET http://localhost:8080/api/users/me/enrollments?size=101
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 15. Invalid sort field — 400
+GET http://localhost:8080/api/users/me/enrollments?sortBy=passwordHash
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 16. Invalid status — 400
+GET http://localhost:8080/api/users/me/enrollments?status=UNKNOWN
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 17. Nonexistent course — 404
+GET http://localhost:8080/api/courses/999999/enrollments
+Authorization: Bearer {{admin_token}}

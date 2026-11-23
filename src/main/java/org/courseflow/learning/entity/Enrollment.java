@@ -82,4 +82,21 @@ public class Enrollment {
         this.status = EnrollmentStatus.ACTIVE;
         this.endedAt = null;
     }
+
+    public static Enrollment createForStudent(
+            User student,
+            Course course,
+            Instant now
+    ) {
+        Enrollment enrollment = new Enrollment();
+
+        enrollment.student = student;
+        enrollment.course = course;
+        enrollment.enrolledAt = now;
+        enrollment.endedAt = null;
+        enrollment.status = EnrollmentStatus.ACTIVE;
+
+        return enrollment;
+    }
+
 }

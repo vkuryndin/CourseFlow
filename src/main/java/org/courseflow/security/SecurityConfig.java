@@ -61,6 +61,11 @@ public class SecurityConfig {
                         ).authenticated()
 
                         .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/users/me/enrollments"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
                                 "/api/users",
                                 "/api/users/**"
                         ).hasRole("ADMIN")
@@ -232,6 +237,25 @@ public class SecurityConfig {
                                 "/api/lessons/*/sessions/*"
                         ).hasAnyRole("ADMIN", "TEACHER")
 
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/courses/*/enrollments"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/enrollments/me"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/courses/*/enrollments/me"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/enrollments"
+                        ).hasAnyRole("ADMIN", "TEACHER")
 
                         .requestMatchers("/api/**").authenticated()
 
