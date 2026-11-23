@@ -82,4 +82,23 @@ public class LessonSession {
         this.format = format;
         this.meetingUrl = meetingUrl;
     }
+    public void updateDetails(
+            Instant startsAt,
+            Instant endsAt,
+            LessonSessionFormat format,
+            String meetingUrl
+    ) {
+        this.startsAt = startsAt;
+        this.endsAt = endsAt;
+        this.format = format;
+        this.meetingUrl = meetingUrl;
+    }
+
+    public void changeTime(
+            Instant startsAt,
+            Instant endsAt
+    ) {
+        this.startsAt = startsAt;
+        this.endsAt = endsAt;
+    }
 }

@@ -1165,7 +1165,7 @@ Authorization: Bearer {{admin_token}}
 
 
 ###--------------------------------------
-###Проверка тегов
+###Проверка тегов - создание, поиск
 ###--------------------------------------
 
 
@@ -1242,6 +1242,10 @@ Authorization: Bearer {{admin_token}}
 GET http://localhost:8080/api/tags/{{tag_id}}
 
 
+###--------------------------------------
+###Проверка тегов - назначение на курс
+###--------------------------------------
+
 
 ### 1. Create first tag - 201
 POST http://localhost:8080/api/tags
@@ -1312,3 +1316,403 @@ Authorization: Bearer {{admin_token}}
 
 ### 11. List remaining tags - 200
 GET http://localhost:8080/api/courses/{{course_id}}/tags?page=0&size=10
+
+
+
+###--------------------------------------
+###Создание модулей
+###--------------------------------------
+
+### 1. Login ADMIN - 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+    client.global.set("admin_id", response.body.userId);
+%}
+
+
+
+### 1. Create module - 201
+POST http://localhost:8080/api/courses/3/modules
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Introduction to Java",
+  "description": "Java syntax and basic concepts",
+  "position": 1
+}
+
+
+### 2. Create second module - 201
+POST http://localhost:8080/api/courses/3/modules
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Object-Oriented Programming",
+  "description": "Classes, inheritance and polymorphism",
+  "position": 2
+}
+
+
+### 3. List modules - 200
+GET http://localhost:8080/api/courses/3/modules?page=0&size=10
+
+
+### 4. Pagination - 200
+GET http://localhost:8080/api/courses/3/modules?page=0&size=1
+
+
+### 5. Duplicate position - 409
+POST http://localhost:8080/api/courses/3/modules
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Another module",
+  "position": 1
+}
+
+
+### 6. Invalid position - 400
+POST http://localhost:8080/api/courses/3/modules
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid module",
+  "position": 0
+}
+
+
+### 1. Get module - 200
+GET http://localhost:8080/api/courses/3/modules/1
+
+
+### 2. Update module - 200
+PUT http://localhost:8080/api/courses/3/modules/1
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Fundamentals",
+  "description": "Updated Java fundamentals course module"
+}
+
+
+### 3. Swap positions - 200
+PATCH http://localhost:8080/api/courses/3/modules/1/position
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "position": 2
+}
+
+
+### 4. Check new order - 200
+GET http://localhost:8080/api/courses/3/modules?page=0&size=10
+
+
+### 5. Invalid position - 400
+PATCH http://localhost:8080/api/courses/3/modules/1/position
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "position": 0
+}
+
+
+### 6. Delete empty module - 204
+DELETE http://localhost:8080/api/courses/3/modules/2
+Authorization: Bearer {{admin_token}}
+
+
+### 7. Deleted module - 404
+GET http://localhost:8080/api/courses/3/modules/2
+
+
+
+### 1. Create lesson - 201
+POST http://localhost:8080/api/courses/3/modules/1/lessons
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Variables",
+  "content": "Primitive types, variables and operators",
+  "videoUrl": null,
+  "position": 1
+}
+
+> {%
+    client.global.set("lesson_id", response.body.id);
+%}
+
+
+### 2. Create second lesson - 201
+POST http://localhost:8080/api/courses/3/modules/1/lessons
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Control Flow",
+  "content": "If statements, switch and loops",
+  "videoUrl": null,
+  "position": 2
+}
+
+
+### 3. Get all lessons - 200
+GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=10
+
+
+### 4. Pagination - 200
+GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=1
+
+
+### 5. Get lesson by ID - 200
+GET http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}
+
+
+### 6. Duplicate position - 409
+POST http://localhost:8080/api/courses/3/modules/1/lessons
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Duplicate lesson",
+  "content": "Test",
+  "position": 1
+}
+
+
+### 7. Invalid position - 400
+POST http://localhost:8080/api/courses/3/modules/1/lessons
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid lesson",
+  "content": "Test",
+  "position": 0
+}
+
+###lessons
+
+### 1. Update lesson - 200
+PUT http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Variables and Types",
+  "content": "Primitive types, variables, operators and type casting",
+  "videoUrl": null
+}
+
+
+### 2. Swap lesson positions - 200
+PATCH http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}/position
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "position": 2
+}
+
+
+### 3. Verify lesson order - 200
+GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=10
+
+
+### 4. Invalid position - 400
+PATCH http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}/position
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "position": 0
+}
+
+
+### 5. Create temporary lesson - 201
+POST http://localhost:8080/api/courses/3/modules/1/lessons
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Temporary Lesson",
+  "content": "Temporary test content",
+  "position": 99
+}
+
+> {%
+    client.global.set("temp_lesson_id", response.body.id);
+%}
+
+
+### 6. Delete temporary lesson - 204
+DELETE http://localhost:8080/api/courses/3/modules/1/lessons/{{temp_lesson_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 7. Verify deleted lesson - 404
+GET http://localhost:8080/api/courses/3/modules/1/lessons/{{temp_lesson_id}}
+
+###lessons
+
+### Create first session - 201
+POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T10:00:00+04:00",
+  "endsAt": "2026-12-02T11:00:00+04:00",
+  "format": "ONLINE",
+  "meetingUrl": "https://example.org/meeting/java"
+}
+
+> {%
+    client.global.set("session_id", response.body.id);
+%}
+
+
+### Create adjacent session - 201
+POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T11:00:00+04:00",
+  "endsAt": "2026-12-02T12:00:00+04:00",
+  "format": "OFFLINE",
+  "meetingUrl": null
+}
+
+
+### Overlapping session - 409
+POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T10:30:00+04:00",
+  "endsAt": "2026-12-02T11:30:00+04:00",
+  "format": "ONLINE",
+  "meetingUrl": null
+}
+
+
+### Invalid time range - 400
+POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T12:00:00+04:00",
+  "endsAt": "2026-12-02T10:00:00+04:00",
+  "format": "ONLINE",
+  "meetingUrl": null
+}
+
+
+### List sessions - 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=0&size=10
+
+
+### First page - 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=0&size=1
+
+
+### Second page - 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=1&size=1
+
+
+### Get session by ID - 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
+
+
+###lessons sessions
+
+
+### Update session - 200
+PUT http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T10:00:00+04:00",
+  "endsAt": "2026-12-02T11:00:00+04:00",
+  "format": "ONLINE",
+  "meetingUrl": "https://example.org/meeting/java-updated"
+}
+
+
+### Reschedule session - 200
+PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T12:00:00+04:00",
+  "endsAt": "2026-12-02T13:00:00+04:00"
+}
+
+
+### Overlapping reschedule - 409
+PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T11:30:00+04:00",
+  "endsAt": "2026-12-02T12:30:00+04:00"
+}
+
+### Invalid interval - 400
+PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-02T15:00:00+04:00",
+  "endsAt": "2026-12-02T14:00:00+04:00"
+}
+
+
+
+### Create temporary session - 201
+POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-03T14:00:00+04:00",
+  "endsAt": "2026-12-03T15:00:00+04:00",
+  "format": "OFFLINE",
+  "meetingUrl": null
+}
+
+> {%
+    client.global.set("temp_session_id", response.body.id);
+%}
+
+
+### Delete temporary session - 204
+DELETE http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### Verify deletion - 404
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}

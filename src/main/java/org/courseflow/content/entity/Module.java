@@ -103,4 +103,15 @@ public class Module {
 
         return lesson;
     }
+    public void updateDetails(String title, String description) {
+        this.title = title;
+        this.description = description;
+    }
+
+    public void changePosition(Integer position) {
+        this.position = position;
+    }
+    public void removeLesson(Lesson lesson) {
+        this.lessons.remove(lesson);
+    }
 }

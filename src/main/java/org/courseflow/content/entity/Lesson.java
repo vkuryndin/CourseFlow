@@ -142,4 +142,20 @@ public class Lesson {
 
         return assignment;
     }
+    public void updateDetails(
+            String title,
+            String content,
+            String videoUrl
+    ) {
+        this.title = title;
+        this.content = content;
+        this.videoUrl = videoUrl;
+    }
+
+    public void changePosition(Integer position) {
+        this.position = position;
+    }
+    public void removeSession(LessonSession session) {
+        this.sessions.remove(session);
+    }
 }

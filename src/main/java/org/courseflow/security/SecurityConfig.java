@@ -142,6 +142,93 @@ public class SecurityConfig {
                         ).hasAnyRole("ADMIN", "TEACHER")
 
 
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/modules"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/courses/*/modules"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/modules/*"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/courses/*/modules/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/courses/*/modules/*/position"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/courses/*/modules/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/modules/*/lessons",
+                                "/api/courses/*/modules/*/lessons/*"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/courses/*/modules/*/lessons"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/courses/*/modules/*/lessons/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/courses/*/modules/*/lessons/*/position"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/courses/*/modules/*/lessons/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/lessons/*/sessions",
+                                "/api/lessons/*/sessions/*"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/lessons/*/sessions"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/lessons/*/sessions/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/lessons/*/sessions/*/time"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/lessons/*/sessions/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+
                         .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().denyAll()
