@@ -942,3 +942,373 @@ Content-Type: application/json
   "email": "{{reset_email}}",
   "password": "AdminReset2026!"
 }
+
+
+###--------------------------------------
+###Проверка создания курса
+###--------------------------------------
+
+
+
+### Categories
+GET http://localhost:8080/api/categories
+
+### Teachers
+GET http://localhost:8080/api/users?role=TEACHER
+Authorization: Bearer {{admin_token}}
+
+
+### 1. Create course - expected 201
+POST http://localhost:8080/api/courses
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Programming Basics",
+  "description": "Основы Java и ООП",
+  "categoryId": 1,
+  "teacherId": 3,
+  "duration": 56,
+  "startDate": "2026-12-01"
+}
+
+> {%
+    client.global.set("course_id", response.body.id);
+%}
+
+
+### 2. Get course - expected 200
+GET http://localhost:8080/api/courses/{{course_id}}
+
+
+### 3. List courses - expected 200
+GET http://localhost:8080/api/courses?page=0&size=10
+
+
+### 4. Category not found - expected 404
+POST http://localhost:8080/api/courses
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Category Course",
+  "description": "Проверка отсутствующей категории",
+  "categoryId": 999999,
+  "teacherId": 3,
+  "duration": 30,
+  "startDate": "2026-12-01"
+}
+
+
+### 5. Invalid duration - expected 400
+POST http://localhost:8080/api/courses
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Duration Course",
+  "description": "Проверка продолжительности",
+  "categoryId": 1,
+  "teacherId": 3,
+  "duration": 0,
+  "startDate": "2026-12-01"
+}
+
+
+### 6. Missing course - expected 404
+GET http://localhost:8080/api/courses/999999
+
+
+###--------------------------------------
+###Проверка обновления курса
+###--------------------------------------
+
+
+### 1. Update course - expected 200
+PUT http://localhost:8080/api/courses/{{course_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Advanced Java Programming",
+  "description": "Углублённое изучение Java и ООП",
+  "categoryId": 1,
+  "teacherId": 3,
+  "duration": 70,
+  "startDate": "2026-12-10"
+}
+
+
+### 2. Read updated course - expected 200
+GET http://localhost:8080/api/courses/{{course_id}}
+
+
+### 3. Search courses - expected 200
+GET http://localhost:8080/api/courses?q=Java
+
+
+### 4. Filter by category - expected 200
+GET http://localhost:8080/api/courses?categoryId=1
+
+
+### 5. Filter by teacher - expected 200
+GET http://localhost:8080/api/courses?teacherId=3
+
+
+### 6. Filter ACTIVE courses - expected 200
+GET http://localhost:8080/api/courses?status=ACTIVE
+
+
+### 7. Sort by title descending - expected 200
+GET http://localhost:8080/api/courses?sortBy=title&direction=desc
+
+
+### 8. Pagination - expected 200
+GET http://localhost:8080/api/courses?page=0&size=2
+
+
+### 9. Combined filters - expected 200
+GET http://localhost:8080/api/courses?q=Java&categoryId=1&status=ACTIVE&sortBy=startDate&direction=asc
+
+
+### 10. Invalid sort field - expected 400
+GET http://localhost:8080/api/courses?sortBy=unknown
+
+
+### 11. Invalid duration - expected 400
+PUT http://localhost:8080/api/courses/{{course_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Course",
+  "description": "Проверка валидации",
+  "categoryId": 1,
+  "teacherId": 3,
+  "duration": 0,
+  "startDate": "2026-12-10"
+}
+
+
+### 12. Missing course - expected 404
+PUT http://localhost:8080/api/courses/999999
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Missing Course",
+  "description": "Несуществующий курс",
+  "categoryId": 1,
+  "teacherId": 3,
+  "duration": 30,
+  "startDate": "2026-12-10"
+}
+
+###--------------------------------------
+###Проверка архивирования курса
+###--------------------------------------
+
+
+
+### 1. Create a temporary course - 201
+POST http://localhost:8080/api/courses
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Temporary Course For Archive Test",
+  "description": "Курс для проверки архивирования и удаления",
+  "categoryId": 1,
+  "teacherId": 3,
+  "duration": 14,
+  "startDate": "2026-12-01"
+}
+
+> {%
+    client.global.set(
+        "temporary_course_id",
+        response.body.id
+    );
+%}
+
+
+### 2. Archive course - 200
+POST http://localhost:8080/api/courses/{{temporary_course_id}}/archive
+Authorization: Bearer {{admin_token}}
+
+
+### 3. Archive again - 200
+POST http://localhost:8080/api/courses/{{temporary_course_id}}/archive
+Authorization: Bearer {{admin_token}}
+
+
+### 4. Read archived course - 200
+GET http://localhost:8080/api/courses/{{temporary_course_id}}
+
+
+### 5. Filter archived courses - 200
+GET http://localhost:8080/api/courses?status=ARCHIVED&page=0&size=10
+
+
+### 6. Delete course without dependencies - 204
+DELETE http://localhost:8080/api/courses/{{temporary_course_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 7. Read deleted course - 404
+GET http://localhost:8080/api/courses/{{temporary_course_id}}
+
+
+### 8. Delete missing course - 404
+DELETE http://localhost:8080/api/courses/999999
+Authorization: Bearer {{admin_token}}
+
+
+###--------------------------------------
+###Проверка тегов
+###--------------------------------------
+
+
+### 1. Create tag - expected 201
+POST http://localhost:8080/api/tags
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "spring-data-jpa"
+}
+
+> {%
+    client.global.set("tag_id", response.body.id);
+%}
+
+
+### 2. List tags - expected 200
+GET http://localhost:8080/api/tags?page=0&size=10
+
+
+### 3. Search tags - expected 200
+GET http://localhost:8080/api/tags?q=jpa
+
+
+### 4. Get tag - expected 200
+GET http://localhost:8080/api/tags/{{tag_id}}
+
+
+### 5. Duplicate tag - expected 409
+POST http://localhost:8080/api/tags
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "spring-data-jpa"
+}
+
+
+### 6. Update tag - expected 200
+PUT http://localhost:8080/api/tags/{{tag_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "hibernate-orm"
+}
+
+
+### 7. Search after update - expected 200
+GET http://localhost:8080/api/tags?q=hibernate&sortBy=name&direction=asc&page=0&size=5
+
+
+### 8. Invalid name - expected 400
+POST http://localhost:8080/api/tags
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": ""
+}
+
+
+### 9. Invalid pagination - expected 400
+GET http://localhost:8080/api/tags?page=-1&size=10
+
+
+### 10. Delete unused tag - expected 204
+DELETE http://localhost:8080/api/tags/{{tag_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 11. Read deleted tag - expected 404
+GET http://localhost:8080/api/tags/{{tag_id}}
+
+
+
+### 1. Create first tag - 201
+POST http://localhost:8080/api/tags
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "java-core"
+}
+
+> {%
+    client.global.set("tag_1_id", response.body.id);
+%}
+
+
+### 2. Create second tag - 201
+POST http://localhost:8080/api/tags
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "spring-framework"
+}
+
+> {%
+    client.global.set("tag_2_id", response.body.id);
+%}
+
+
+### 3. Add first tag - 204
+POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 4. Add second tag - 204
+POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_2_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 5. Add first tag again - 204
+POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 6. List course tags - 200
+GET http://localhost:8080/api/courses/{{course_id}}/tags?page=0&size=1
+
+
+### 7. Try deleting a used tag - 409
+DELETE http://localhost:8080/api/tags/{{tag_1_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 8. Remove tag from course - 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 9. Remove tag again - 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 10. Delete unused tag - 204
+DELETE http://localhost:8080/api/tags/{{tag_1_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 11. List remaining tags - 200
+GET http://localhost:8080/api/courses/{{course_id}}/tags?page=0&size=10

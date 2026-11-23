@@ -163,7 +163,9 @@ public class Course {
     }
 
     public void removeTag(Tag tag) {
-        this.tags.remove(tag);
+        this.tags.removeIf(
+                existing -> existing.getId().equals(tag.getId())
+        );
     }
 
     public Module addModule(
@@ -211,4 +213,22 @@ public class Course {
     public void archive() {
         this.status = CourseStatus.ARCHIVED;
     }
+
+
+    public void updateDetails(
+            String newTitle,
+            String newDescription,
+            Category newCategory,
+            User newTeacher,
+            int newDuration,
+            LocalDate newStartDate
+    ) {
+        this.title = newTitle;
+        this.description = newDescription;
+        this.category = newCategory;
+        this.teacher = newTeacher;
+        this.duration = newDuration;
+        this.startDate = newStartDate;
+    }
+
 }

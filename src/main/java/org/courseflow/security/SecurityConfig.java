@@ -54,11 +54,6 @@ public class SecurityConfig {
                                 "/api/auth/reset-password"
                         ).permitAll()
 
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/auth/register",
-                                "/api/auth/login"
-                        ).permitAll()
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -71,9 +66,81 @@ public class SecurityConfig {
                         ).hasRole("ADMIN")
 
                         .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/categories",
+                                "/api/categories/**"
+                        ).permitAll()
+
+                        .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/categories"
                         ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses",
+                                "/api/courses/*"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/courses"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/courses/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/courses/*/archive"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/courses/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/tags",
+                                "/api/tags/*"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/tags"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/tags/*"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/tags/*"
+                        ).hasRole("ADMIN")
+
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/tags"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/courses/*/tags/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/courses/*/tags/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
 
                         .requestMatchers("/api/**").authenticated()
 
