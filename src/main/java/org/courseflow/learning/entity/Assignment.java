@@ -107,4 +107,16 @@ public class Assignment {
 
         return submission;
     }
+
+    public void updateDetails(
+            String title,
+            String description,
+            Instant dueAt,
+            Integer maxScore
+    ) {
+        this.title = title;
+        this.description = description;
+        this.dueAt = dueAt;
+        this.maxScore = maxScore;
+    }
 }

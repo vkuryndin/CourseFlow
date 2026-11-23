@@ -257,6 +257,37 @@ public class SecurityConfig {
                                 "/api/courses/*/enrollments"
                         ).hasAnyRole("ADMIN", "TEACHER")
 
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/lessons/*/assignments"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/lessons/*/assignments/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/lessons/*/assignments/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/lessons/*/assignments",
+                                "/api/lessons/*/assignments/*"
+                        ).authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/assignments/*/submissions"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/assignments/*/submissions/me"
+                        ).hasRole("STUDENT")
+
                         .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().denyAll()

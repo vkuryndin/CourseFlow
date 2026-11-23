@@ -2061,3 +2061,526 @@ Authorization: Bearer {{enrollment_student_token}}
 ### 17. Nonexistent course — 404
 GET http://localhost:8080/api/courses/999999/enrollments
 Authorization: Bearer {{admin_token}}
+
+
+### =========================================================
+### STAGE 5.1.3 — COURSE MATERIAL ACCESS
+### =========================================================
+
+
+### =========================================================
+### STAGE 5.1.3 — CREATE TEST DATA
+### Course -> Module -> Lesson -> LessonSession
+### =========================================================
+
+### 1. Create ACTIVE course — expected 201
+POST http://localhost:8080/api/courses
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Enrollment Access Test Course",
+  "description": "Course for testing access to learning materials",
+  "categoryId": {{enrollment_category_id}},
+  "teacherId": {{enrollment_teacher_id}},
+  "duration": 56,
+  "startDate": "2026-12-01"
+}
+
+> {%
+    client.global.set("course_id", response.body.id);
+%}
+
+
+### 2. Create module — expected 201
+POST http://localhost:8080/api/courses/{{course_id}}/modules
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Module 1 - Java Basics",
+  "description": "Introduction to Java programming",
+  "position": 1
+}
+
+> {%
+    client.global.set("module_id", response.body.id);
+%}
+
+
+### 3. Create lesson — expected 201
+POST http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Lesson 1 - Introduction to Java",
+  "content": "Java fundamentals, JVM, JDK and JRE.",
+  "videoUrl": "https://example.com/java-introduction",
+  "position": 1
+}
+
+> {%
+    client.global.set("lesson_id", response.body.id);
+%}
+
+
+### 4. Create ONLINE lesson session — expected 201
+POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "startsAt": "2026-12-08T10:00:00+04:00",
+  "endsAt": "2026-12-08T11:00:00+04:00",
+  "format": "ONLINE",
+  "meetingUrl": "https://meet.example.com/courseflow-lesson1"
+}
+
+> {%
+    client.global.set("session_id", response.body.id);
+%}
+
+
+### =========================================================
+### REFRESH TEST USER TOKENS
+### =========================================================
+
+### 1. Login ADMIN - expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@courseflow.local",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("admin_token", response.body.accessToken);
+    client.global.set("admin_id", response.body.userId);
+%}
+
+
+### 5. Login as STUDENT — expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{enrollment_student_email}}",
+  "password": "{{enrollment_test_password}}"
+}
+
+> {%
+    client.global.set("enrollment_student_token", response.body.accessToken);
+%}
+
+
+### 6. Login as TEACHER — expected 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{enrollment_teacher_email}}",
+  "password": "{{enrollment_test_password}}"
+}
+
+> {%
+    client.global.set("enrollment_teacher_token", response.body.accessToken);
+%}
+
+
+
+### 1. Guest cannot read lessons — expected 401
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
+
+
+### 2. Guest cannot read sessions — expected 401
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+
+
+### 3. ADMIN can read lessons — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
+Authorization: Bearer {{admin_token}}
+
+
+### 4. ADMIN can read lesson details — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 5. ADMIN can read sessions — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{admin_token}}
+
+
+### 6. ADMIN can read session details — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 7. Enroll test student — expected 201 or 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 8. Enrolled student reads lessons — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 9. Enrolled student reads lesson details — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 10. Enrolled student reads sessions — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 11. Withdraw test student — expected 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 12. Withdrawn student cannot read lessons — 403
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 13. Withdrawn student cannot read lesson details — 403
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 14. Withdrawn student cannot read sessions — 403
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 15. Withdrawn student cannot read session details — 403
+GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 16. Reactivate enrollment — expected 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 17. Reactivated student reads lessons — 200
+GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
+Authorization: Bearer {{enrollment_student_token}}
+
+
+
+### =========================================================
+### STAGE 5.2.1 — ASSIGNMENT CREATE / READ
+### =========================================================
+
+### 1. ADMIN creates assignment — expected 201
+POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Homework 1",
+  "description": "Explain the difference between JDK, JRE and JVM.",
+  "dueAt": "2026-12-20T18:00:00+04:00",
+  "maxScore": 100
+}
+
+> {%
+    client.test("Assignment created", function () {
+        client.assert(response.status === 201, "Expected 201");
+    });
+    client.global.set("assignment_id", response.body.id);
+%}
+
+
+### 2. Get assignment by ID — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 3. List assignments — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments?page=0&size=10
+Authorization: Bearer {{admin_token}}
+
+
+### 4. TEACHER creates assignment — expected 201
+POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Homework 2",
+  "description": "Write a short explanation of Java primitive types.",
+  "dueAt": "2026-12-22T18:00:00+04:00",
+  "maxScore": 50
+}
+
+
+### 5. STUDENT lists assignments — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 6. STUDENT reads assignment details — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 7. STUDENT cannot create assignment — expected 403
+POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "title": "Unauthorized Homework",
+  "description": "This assignment must not be created.",
+  "dueAt": "2026-12-23T18:00:00+04:00",
+  "maxScore": 100
+}
+
+
+### 8. Guest cannot read assignments — expected 401
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments
+
+
+### 9. Invalid maxScore — expected 400
+POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Homework",
+  "description": "Invalid maximum score.",
+  "dueAt": "2026-12-23T18:00:00+04:00",
+  "maxScore": 0
+}
+
+
+### 10. Nonexistent assignment — expected 404
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/999999
+Authorization: Bearer {{admin_token}}
+
+
+### 11. Sort assignments by dueAt DESC — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments?page=0&size=10&sortBy=dueAt&direction=desc
+Authorization: Bearer {{admin_token}}
+
+
+### =========================================================
+### STAGE 5.2.2 — ASSIGNMENT UPDATE / DELETE
+### =========================================================
+
+### 1. Teacher updates assignment — expected 200
+PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Homework 1 - Updated",
+  "description": "Explain JVM, JDK and JRE with examples.",
+  "dueAt": "2026-12-25T18:00:00+04:00",
+  "maxScore": 100
+}
+
+
+### 2. Read updated assignment — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 3. Student cannot update assignment — expected 403
+PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "title": "Unauthorized Update",
+  "description": "Student must not update assignments.",
+  "dueAt": "2026-12-26T18:00:00+04:00",
+  "maxScore": 100
+}
+
+
+### 4. Invalid maxScore — expected 400
+PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Assignment",
+  "description": "Invalid score.",
+  "dueAt": "2026-12-26T18:00:00+04:00",
+  "maxScore": 0
+}
+
+
+### 5. Create temporary assignment — expected 201
+POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Temporary Assignment for Deletion",
+  "description": "This assignment will be deleted during testing.",
+  "dueAt": "2026-12-28T18:00:00+04:00",
+  "maxScore": 50
+}
+
+> {%
+    client.global.set("assignment_delete_id", response.body.id);
+%}
+
+
+### 6. Delete temporary assignment — expected 204
+DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_delete_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 7. Read deleted assignment — expected 404
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_delete_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 8. Student cannot delete main assignment — expected 403
+DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 9. Main assignment still exists — expected 200
+GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### =========================================================
+### STAGE 5.2.3 — STUDENT SUBMISSION
+### =========================================================
+
+### 1. No submission yet — expected 404
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 2. Student submits homework — expected 201
+POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "content": "JDK is the development kit. JRE provides the runtime environment. JVM executes Java bytecode."
+}
+
+> {%
+    client.test("Submission created", function () {
+        client.assert(response.status === 201, "Expected 201");
+        client.assert(response.body.status === "SUBMITTED");
+        client.assert(response.body.score === null);
+    });
+    client.global.set("submission_id", response.body.id);
+%}
+
+
+### 3. Student reads own submission — expected 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 4. Duplicate submission — expected 409
+POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "content": "Attempting to submit the same homework twice."
+}
+
+
+### 5. Teacher without STUDENT role cannot submit — 403
+POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "content": "Teacher must not submit a student solution."
+}
+
+
+### 6. Guest cannot submit — expected 401
+POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Content-Type: application/json
+
+{
+  "content": "Unauthorized submission."
+}
+
+
+### 7. Empty content — expected 400
+POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "content": "   "
+}
+
+
+### 8. Unknown assignment — expected 404
+POST http://localhost:8080/api/assignments/999999/submissions
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "content": "Solution for a nonexistent assignment."
+}
+
+
+### 9. Teacher cannot update submitted assignment — 409
+PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Cannot modify submitted homework",
+  "description": "This operation must be rejected.",
+  "dueAt": "2026-12-28T18:00:00+04:00",
+  "maxScore": 100
+}
+
+
+### 10. ADMIN cannot delete submitted assignment — 409
+DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 11. Withdraw student — expected 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 12. Withdrawn student cannot submit new work — 403
+POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "content": "Attempt after enrollment withdrawal."
+}
+
+
+### 13. Withdrawn student can still read own work — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 14. Restore enrollment — expected 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 15. Previously submitted work still exists — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
+Authorization: Bearer {{enrollment_student_token}}

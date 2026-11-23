@@ -14,6 +14,10 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.content.dto.UpdateLessonRequest;
 import org.courseflow.content.dto.ChangeLessonPositionRequest;
+import org.courseflow.content.service.ContentAccessService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 
@@ -24,9 +28,14 @@ import java.net.URI;
 public class LessonController {
 
     private final LessonService lessonService;
+    private final ContentAccessService contentAccessService;
 
-    public LessonController(LessonService lessonService) {
+    public LessonController(
+            LessonService lessonService,
+            ContentAccessService contentAccessService
+    ) {
         this.lessonService = lessonService;
+        this.contentAccessService = contentAccessService;
     }
 
     @PostMapping
@@ -54,28 +63,47 @@ public class LessonController {
         return ResponseEntity.created(location).body(response);
     }
 
+
     @GetMapping
     public PageResponse<LessonResponse> findByModule(
             @PathVariable Long courseId,
             @PathVariable Long moduleId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
     ) {
+        contentAccessService.checkCourseAccess(
+                courseId,
+                Long.valueOf(jwt.getSubject()),
+                authentication
+        );
+
         return lessonService.findByModule(
                 courseId, moduleId, page, size
         );
     }
 
+
     @GetMapping("/{lessonId}")
     public LessonResponse getById(
             @PathVariable Long courseId,
             @PathVariable Long moduleId,
-            @PathVariable Long lessonId
+            @PathVariable Long lessonId,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
     ) {
+        contentAccessService.checkCourseAccess(
+                courseId,
+                Long.valueOf(jwt.getSubject()),
+                authentication
+        );
+
         return lessonService.getById(
                 courseId, moduleId, lessonId
         );
     }
+
 
     private boolean isAdmin(Authentication authentication) {
         return authentication.getAuthorities()

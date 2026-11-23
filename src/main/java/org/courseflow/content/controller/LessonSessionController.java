@@ -14,6 +14,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.content.dto.RescheduleLessonSessionRequest;
+import org.courseflow.content.service.ContentAccessService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 
@@ -22,11 +26,14 @@ import java.net.URI;
 public class LessonSessionController {
 
     private final LessonSessionService sessionService;
+    private final ContentAccessService contentAccessService;
 
     public LessonSessionController(
-            LessonSessionService sessionService
+            LessonSessionService sessionService,
+            ContentAccessService contentAccessService
     ) {
         this.sessionService = sessionService;
+        this.contentAccessService = contentAccessService;
     }
 
     @PostMapping
@@ -53,22 +60,40 @@ public class LessonSessionController {
                 .body(response);
     }
 
+
     @GetMapping
     public PageResponse<LessonSessionResponse> findByLesson(
             @PathVariable Long lessonId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
     ) {
+        contentAccessService.checkLessonAccess(
+                lessonId,
+                Long.valueOf(jwt.getSubject()),
+                authentication
+        );
+
         return sessionService.findByLesson(
                 lessonId, page, size
         );
     }
 
+
     @GetMapping("/{sessionId}")
     public LessonSessionResponse getById(
             @PathVariable Long lessonId,
-            @PathVariable Long sessionId
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
     ) {
+        contentAccessService.checkLessonAccess(
+                lessonId,
+                Long.valueOf(jwt.getSubject()),
+                authentication
+        );
+
         return sessionService.getById(
                 lessonId, sessionId
         );
