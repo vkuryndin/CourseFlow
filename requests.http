@@ -4704,3 +4704,82 @@ Authorization: Bearer {{enrollment_student_token}}
         client.assert(progress.upcomingDeadlines.length === 1);
     });
 %}
+
+
+### проверка отправки e-mail и смены пароля!
+
+@resetBaseUrl = http://localhost:8080
+@resetEmail = vkuryndin@gmail.com
+@resetOldPassword = CourseFlowTest2026!
+@resetNewPassword = CourseFlowChanged2026!
+@resetToken = WC1D_UbtmsBY3K-Is4vRVwWJtMJoZt1FDLmaHKnxrEg
+
+### S04-01. Register test user
+POST {{resetBaseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "displayName": "Password Reset Test",
+  "email": "{{resetEmail}}",
+  "password": "{{resetOldPassword}}"
+}
+
+### S04-02. Forgot password - existing email
+POST {{resetBaseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{resetEmail}}"
+}
+
+### S04-02. Forgot password - existing email
+POST {{resetBaseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{resetEmail}}"
+}
+
+### S04-03. Forgot password - unknown email
+POST {{resetBaseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "nonexistent-{{$uuid}}@example.com"
+}
+
+### S04-04. Reset password
+POST {{resetBaseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "{{resetToken}}",
+  "newPassword": "{{resetNewPassword}}"
+}
+
+### S04-05. Login with old password
+POST {{resetBaseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{resetEmail}}",
+  "password": "{{resetOldPassword}}"
+}
+
+### S04-06. Login with new password
+POST {{resetBaseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{resetEmail}}",
+  "password": "{{resetNewPassword}}"
+}
+
+### S04-07. Reuse reset token
+POST {{resetBaseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "{{resetToken}}",
+  "newPassword": "AnotherPassword2026!"
+}
