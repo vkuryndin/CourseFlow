@@ -39,6 +39,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
+    // Bytecode-based architecture checks, run with the existing JUnit tests.
+    testImplementation("com.tngtech.archunit:archunit:1.4.1")
+
     // Testcontainers
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
