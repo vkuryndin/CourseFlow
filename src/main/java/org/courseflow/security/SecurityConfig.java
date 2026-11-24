@@ -48,6 +48,21 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 HttpMethod.GET,
+                                "/api/dashboard/student"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/dashboard/teacher"
+                        ).hasRole("TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/dashboard/admin"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
                                 "/api/users/me/progress"
                         ).hasRole("STUDENT")
 
