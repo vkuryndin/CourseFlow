@@ -2997,6 +2997,39 @@
           "type": "string"
         }
       }
+    },
+    "PageResponsePublicTeacherResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PublicTeacherResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
     }
   },
   "operations": {
@@ -5507,6 +5540,44 @@
             "format": "int64"
           },
           "required": true
+        }
+      ]
+    },
+    "GET /api/teachers": {
+      "request": "",
+      "params": [
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0,
+            "minimum": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "required": false
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "",
+            "maxLength": 120
+          },
+          "required": false
         }
       ]
     }

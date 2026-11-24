@@ -7,7 +7,7 @@ public final class PublicEndpoints {
     private static final Set<String> GET = Set.of(
             "/api/categories", "/api/categories/*", "/api/tags", "/api/tags/*",
             "/api/courses", "/api/courses/*", "/api/courses/*/tags",
-            "/api/courses/*/modules", "/api/courses/*/modules/*", "/api/teachers/*",
+            "/api/courses/*/modules", "/api/courses/*/modules/*", "/api/teachers", "/api/teachers/*",
             "/api/courses/*/reviews", "/api/courses/*/reviews/rating");
     private static final Set<String> POST = Set.of(
             "/api/auth/register", "/api/auth/login", "/api/auth/forgot-password", "/api/auth/reset-password");

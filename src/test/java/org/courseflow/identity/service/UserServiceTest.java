@@ -83,6 +83,29 @@ class UserServiceTest {
     }
 
     @Test
+    void publicDirectoryMapsOnlyPublicFieldsAndUsesStableSort() {
+        stubPage(List.of(teacher()));
+        var result = service.findPublicTeachers(0, 20, "Teacher");
+        assertEquals(20L, result.content().get(0).id());
+        assertEquals("Teacher", result.content().get(0).displayName());
+        ArgumentCaptor<Pageable> page = ArgumentCaptor.forClass(Pageable.class);
+        verify(repository).findAll(any(Specification.class), page.capture());
+        assertEquals(org.springframework.data.domain.Sort.by("displayName", "id"), page.getValue().getSort());
+        verify(repository, never()).findWithRolesByIds(any());
+    }
+
+    @Test
+    void publicDirectoryRejectsInvalidParameters() {
+        assertThrows(org.courseflow.common.exception.BadRequestException.class,
+                () -> service.findPublicTeachers(-1, 20, ""));
+        assertThrows(org.courseflow.common.exception.BadRequestException.class,
+                () -> service.findPublicTeachers(0, 101, ""));
+        assertThrows(org.courseflow.common.exception.BadRequestException.class,
+                () -> service.findPublicTeachers(0, 20, "x".repeat(121)));
+        verifyNoInteractions(repository);
+    }
+
+    @Test
     void emptyPageDoesNotFetchRoles() {
         stubPage(List.of());
         assertTrue(service.findAll(0, 10, null, null, null, "id", "asc").content().isEmpty());

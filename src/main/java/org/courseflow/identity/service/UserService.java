@@ -6,6 +6,7 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.ResourceNotFoundException;
+import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.identity.dto.UserResponse;
 import org.courseflow.identity.dto.PublicTeacherResponse;
 import org.courseflow.identity.entity.User;
@@ -89,6 +90,30 @@ public class UserService {
                 .filter(u -> u.getStatus() == UserStatus.ACTIVE && u.getRoles().contains(UserRole.TEACHER))
                 .orElseThrow(() -> new ResourceNotFoundException("Teacher not found: " + id));
         return new PublicTeacherResponse(teacher.getId(), teacher.getDisplayName());
+    }
+
+    /** Public name-only directory; never search or return email addresses. */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public PageResponse<PublicTeacherResponse> findPublicTeachers(int page, int size, String q) {
+        Pagination.validate(page, size);
+        if (q != null && q.length() > 120) {
+            throw new BadRequestException("Teacher search must not exceed 120 characters");
+        }
+        String search = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
+        Specification<User> specification = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            // Membership avoids duplicate rows for users with multiple roles.
+            predicates.add(cb.isMember(UserRole.TEACHER, root.<Set<UserRole>>get("roles")));
+            predicates.add(cb.equal(root.get("status"), UserStatus.ACTIVE));
+            if (!search.isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("displayName")),
+                        SearchPatterns.containsLiteral(search), '\\'));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+        Pageable pageable = PageRequest.of(page, size, Pagination.stableSort("displayName", "asc"));
+        return PageResponse.from(userRepository.findAll(specification, pageable)
+                .map(user -> new PublicTeacherResponse(user.getId(), user.getDisplayName())));
     }
 
     private Specification<User> buildSpecification(
