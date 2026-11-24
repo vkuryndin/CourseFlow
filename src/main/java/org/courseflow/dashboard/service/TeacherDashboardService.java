@@ -153,7 +153,7 @@ public class TeacherDashboardService {
     private List<CourseSummary> findCourses(
             Long teacherId
     ) {
-        List<Object[]> rows = entityManager.createQuery(
+        return entityManager.createQuery(
                         """
                         SELECT c.id,
                                c.title,
@@ -170,7 +170,7 @@ public class TeacherDashboardService {
                         ORDER BY c.title ASC,
                                  c.id ASC
                         """,
-                        Object[].class
+                        CourseSummary.class
                 )
                 .setParameter("teacherId", teacherId)
                 .setParameter(
@@ -179,21 +179,12 @@ public class TeacherDashboardService {
                 )
                 .setMaxResults(COURSE_LIMIT)
                 .getResultList();
-
-        return rows.stream()
-                .map(row -> new CourseSummary(
-                        (Long) row[0],
-                        (String) row[1],
-                        (CourseStatus) row[2],
-                        (Long) row[3]
-                ))
-                .toList();
     }
 
     private List<PendingSubmission> findPendingSubmissions(
             Long teacherId
     ) {
-        List<Object[]> rows = entityManager.createQuery(
+        return entityManager.createQuery(
                         """
                         SELECT s.id,
                                a.id,
@@ -217,7 +208,7 @@ public class TeacherDashboardService {
                         ORDER BY s.submittedAt ASC,
                                  s.id ASC
                         """,
-                        Object[].class
+                        PendingSubmission.class
                 )
                 .setParameter("teacherId", teacherId)
                 .setParameter(
@@ -230,21 +221,6 @@ public class TeacherDashboardService {
                 )
                 .setMaxResults(EVENT_LIMIT)
                 .getResultList();
-
-        return rows.stream()
-                .map(row -> new PendingSubmission(
-                        (Long) row[0],
-                        (Long) row[1],
-                        (Long) row[2],
-                        (String) row[3],
-                        (Long) row[4],
-                        (String) row[5],
-                        (Long) row[6],
-                        (String) row[7],
-                        (Instant) row[8],
-                        (Integer) row[9]
-                ))
-                .toList();
     }
 
     private List<UpcomingSession> findUpcomingSessions(
@@ -301,7 +277,7 @@ public class TeacherDashboardService {
     private List<RecentQuizResult> findRecentQuizResults(
             Long teacherId
     ) {
-        List<Object[]> rows = entityManager.createQuery(
+        return entityManager.createQuery(
                         """
                         SELECT s.id,
                                q.id,
@@ -323,7 +299,7 @@ public class TeacherDashboardService {
                         ORDER BY s.finishedAt DESC,
                                  s.id DESC
                         """,
-                        Object[].class
+                        RecentQuizResult.class
                 )
                 .setParameter("teacherId", teacherId)
                 .setParameter(
@@ -332,20 +308,5 @@ public class TeacherDashboardService {
                 )
                 .setMaxResults(EVENT_LIMIT)
                 .getResultList();
-
-        return rows.stream()
-                .map(row -> new RecentQuizResult(
-                        (Long) row[0],
-                        (Long) row[1],
-                        (String) row[2],
-                        (Long) row[3],
-                        (String) row[4],
-                        (Long) row[5],
-                        (String) row[6],
-                        (Integer) row[7],
-                        (Integer) row[8],
-                        (Instant) row[9]
-                ))
-                .toList();
     }
 }

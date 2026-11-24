@@ -5,6 +5,7 @@ import org.courseflow.review.entity.CourseReview;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,6 +19,7 @@ public interface CourseReviewRepository
             Long studentId
     );
 
+    @EntityGraph(attributePaths = "student")
     Page<CourseReview> findAllByCourse_Id(
             Long courseId,
             Pageable pageable

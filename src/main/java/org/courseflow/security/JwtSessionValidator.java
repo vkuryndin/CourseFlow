@@ -1,9 +1,7 @@
 
 package org.courseflow.security;
 
-import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.auth.repository.AuthSessionRepository;
-import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserStatus;
 
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -14,7 +12,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.List;
 
@@ -47,36 +44,25 @@ public class JwtSessionValidator
             return invalid();
         }
 
-        Optional<AuthSession> optionalSession =
-                sessionRepository.findById(id);
-
-        if (optionalSession.isEmpty()) {
+        Long userId;
+        try {
+            userId = Long.valueOf(jwt.getSubject());
+        } catch (NumberFormatException ex) {
+            return invalid();
+        }
+        if (userId <= 0 || !userId.toString().equals(jwt.getSubject())) {
             return invalid();
         }
 
-        AuthSession session = optionalSession.get();
-
-        if (!session.isActive(Instant.now())) {
-            return invalid();
-        }
-
-        User user = session
-                .getUserAccount()
-                .getUser();
-
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            return invalid();
-        }
-
-        if (!user.getId().toString().equals(jwt.getSubject())) {
-            return invalid();
-        }
-
-        List<String> currentRoles = user.getRoles()
+        List<String> currentRoles = sessionRepository
+                .findValidSessionRoles(id, userId, UserStatus.ACTIVE, Instant.now())
                 .stream()
                 .map(Enum::name)
                 .sorted()
                 .toList();
+        if (currentRoles.isEmpty()) {
+            return invalid();
+        }
 
         List<String> tokenRoles =
                 jwt.getClaimAsStringList("roles");

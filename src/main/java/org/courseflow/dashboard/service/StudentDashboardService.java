@@ -44,9 +44,6 @@ public class StudentDashboardService {
     ) {
         Instant now = Instant.now();
 
-        long activeCourseCount =
-                countActiveCourses(studentId);
-
         PageResponse<CourseProgressResponse> courses =
                 progressService.getMyProgress(
                         studentId,
@@ -72,36 +69,11 @@ public class StudentDashboardService {
                 );
 
         return new StudentDashboardResponse(
-                activeCourseCount,
+                courses.totalElements(),
                 courses,
                 upcomingSessions,
                 upcomingDeadlines
         );
-    }
-
-    private long countActiveCourses(
-            Long studentId
-    ) {
-        return entityManager.createQuery(
-                        """
-                        SELECT COUNT(e)
-                        FROM Enrollment e
-                        WHERE e.student.id = :studentId
-                          AND e.status = :enrollmentStatus
-                          AND e.course.status = :courseStatus
-                        """,
-                        Long.class
-                )
-                .setParameter("studentId", studentId)
-                .setParameter(
-                        "enrollmentStatus",
-                        EnrollmentStatus.ACTIVE
-                )
-                .setParameter(
-                        "courseStatus",
-                        CourseStatus.ACTIVE
-                )
-                .getSingleResult();
     }
 
     private List<UpcomingSession> findUpcomingSessions(
@@ -169,7 +141,7 @@ public class StudentDashboardService {
             Long studentId,
             Instant now
     ) {
-        List<Object[]> rows = entityManager.createQuery(
+        return entityManager.createQuery(
                         """
                         SELECT a.id,
                                c.id,
@@ -200,7 +172,7 @@ public class StudentDashboardService {
                         ORDER BY a.dueAt ASC,
                                  a.id ASC
                         """,
-                        Object[].class
+                        UpcomingDeadline.class
                 )
                 .setParameter("studentId", studentId)
                 .setParameter("now", now)
@@ -214,17 +186,5 @@ public class StudentDashboardService {
                 )
                 .setMaxResults(EVENT_LIMIT)
                 .getResultList();
-
-        return rows.stream()
-                .map(row -> new UpcomingDeadline(
-                        (Long) row[0],
-                        (Long) row[1],
-                        (String) row[2],
-                        (Long) row[3],
-                        (String) row[4],
-                        (Integer) row[5],
-                        (Instant) row[6]
-                ))
-                .toList();
     }
 }

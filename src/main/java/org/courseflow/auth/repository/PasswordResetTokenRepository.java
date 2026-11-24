@@ -16,6 +16,10 @@ import java.util.Optional;
 public interface PasswordResetTokenRepository
         extends JpaRepository<PasswordResetToken, Long> {
 
+    @Modifying
+    @Query("delete from PasswordResetToken t where t.expiresAt < :cutoff")
+    int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
+
     Optional<PasswordResetToken> findByTokenHash(
             String tokenHash
     );
