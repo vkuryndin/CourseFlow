@@ -4,7 +4,7 @@ package org.courseflow.auth.service;
 import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.auth.repository.AuthSessionRepository;
 
-import org.springframework.security.authentication.BadCredentialsException;
+import org.courseflow.common.exception.InvalidSessionException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,9 +28,7 @@ public class LogoutService {
 
         AuthSession session = authSessionRepository
                 .findById(sessionId)
-                .orElseThrow(() -> new BadCredentialsException(
-                        "Authentication session not found"
-                ));
+                .orElseThrow(InvalidSessionException::new);
 
         session.revoke();
     }

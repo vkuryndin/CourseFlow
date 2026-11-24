@@ -20,7 +20,9 @@ import org.courseflow.security.JwtService;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.courseflow.auth.repository.AccountPasswordSnapshot;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,6 +33,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final Clock clock;
+    private final TransactionTemplate transaction;
 
     private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
@@ -45,9 +48,11 @@ public class AuthService {
             AuthSessionRepository authSessionRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            Clock clock
+            Clock clock,
+            PlatformTransactionManager transactionManager
     ) {
         this.clock = clock;
+        this.transaction = new TransactionTemplate(transactionManager);
         this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
@@ -56,119 +61,59 @@ public class AuthService {
         this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
-    @Transactional
-    public RegistrationResponse register(
-            RegistrationRequest request
-    ) {
+    public RegistrationResponse register(RegistrationRequest request) {
         String email = EmailAddresses.normalize(request.email());
-
+        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BadRequestException("Password must not exceed 72 UTF-8 bytes");
+        }
+        // Fast duplicate check; the unique database constraint is authoritative.
         if (userRepository.existsByEmail(email)) {
-            throw new BusinessConflictException(
-                    "Email is already registered"
-            );
+            throw new BusinessConflictException("Email is already registered");
         }
-
-        if (request.password()
-                .getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException(
-                    "Password must not exceed 72 UTF-8 bytes"
-            );
-        }
-
-        User user = new User(
-                request.displayName().trim(),
-                email,
-                Set.of(UserRole.STUDENT),
-                clock.instant()
-        );
-
-        User savedUser = userRepository.saveAndFlush(user);
-
-        String passwordHash =
-                passwordEncoder.encode(request.password());
-
-        UserAccount account = new UserAccount(
-                savedUser,
-                passwordHash,
-                clock.instant()
-        );
-
-        userAccountRepository.saveAndFlush(account);
-
-        return RegistrationResponse.from(savedUser);
+        String passwordHash = passwordEncoder.encode(request.password());
+        return transaction.execute(status -> {
+            if (userRepository.existsByEmail(email)) {
+                throw new BusinessConflictException("Email is already registered");
+            }
+            User user = new User(request.displayName().trim(), email,
+                    Set.of(UserRole.STUDENT), clock.instant());
+            User savedUser = userRepository.saveAndFlush(user);
+            userAccountRepository.saveAndFlush(new UserAccount(savedUser, passwordHash, clock.instant()));
+            return RegistrationResponse.from(savedUser);
+        });
     }
 
-    @Transactional
     public LoginResponse login(LoginRequest request) {
         String email = EmailAddresses.normalize(request.email());
-
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new BadRequestException("Password must not exceed 72 UTF-8 bytes");
         }
 
-        Long accountId = userAccountRepository
-                .findAccountIdByUserEmail(email)
-                .orElse(null);
+        AccountPasswordSnapshot snapshot = userAccountRepository.findPasswordByEmail(email).orElse(null);
+        // Comparable BCrypt work for an unknown email; no database lock while hashing.
+        boolean matches = passwordEncoder.matches(request.password(),
+                snapshot == null ? dummyPasswordHash : snapshot.passwordHash());
+        if (snapshot == null || !matches) throw invalidCredentials();
 
-        if (accountId == null) {
-            // Do comparable BCrypt work for nonexistent accounts.
-            passwordEncoder.matches(request.password(), dummyPasswordHash);
-            throw invalidCredentials();
-        }
-
-        // Serialize login with password changes and resets. Read the
-        // password hash only after obtaining the account lock.
-        UserAccount account = userAccountRepository
-                .findByIdForUpdate(accountId)
-                .orElse(null);
-
-        if (account == null) {
-            passwordEncoder.matches(request.password(), dummyPasswordHash);
-            throw invalidCredentials();
-        }
-
-        User user = account.getUser();
-
-        boolean passwordMatches = passwordEncoder.matches(
-                request.password(), account.getPasswordHash()
-        );
-        if (!passwordMatches || !email.equals(user.getEmail())) {
-            throw invalidCredentials();
-        }
-
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw invalidCredentials();
-        }
-
-        if (user.getRoles().isEmpty()) {
-            throw invalidCredentials();
-        }
-
-        Instant now = clock.instant();
-        Instant expiresAt = now
-                .plus(1, ChronoUnit.HOURS);
-
-        AuthSession session = new AuthSession(
-                account,
-                expiresAt,
-                now
-        );
-
-        AuthSession savedSession =
-                authSessionRepository.saveAndFlush(session);
-
-        String accessToken =
-                jwtService.generateAccessToken(savedSession);
-
-        return new LoginResponse(
-                accessToken,
-                "Bearer",
-                savedSession.getExpiresAt(),
-                user.getId(),
-                user.getDisplayName(),
-                user.getRoles(),
-                account.isPasswordChangeRequired()
-        );
+        return transaction.execute(status -> {
+            // Serialize with account updates and password resets. The hash must
+            // still be identical to the one verified outside the transaction.
+            UserAccount account = userAccountRepository.findByIdForUpdate(snapshot.accountId())
+                    .orElseThrow(this::invalidCredentials);
+            User user = account.getUser();
+            if (!snapshot.passwordHash().equals(account.getPasswordHash())
+                    || !email.equals(user.getEmail())
+                    || user.getStatus() != UserStatus.ACTIVE
+                    || user.getRoles().isEmpty()) {
+                throw invalidCredentials();
+            }
+            Instant now = clock.instant();
+            AuthSession session = new AuthSession(account, now.plus(1, ChronoUnit.HOURS), now);
+            AuthSession savedSession = authSessionRepository.saveAndFlush(session);
+            String accessToken = jwtService.generateAccessToken(savedSession);
+            return new LoginResponse(accessToken, "Bearer", savedSession.getExpiresAt(),
+                    user.getId(), user.getDisplayName(), user.getRoles(), account.isPasswordChangeRequired());
+        });
     }
 
     private BadCredentialsException invalidCredentials() {

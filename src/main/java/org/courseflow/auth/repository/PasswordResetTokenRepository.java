@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import org.courseflow.identity.entity.UserStatus;
 import java.util.Optional;
 
 public interface PasswordResetTokenRepository
@@ -32,6 +33,15 @@ public interface PasswordResetTokenRepository
     Optional<Long> findAccountIdByTokenHash(
             @Param("tokenHash") String tokenHash
     );
+
+    @Query("""
+            select new org.courseflow.auth.repository.AccountPasswordSnapshot(a.id, a.passwordHash)
+            from PasswordResetToken t join t.userAccount a
+            where t.tokenHash = :tokenHash and t.usedAt is null
+              and t.expiresAt > :now and a.user.status = :status
+            """)
+    Optional<AccountPasswordSnapshot> findValidPasswordSnapshot(@Param("tokenHash") String tokenHash,
+            @Param("now") Instant now, @Param("status") UserStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

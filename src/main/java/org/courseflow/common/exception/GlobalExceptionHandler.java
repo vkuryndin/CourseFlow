@@ -3,6 +3,8 @@ package org.courseflow.common.exception;
 
 import java.time.Clock;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.courseflow.common.api.RequestIdFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +85,27 @@ public class GlobalExceptionHandler {
                 HttpStatus.FORBIDDEN,
                 "Access denied",
                 request, "ACCESS_DENIED");
+    }
+
+    @ExceptionHandler(InvalidSessionException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidSession(InvalidSessionException ex, HttpServletRequest request) {
+        ApiErrorResponse body = buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request,
+                "INVALID_SESSION").getBody();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer").body(body);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleConstraintViolation(ConstraintViolationException ex,
+            HttpServletRequest request) {
+        // Never echo invalid values (they can be passwords or tokens).
+        return buildResponse(HttpStatus.BAD_REQUEST, "Request validation failed", request, "VALIDATION_FAILED");
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingHeader(MissingRequestHeaderException ex,
+            HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Missing header: " + ex.getHeaderName(), request, "MISSING_HEADER");
     }
 
     @ExceptionHandler(BadCredentialsException.class)

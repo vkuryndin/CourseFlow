@@ -12,6 +12,7 @@ import org.courseflow.auth.service.AuthService;
 import org.courseflow.auth.service.AuthRateLimiter;
 import org.courseflow.auth.service.LogoutService;
 
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,8 +40,10 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<RegistrationResponse> register(
-            @Valid @RequestBody RegistrationRequest request
+            @Valid @RequestBody RegistrationRequest request,
+            HttpServletRequest servletRequest
     ) {
+        authRateLimiter.checkRegistration(servletRequest.getRemoteAddr());
         RegistrationResponse response =
                 authService.register(request);
 
@@ -55,7 +58,12 @@ public class AuthController {
             HttpServletRequest servletRequest
     ) {
         authRateLimiter.checkLogin(servletRequest.getRemoteAddr(), request.email());
-        return authService.login(request);
+        try {
+            return authService.login(request);
+        } catch (BadCredentialsException ex) {
+            authRateLimiter.recordLoginFailure(request.email());
+            throw ex;
+        }
     }
 
     @PostMapping("/logout")

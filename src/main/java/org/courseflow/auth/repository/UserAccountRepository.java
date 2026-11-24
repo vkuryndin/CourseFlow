@@ -17,6 +17,18 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     Optional<UserAccount> findByUser_EmailIgnoreCase(String email);
 
+    @Query("""
+        select new org.courseflow.auth.repository.AccountPasswordSnapshot(a.id, a.passwordHash)
+        from UserAccount a where a.user.email = :email
+        """)
+    Optional<AccountPasswordSnapshot> findPasswordByEmail(@Param("email") String email);
+
+    @Query("""
+        select new org.courseflow.auth.repository.AccountPasswordSnapshot(a.id, a.passwordHash)
+        from UserAccount a where a.user.id = :userId
+        """)
+    Optional<AccountPasswordSnapshot> findPasswordByUserId(@Param("userId") Long userId);
+
     // Read only the ID so the account is not loaded into the persistence
     // context before acquiring the write lock.
     @Query("""

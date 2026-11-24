@@ -5,6 +5,8 @@ import java.util.concurrent.RejectedExecutionException;
 import org.courseflow.common.exception.RateLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -29,24 +31,29 @@ public class PasswordResetDispatcher {
     public void enqueue(String email) {
         // Submit exactly the same task for every valid email, without
         // querying PostgreSQL or waiting for SMTP on the HTTP thread.
+        String requestId = MDC.get("requestId");
         try {
-            executor.execute(() -> process(email));
+            executor.execute(() -> process(email, requestId));
         } catch (RejectedExecutionException ex) {
             // Same overload response regardless of account existence.
+            log.warn("Password reset queue is full; request rejected");
             throw new RateLimitExceededException(60);
         }
     }
 
-    private void process(String email) {
+    private void process(String email, String requestId) {
+        String previous = MDC.get("requestId");
+        if (requestId == null) MDC.remove("requestId");
+        else MDC.put("requestId", requestId);
         try {
-            // Calls the transactional Spring proxy on the worker thread.
-            // Token generation and after-commit email delivery stay intact.
             passwordResetService.requestReset(email);
         } catch (RuntimeException ex) {
-            // Do not log the supplied email, raw reset token or exception
-            // message, which may contain sensitive request data.
-            log.error("Password reset processing failed: {}",
-                    ex.getClass().getSimpleName());
+            // Stack frames are useful; messages and causes may contain credentials or email addresses.
+            log.error("Password reset processing failed: {}; stack={}",
+                    ex.getClass().getName(), Arrays.toString(ex.getStackTrace()));
+        } finally {
+            if (previous == null) MDC.remove("requestId");
+            else MDC.put("requestId", previous);
         }
     }
 }

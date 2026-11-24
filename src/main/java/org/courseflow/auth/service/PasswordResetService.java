@@ -18,9 +18,12 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.courseflow.auth.repository.AccountPasswordSnapshot;
+import java.util.Arrays;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -35,6 +38,8 @@ import java.util.HexFormat;
 public class PasswordResetService {
 
     private final Clock clock;
+    private final TransactionTemplate transaction;
+    private final boolean includeTestToken;
 
     private static final Logger log =
             LoggerFactory.getLogger(PasswordResetService.class);
@@ -65,9 +70,14 @@ public class PasswordResetService {
             @Value("${spring.mail.username}") String senderEmail,
             @Value("${courseflow.password-reset-url}")
             String resetPageUrl,
-            Clock clock
+            Clock clock,
+            PlatformTransactionManager transactionManager,
+            Environment environment
     ) {
         this.clock = clock;
+        this.transaction = new TransactionTemplate(transactionManager);
+        this.includeTestToken = environment.acceptsProfiles(Profiles.of("dev"))
+                && !environment.acceptsProfiles(Profiles.of("prod"));
         this.userAccountRepository = userAccountRepository;
         this.tokenRepository = tokenRepository;
         this.authSessionRepository = authSessionRepository;
@@ -77,152 +87,69 @@ public class PasswordResetService {
         this.resetPageUrl = resetPageUrl;
     }
 
-    @Transactional
     public void requestReset(String email) {
-
-        String normalizedEmail =
-                EmailAddresses.normalize(email);
-
-        Long accountId = userAccountRepository
-                .findAccountIdByUserEmail(normalizedEmail)
-                .orElse(null);
-
-        // The API returns the same response for unknown,
-        // inactive and existing users.
-        if (accountId == null) {
-            return;
-        }
-
-        UserAccount account = userAccountRepository
-                .findByIdForUpdate(accountId)
-                .orElse(null);
-
-        if (account == null
-                || !normalizedEmail.equals(account.getUser().getEmail())
-                || account.getUser().getStatus()
-                != UserStatus.ACTIVE) {
-            return;
-        }
-
-        Instant now = clock.instant();
-
-        // At most one new request per two minutes
-        // for this account.
-        Instant cooldownThreshold = now.plus(
-                TOKEN_LIFETIME.minus(REQUEST_COOLDOWN)
-        );
-
-        if (tokenRepository
-                .existsByUserAccount_IdAndUsedAtIsNullAndExpiresAtAfter(
-                        account.getId(),
-                        cooldownThreshold
-                )) {
-            return;
-        }
-
-        // New request invalidates previous reset links.
-        tokenRepository.invalidateUnusedTokensForAccount(
-                account.getId(),
-                now
-        );
-
-        String rawToken = generateToken();
-
-        PasswordResetToken resetToken =
-                new PasswordResetToken(
-                        account,
-                        hashToken(rawToken),
-                        now.plus(TOKEN_LIFETIME)
-                );
-
-        tokenRepository.saveAndFlush(resetToken);
-
-        String recipient = account.getUser().getEmail();
-
-        // Send only after PostgreSQL commits the token.
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        sendResetEmail(recipient, rawToken);
-                    }
-                }
-        );
+        String normalizedEmail = EmailAddresses.normalize(email);
+        ResetDelivery delivery = transaction.execute(status -> createResetToken(normalizedEmail));
+        // TransactionTemplate has committed and released the JDBC connection.
+        // Do not send on rollback or while holding an account lock.
+        if (delivery != null) sendResetEmail(delivery.recipient(), delivery.rawToken());
     }
 
-    @Transactional
-    public void resetPassword(ResetPasswordRequest request) {
-
-        String newPassword = request.newPassword();
-
-        if (newPassword
-                .getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException(
-                    "New password must not exceed 72 UTF-8 bytes"
-            );
-        }
-
-        String tokenHash = hashToken(request.token());
-
-        Long accountId = tokenRepository
-                .findAccountIdByTokenHash(tokenHash)
-                .orElseThrow(() ->
-                        new BadRequestException(
-                                "Invalid or expired reset token"
-                        )
-                );
-
-        // Serialize password resets for one account.
-        UserAccount account = userAccountRepository
-                .findByIdForUpdate(accountId)
-                .orElseThrow(() ->
-                        new BadRequestException(
-                                "Invalid or expired reset token"
-                        )
-                );
-
-        PasswordResetToken token = tokenRepository
-                .findByTokenHashForUpdate(tokenHash)
-                .orElseThrow(() ->
-                        new BadRequestException(
-                                "Invalid or expired reset token"
-                        )
-                );
+    private ResetDelivery createResetToken(String normalizedEmail) {
+        Long accountId = userAccountRepository.findAccountIdByUserEmail(normalizedEmail).orElse(null);
+        if (accountId == null) return null;
+        UserAccount account = userAccountRepository.findByIdForUpdate(accountId).orElse(null);
+        if (account == null || !normalizedEmail.equals(account.getUser().getEmail())
+                || account.getUser().getStatus() != UserStatus.ACTIVE) return null;
 
         Instant now = clock.instant();
+        Instant cooldownThreshold = now.plus(TOKEN_LIFETIME.minus(REQUEST_COOLDOWN));
+        if (tokenRepository.existsByUserAccount_IdAndUsedAtIsNullAndExpiresAtAfter(
+                account.getId(), cooldownThreshold)) return null;
 
-        if (!token.isValid(now)
-                || account.getUser().getStatus()
-                != UserStatus.ACTIVE) {
-            throw new BadRequestException(
-                    "Invalid or expired reset token"
-            );
+        tokenRepository.invalidateUnusedTokensForAccount(account.getId(), now);
+        String rawToken = generateToken();
+        tokenRepository.saveAndFlush(new PasswordResetToken(account, hashToken(rawToken), now.plus(TOKEN_LIFETIME)));
+        return new ResetDelivery(account.getUser().getEmail(), rawToken);
+    }
+
+    private record ResetDelivery(String recipient, String rawToken) {
+        @Override public String toString() { return "ResetDelivery[redacted]"; }
+    }
+
+    public void resetPassword(ResetPasswordRequest request) {
+        String newPassword = request.newPassword();
+        if (newPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BadRequestException("New password must not exceed 72 UTF-8 bytes");
         }
-
-        if (passwordEncoder.matches(
-                newPassword,
-                account.getPasswordHash()
-        )) {
-            throw new BadRequestException(
-                    "New password must differ from current password"
-            );
+        String tokenHash = hashToken(request.token());
+        AccountPasswordSnapshot snapshot = tokenRepository.findValidPasswordSnapshot(
+                tokenHash, clock.instant(), UserStatus.ACTIVE).orElseThrow(this::invalidToken);
+        // Avoid BCrypt for invalid tokens. Revalidate both token and hash under lock below.
+        if (passwordEncoder.matches(newPassword, snapshot.passwordHash())) {
+            throw new BadRequestException("New password must differ from current password");
         }
+        String newHash = passwordEncoder.encode(newPassword);
+        transaction.executeWithoutResult(status -> {
+            UserAccount account = userAccountRepository.findByIdForUpdate(snapshot.accountId())
+                    .orElseThrow(this::invalidToken);
+            PasswordResetToken token = tokenRepository.findByTokenHashForUpdate(tokenHash)
+                    .orElseThrow(this::invalidToken);
+            Instant now = clock.instant();
+            if (!token.isValid(now) || !token.getUserAccount().getId().equals(account.getId())
+                    || account.getUser().getStatus() != UserStatus.ACTIVE
+                    || !snapshot.passwordHash().equals(account.getPasswordHash())) {
+                throw invalidToken();
+            }
+            account.replacePasswordHash(newHash);
+            token.markUsed(now);
+            tokenRepository.invalidateUnusedTokensForAccount(account.getId(), now);
+            authSessionRepository.revokeActiveSessionsByUserId(account.getUser().getId());
+        });
+    }
 
-        account.replacePasswordHash(
-                passwordEncoder.encode(newPassword)
-        );
-
-        // Mark the current token as used.
-        token.markUsed(now);
-
-        // Invalidate any other outstanding reset tokens.
-        tokenRepository.invalidateUnusedTokensForAccount(
-                account.getId(),
-                now
-        );
-
-        // Every JWT issued before the reset is revoked.
-        authSessionRepository.revokeActiveSessionsByUserId(account.getUser().getId());
+    private BadRequestException invalidToken() {
+        return new BadRequestException("Invalid or expired reset token");
     }
 
     private String generateToken() {
@@ -275,10 +202,9 @@ public class PasswordResetService {
                         + "Reset link:\n"
                         + url
                         + "\n\n"
-                        + "For testing through requests.http, "
-                        + "use this one-time token:\n"
-                        + rawToken
-                        + "\n\n"
+                        + (includeTestToken
+                           ? "For testing through requests.http, use this one-time token:\n" + rawToken + "\n\n"
+                           : "")
                         + "The token expires in 30 minutes.\n"
                         + "If you did not request a reset, "
                         + "ignore this message."
@@ -290,8 +216,8 @@ public class PasswordResetService {
             // Do not disclose whether the email exists,
             // and never log the raw reset token.
             log.error(
-                    "Unable to send password reset email via SMTP",
-                    ex
+                    "Unable to send password reset email via SMTP: {}; stack={}",
+                    ex.getClass().getName(), Arrays.toString(ex.getStackTrace())
             );
         }
     }
