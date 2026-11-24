@@ -11,6 +11,14 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+  # Tomcat resolves the client IP before Spring Security / Rate Limiting.
+  # Trust only the explicitly configured Nginx peer; unset or empty trusts none.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: '^\Q${COURSEFLOW_TRUSTED_PROXY_IP:}\E$'
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
 
 springdoc:
   api-docs:
