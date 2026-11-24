@@ -74,7 +74,7 @@ public class EnrollmentService {
             );
         }
 
-        User student = userRepository.findById(studentId)
+        User student = userRepository.findByIdForUpdate(studentId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Student not found: " + studentId

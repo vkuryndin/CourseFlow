@@ -369,6 +369,11 @@ public class SecurityConfig {
                         ).hasRole("STUDENT")
 
                         .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/courses/*/enrollments/students/*"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/courses/*/enrollments"
                         ).hasAnyRole("ADMIN", "TEACHER")

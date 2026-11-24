@@ -9,6 +9,8 @@ import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
+import org.courseflow.identity.entity.UserRole;
+import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.learning.dto.SubmissionResponse;
 import org.courseflow.learning.entity.Assignment;
@@ -26,8 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Optional;
 
-import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.learning.dto.GradeSubmissionRequest;
@@ -35,7 +35,6 @@ import org.courseflow.learning.entity.SubmissionStatus;
 
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.access.AccessDeniedException;
 
 import jakarta.persistence.TypedQuery;
 
@@ -74,18 +73,8 @@ public class SubmissionService {
             Long studentId,
             String content
     ) {
-        Assignment assignment = assignmentRepository
-                .findById(assignmentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Assignment not found: " + assignmentId
-                        )
-                );
-
-        Long courseId = assignment.getLesson()
-                .getModule()
-                .getCourse()
-                .getId();
+        // Read only the ID before locking, not an Assignment entity.
+        Long courseId = findCourseId(assignmentId);
 
         // Same course lock as Assignment update/delete.
         Course course = courseRepository
@@ -100,6 +89,26 @@ public class SubmissionService {
             throw new BusinessConflictException(
                     "Cannot submit work to archived course"
             );
+        }
+
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Assignment not found: " + assignmentId
+                ));
+
+        if (course.getTeacher().getId().equals(studentId)) {
+            throw new BusinessConflictException(
+                    "Teacher cannot submit work for own course"
+            );
+        }
+
+        User student = userRepository.findByIdForUpdate(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Student not found: " + studentId
+                ));
+        if (student.getStatus() != UserStatus.ACTIVE
+                || !student.getRoles().contains(UserRole.STUDENT)) {
+            throw new AccessDeniedException("Active STUDENT is required");
         }
 
         boolean enrolled = enrollmentRepository
@@ -126,13 +135,6 @@ public class SubmissionService {
                     "Assignment has already been submitted"
             );
         }
-
-        User student = userRepository.findById(studentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Student not found: " + studentId
-                        )
-                );
 
         Submission submission = new Submission(
                 assignment,
@@ -174,24 +176,20 @@ public class SubmissionService {
         return SubmissionResponse.from(submission);
     }
 
+    private Long findCourseId(Long assignmentId) {
+        return assignmentRepository.findCourseIdByAssignmentId(assignmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Assignment not found: " + assignmentId
+                ));
+    }
+
     private Optional<Submission> findStudentSubmission(
             Long assignmentId,
             Long studentId
     ) {
-        return entityManager.createQuery(
-                        """
-                        SELECT s
-                        FROM Submission s
-                        WHERE s.assignment.id = :assignmentId
-                          AND s.student.id = :studentId
-                        """,
-                        Submission.class
-                )
-                .setParameter("assignmentId", assignmentId)
-                .setParameter("studentId", studentId)
-                .setMaxResults(1)
-                .getResultStream()
-                .findFirst();
+        return submissionRepository.findByAssignment_IdAndStudent_Id(
+                assignmentId, studentId
+        );
     }
 
     @Transactional(readOnly = true)
@@ -347,22 +345,7 @@ public class SubmissionService {
             boolean isAdmin,
             boolean forGrading
     ) {
-        Long courseId = entityManager.createQuery(
-                        """
-                        SELECT a.lesson.module.course.id
-                        FROM Assignment a
-                        WHERE a.id = :assignmentId
-                        """,
-                        Long.class
-                )
-                .setParameter("assignmentId", assignmentId)
-                .getResultStream()
-                .findFirst()
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Assignment not found: " + assignmentId
-                        )
-                );
+        Long courseId = findCourseId(assignmentId);
 
         Course course = (
                 forGrading

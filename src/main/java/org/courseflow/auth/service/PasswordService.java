@@ -8,6 +8,8 @@ import org.courseflow.auth.repository.PasswordResetTokenRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.ResourceNotFoundException;
+import org.courseflow.identity.entity.UserStatus;
+import org.springframework.security.access.AccessDeniedException;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -49,6 +51,10 @@ public class PasswordService {
                                 "User account not found"
                         )
                 );
+
+        if (account.getUser().getStatus() != UserStatus.ACTIVE) {
+            throw new AccessDeniedException("Active user is required");
+        }
 
         if (!passwordEncoder.matches(
                 request.currentPassword(),

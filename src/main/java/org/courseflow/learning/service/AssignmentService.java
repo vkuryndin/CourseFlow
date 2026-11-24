@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Set;
 
@@ -93,6 +94,8 @@ public class AssignmentService {
                     "Cannot create assignment in archived course"
             );
         }
+
+        requireFutureDeadline(request);
 
         Assignment assignment = new Assignment(
                 lesson,
@@ -213,6 +216,8 @@ public class AssignmentService {
                 isAdmin
         );
 
+        requireFutureDeadline(request);
+
         assignment.updateDetails(
                 request.title().trim(),
                 request.description().trim(),
@@ -306,6 +311,12 @@ public class AssignmentService {
         }
 
         return assignment;
+    }
+
+    private void requireFutureDeadline(CreateAssignmentRequest request) {
+        if (!request.dueAt().isAfter(Instant.now())) {
+            throw new BadRequestException("Assignment deadline must be in the future");
+        }
     }
 
     private boolean hasSubmissions(Long assignmentId) {

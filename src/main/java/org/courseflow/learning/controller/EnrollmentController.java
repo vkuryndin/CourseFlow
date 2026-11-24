@@ -70,6 +70,16 @@ public class EnrollmentController {
         return ResponseEntity.noContent().build();
     }
 
+    // ADMIN may withdraw even an inactive student. Keep the enrollment history.
+    @DeleteMapping("/students/{studentId}")
+    public ResponseEntity<Void> withdrawStudent(
+            @PathVariable Long courseId,
+            @PathVariable Long studentId
+    ) {
+        enrollmentService.withdraw(courseId, studentId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping
     public PageResponse<EnrollmentListItemResponse> getCourseEnrollments(
             @PathVariable Long courseId,

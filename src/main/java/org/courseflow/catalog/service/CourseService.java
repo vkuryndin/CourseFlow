@@ -19,6 +19,8 @@ import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
+import org.courseflow.learning.entity.EnrollmentStatus;
+import org.courseflow.learning.repository.EnrollmentRepository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -57,19 +59,22 @@ public class CourseService {
     private final UserRepository userRepository;
     private final EntityManager entityManager;
     private final TagRepository tagRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     public CourseService(
             CourseRepository courseRepository,
             CategoryRepository categoryRepository,
             UserRepository userRepository,
             EntityManager entityManager,
-            TagRepository tagRepository
+            TagRepository tagRepository,
+            EnrollmentRepository enrollmentRepository
     ) {
         this.courseRepository = courseRepository;
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
         this.entityManager = entityManager;
         this.tagRepository = tagRepository;
+        this.enrollmentRepository = enrollmentRepository;
     }
 
     @Transactional
@@ -149,6 +154,8 @@ public class CourseService {
 
         User teacher =
                 findActiveTeacher(request.teacherId());
+
+        ensureTeacherNotEnrolled(courseId, teacher.getId());
 
         course.updateDetails(
                 request.title().trim(),
@@ -322,8 +329,20 @@ public class CourseService {
                 );
     }
 
+    private void ensureTeacherNotEnrolled(Long courseId, Long teacherId) {
+        boolean enrolled = enrollmentRepository
+                .findByStudent_IdAndCourse_Id(teacherId, courseId)
+                .map(e -> e.getStatus() == EnrollmentStatus.ACTIVE)
+                .orElse(false);
+        if (enrolled) {
+            throw new BusinessConflictException(
+                    "Withdraw active enrollment before assigning the course teacher"
+            );
+        }
+    }
+
     private User findActiveTeacher(Long teacherId) {
-        User teacher = userRepository.findById(teacherId)
+        User teacher = userRepository.findByIdForUpdate(teacherId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Teacher not found: " + teacherId
@@ -581,6 +600,8 @@ public class CourseService {
                 );
 
         User newTeacher = findActiveTeacher(newTeacherId);
+
+        ensureTeacherNotEnrolled(courseId, newTeacherId);
 
         course.reassignTeacher(newTeacher);
 

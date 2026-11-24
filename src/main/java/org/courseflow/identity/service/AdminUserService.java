@@ -106,7 +106,7 @@ public class AdminUserService {
     ) {
         lockSystemAdmin();
 
-        User user = findUser(userId);
+        User user = findUserForUpdate(userId);
 
         if (user.getStatus() == UserStatus.DELETED) {
             throw new BusinessConflictException(
@@ -138,6 +138,23 @@ public class AdminUserService {
             ensureAnotherActiveAdminExists();
         }
 
+        if (user.getRoles().contains(UserRole.TEACHER)
+                && !requestedRoles.contains(UserRole.TEACHER)
+                && courseRepository.existsByTeacher_Id(userId)) {
+            throw new BusinessConflictException(
+                    "Reassign all courses before removing TEACHER role"
+            );
+        }
+
+        if (user.getRoles().contains(UserRole.STUDENT)
+                && !requestedRoles.contains(UserRole.STUDENT)
+                && enrollmentRepository.existsByStudent_IdAndStatus(
+                        userId, EnrollmentStatus.ACTIVE)) {
+            throw new BusinessConflictException(
+                    "Withdraw active enrollments before removing STUDENT role"
+            );
+        }
+
         user.changeRoles(requestedRoles);
         revokeSessions(userId);
 
@@ -149,7 +166,8 @@ public class AdminUserService {
             Long userId,
             UpdateUserRequest request
     ) {
-        User user = findUser(userId);
+        lockSystemAdmin();
+        User user = findUserForUpdate(userId);
 
         if (user.getStatus() == UserStatus.DELETED) {
             throw new BusinessConflictException(
@@ -173,6 +191,7 @@ public class AdminUserService {
         user.updateDetails(newName, newEmail);
 
         if (emailChanged) {
+            invalidateResetTokens(userId);
             revokeSessions(userId);
         }
 
@@ -183,7 +202,7 @@ public class AdminUserService {
     public UserResponse deactivate(Long userId) {
         lockSystemAdmin();
 
-        User user = findUser(userId);
+        User user = findUserForUpdate(userId);
 
         if (user.isSystemAdmin()) {
             throw new BusinessConflictException(
@@ -203,6 +222,7 @@ public class AdminUserService {
         }
 
         user.deactivate();
+        invalidateResetTokens(userId);
         revokeSessions(userId);
 
         return UserResponse.from(user);
@@ -210,7 +230,8 @@ public class AdminUserService {
 
     @Transactional
     public UserResponse activate(Long userId) {
-        User user = findUser(userId);
+        lockSystemAdmin();
+        User user = findUserForUpdate(userId);
 
         if (user.getStatus() == UserStatus.DELETED) {
             throw new BusinessConflictException(
@@ -229,12 +250,7 @@ public class AdminUserService {
         // Keep administrative operations serialized.
         lockSystemAdmin();
 
-        User user = userRepository.findByIdForUpdate(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found: " + userId
-                        )
-                );
+        User user = findUserForUpdate(userId);
 
         if (user.isSystemAdmin()) {
             throw new BusinessConflictException(
@@ -302,8 +318,12 @@ public class AdminUserService {
         user.markDeleted();
     }
 
-    private User findUser(Long userId) {
-        return userRepository.findById(userId)
+    private User findUserForUpdate(Long userId) {
+        // All administrative mutations lock the system administrator first.
+        // Coordinate with login/password operations before changing User.
+        // A deleted user no longer has an account, but its history remains.
+        userAccountRepository.findByUserIdForUpdate(userId);
+        return userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found: " + userId
@@ -332,6 +352,13 @@ public class AdminUserService {
                     "Cannot disable the last active ADMIN"
             );
         }
+    }
+
+    private void invalidateResetTokens(Long userId) {
+        userAccountRepository.findByUser_Id(userId).ifPresent(account ->
+                passwordResetTokenRepository.invalidateUnusedTokensForAccount(
+                        account.getId(), java.time.Instant.now()
+                ));
     }
 
     private void revokeSessions(Long userId) {
