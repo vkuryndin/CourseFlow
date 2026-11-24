@@ -1,6 +1,9 @@
 
 package org.courseflow.identity.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -26,6 +29,7 @@ import java.net.URI;
 @RequestMapping("/api/users")
 public class UserController {
 
+    private static final Logger LOG = LoggerFactory.getLogger(UserController.class);
     private final UserService userService;
     private final AdminUserService adminUserService;
 
@@ -88,9 +92,11 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<UserResponse> create(
-            @Valid @RequestBody AdminCreateUserRequest request
+            @Valid @RequestBody AdminCreateUserRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
         UserResponse response = adminUserService.create(request);
+        LOG.info("admin_action=create_user actor={} target={}", jwt.getSubject(), response.id());
 
         return ResponseEntity
                 .created(URI.create("/api/users/" + response.id()))
@@ -100,38 +106,52 @@ public class UserController {
     @PutMapping("/{id}/roles")
     public UserResponse updateRoles(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateUserRolesRequest request
+            @Valid @RequestBody UpdateUserRolesRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return adminUserService.updateRoles(id, request);
+        UserResponse response = adminUserService.updateRoles(id, request);
+        LOG.info("admin_action=update_roles actor={} target={}", jwt.getSubject(), id);
+        return response;
     }
 
     @PutMapping("/{id}")
     public UserResponse updateDetails(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateUserRequest request
+            @Valid @RequestBody UpdateUserRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return adminUserService.updateDetails(id, request);
+        UserResponse response = adminUserService.updateDetails(id, request);
+        LOG.info("admin_action=update_details actor={} target={}", jwt.getSubject(), id);
+        return response;
     }
 
     @PostMapping("/{id}/deactivate")
     public UserResponse deactivate(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return adminUserService.deactivate(id);
+        UserResponse response = adminUserService.deactivate(id);
+        LOG.info("admin_action=deactivate_user actor={} target={}", jwt.getSubject(), id);
+        return response;
     }
 
     @PostMapping("/{id}/activate")
     public UserResponse activate(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return adminUserService.activate(id);
+        UserResponse response = adminUserService.activate(id);
+        LOG.info("admin_action=activate_user actor={} target={}", jwt.getSubject(), id);
+        return response;
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt
     ) {
         adminUserService.deleteUser(id);
+        LOG.info("admin_action=delete_user actor={} target={}", jwt.getSubject(), id);
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,6 +1,8 @@
 
 package org.courseflow.review.service;
 
+import org.courseflow.review.dto.PublicCourseReviewResponse;
+
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
@@ -156,7 +158,7 @@ public class CourseReviewService {
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    public PageResponse<CourseReviewResponse> findByCourse(
+    public PageResponse<PublicCourseReviewResponse> findByCourse(
             Long courseId,
             int page,
             int size,
@@ -204,13 +206,13 @@ public class CourseReviewService {
         PageRequest pageable =
                 PageRequest.of(page, size, sort);
 
-        Page<CourseReviewResponse> result =
+        Page<PublicCourseReviewResponse> result =
                 courseReviewRepository
                         .findAllByCourse_Id(
                                 courseId,
                                 pageable
                         )
-                        .map(CourseReviewResponse::from);
+                        .map(PublicCourseReviewResponse::from);
 
         return PageResponse.from(result);
     }

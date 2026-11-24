@@ -1,6 +1,9 @@
 
 package org.courseflow.learning.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.service.EnrollmentService;
 
@@ -18,6 +21,7 @@ import org.springframework.security.core.Authentication;
 @RequestMapping("/api/courses/{courseId}/enrollments")
 public class EnrollmentController {
 
+    private static final Logger LOG = LoggerFactory.getLogger(EnrollmentController.class);
     private final EnrollmentService enrollmentService;
 
     public EnrollmentController(
@@ -74,9 +78,11 @@ public class EnrollmentController {
     @DeleteMapping("/students/{studentId}")
     public ResponseEntity<Void> withdrawStudent(
             @PathVariable Long courseId,
-            @PathVariable Long studentId
+            @PathVariable Long studentId,
+            @AuthenticationPrincipal Jwt jwt
     ) {
         enrollmentService.withdraw(courseId, studentId);
+        LOG.info("admin_action=withdraw_student actor={} course={} target={}", jwt.getSubject(), courseId, studentId);
         return ResponseEntity.noContent().build();
     }
 

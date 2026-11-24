@@ -1,6 +1,9 @@
 
 package org.courseflow.catalog.service;
 
+import org.courseflow.content.repository.LessonSessionRepository;
+import java.time.Instant;
+
 import jakarta.persistence.criteria.Predicate;
 
 import org.courseflow.catalog.dto.CourseResponse;
@@ -60,6 +63,7 @@ public class CourseService {
     private final EntityManager entityManager;
     private final TagRepository tagRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final LessonSessionRepository sessionRepository;
 
     public CourseService(
             CourseRepository courseRepository,
@@ -67,7 +71,8 @@ public class CourseService {
             UserRepository userRepository,
             EntityManager entityManager,
             TagRepository tagRepository,
-            EnrollmentRepository enrollmentRepository
+            EnrollmentRepository enrollmentRepository,
+            LessonSessionRepository sessionRepository
     ) {
         this.courseRepository = courseRepository;
         this.categoryRepository = categoryRepository;
@@ -75,6 +80,7 @@ public class CourseService {
         this.entityManager = entityManager;
         this.tagRepository = tagRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.sessionRepository = sessionRepository;
     }
 
     @Transactional
@@ -156,6 +162,7 @@ public class CourseService {
                 findActiveTeacher(request.teacherId());
 
         ensureTeacherNotEnrolled(courseId, teacher.getId());
+        ensureScheduleCompatible(course, teacher.getId());
 
         course.updateDetails(
                 request.title().trim(),
@@ -243,16 +250,19 @@ public class CourseService {
                             new ArrayList<>();
 
                     if (!search.isEmpty()) {
-                        String pattern = "%" + search + "%";
+                        String pattern = "%" + search
+                                .replace("\\", "\\\\")
+                                .replace("%", "\\%")
+                                .replace("_", "\\_") + "%";
 
                         Predicate titleMatches = builder.like(
                                 builder.lower(root.get("title")),
-                                pattern
+                                pattern, '\\'
                         );
 
                         Predicate descriptionMatches = builder.like(
                                 builder.lower(root.get("description")),
-                                pattern
+                                pattern, '\\'
                         );
 
                         predicates.add(
@@ -321,12 +331,20 @@ public class CourseService {
     }
 
     private Category findCategory(Long categoryId) {
-        return categoryRepository.findById(categoryId)
+        return categoryRepository.findByIdForShare(categoryId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Category not found: " + categoryId
                         )
                 );
+    }
+
+    // The target teacher has already been locked by findActiveTeacher.
+    private void ensureScheduleCompatible(Course course, Long teacherId) {
+        if (course.getStatus() == CourseStatus.ACTIVE && !course.getTeacher().getId().equals(teacherId)
+                && sessionRepository.countReassignmentOverlaps(course.getId(), teacherId, Instant.now()) > 0) {
+            throw new BusinessConflictException("New teacher has overlapping scheduled lessons");
+        }
     }
 
     private void ensureTeacherNotEnrolled(Long courseId, Long teacherId) {
@@ -602,6 +620,7 @@ public class CourseService {
         User newTeacher = findActiveTeacher(newTeacherId);
 
         ensureTeacherNotEnrolled(courseId, newTeacherId);
+        ensureScheduleCompatible(course, newTeacherId);
 
         course.reassignTeacher(newTeacher);
 

@@ -16,6 +16,7 @@ public record CreateAssignmentRequest(
         String title,
 
         @NotBlank
+        @Size(max = 20000)
         String description,
 
         @NotNull

@@ -1,6 +1,14 @@
 
 package org.courseflow.content.service;
 
+import org.courseflow.identity.repository.UserRepository;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Isolation;
+
+import org.courseflow.common.validation.HttpUrls;
+import org.courseflow.content.entity.LessonSessionFormat;
+
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
@@ -29,15 +37,21 @@ public class LessonSessionService {
     private final LessonSessionRepository sessionRepository;
     private final LessonRepository lessonRepository;
     private final CourseRepository courseRepository;
+    private final ContentAccessService contentAccessService;
+    private final UserRepository userRepository;
 
     public LessonSessionService(
             LessonSessionRepository sessionRepository,
             LessonRepository lessonRepository,
-            CourseRepository courseRepository
+            ContentAccessService contentAccessService,
+            CourseRepository courseRepository,
+            UserRepository userRepository
     ) {
         this.sessionRepository = sessionRepository;
         this.lessonRepository = lessonRepository;
         this.courseRepository = courseRepository;
+        this.contentAccessService = contentAccessService;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -49,9 +63,7 @@ public class LessonSessionService {
     ) {
         validateTimeRange(request);
 
-        // First determine which course owns the lesson.
-        Lesson lesson = findLesson(lessonId);
-        Long courseId = lesson.getModule().getCourse().getId();
+        Long courseId = findCourseId(lessonId);
 
         // Serialize schedule changes within the course.
         Course course = courseRepository
@@ -77,23 +89,12 @@ public class LessonSessionService {
             );
         }
 
-        long overlaps = sessionRepository
-                .countOverlappingSessions(
-                        lessonId,
-                        request.startsAt(),
-                        request.endsAt()
-                );
+        Long teacherId = course.getTeacher().getId();
+        lockTeacher(teacherId);
+        Lesson lesson = findLesson(lessonId);
+        checkNoOverlap(teacherId, null, request.startsAt(), request.endsAt());
 
-        if (overlaps > 0) {
-            throw new BusinessConflictException(
-                    "Lesson session overlaps an existing session"
-            );
-        }
-
-        String meetingUrl = request.meetingUrl() == null
-                || request.meetingUrl().isBlank()
-                ? null
-                : request.meetingUrl().trim();
+        String meetingUrl = validateMeetingUrl(request);
 
         LessonSession session = lesson.addSession(
                 request.startsAt(),
@@ -108,12 +109,15 @@ public class LessonSessionService {
         return LessonSessionResponse.from(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<LessonSessionResponse> findByLesson(
             Long lessonId,
             int page,
-            int size
+            int size,
+            Long currentUserId,
+            Authentication authentication
     ) {
+        contentAccessService.checkLessonAccess(lessonId, currentUserId, authentication);
         if (page < 0 || size < 1 || size > 100) {
             throw new BadRequestException(
                     "Invalid pagination parameters"
@@ -137,11 +141,14 @@ public class LessonSessionService {
         return PageResponse.from(result);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public LessonSessionResponse getById(
             Long lessonId,
-            Long sessionId
+            Long sessionId,
+            Long currentUserId,
+            Authentication authentication
     ) {
+        contentAccessService.checkLessonAccess(lessonId, currentUserId, authentication);
         findLesson(lessonId);
 
         LessonSession session = sessionRepository
@@ -162,6 +169,17 @@ public class LessonSessionService {
                                 "Lesson not found: " + lessonId
                         )
                 );
+    }
+
+    private String validateMeetingUrl(CreateLessonSessionRequest request) {
+        String url = HttpUrls.optional(request.meetingUrl(), "meetingUrl");
+        if (request.format() == LessonSessionFormat.ONLINE && url == null) {
+            throw new BadRequestException("ONLINE session requires meetingUrl");
+        }
+        if (request.format() == LessonSessionFormat.OFFLINE && url != null) {
+            throw new BadRequestException("OFFLINE session must not have meetingUrl");
+        }
+        return url;
     }
 
     private void validateTimeRange(
@@ -189,16 +207,13 @@ public class LessonSessionService {
         validateInterval(request.startsAt(), request.endsAt());
 
         checkNoOverlap(
-                lessonId,
+                session.getLesson().getModule().getCourse().getTeacher().getId(),
                 sessionId,
                 request.startsAt(),
                 request.endsAt()
         );
 
-        String meetingUrl = request.meetingUrl() == null
-                || request.meetingUrl().isBlank()
-                ? null
-                : request.meetingUrl().trim();
+        String meetingUrl = validateMeetingUrl(request);
 
         session.updateDetails(
                 request.startsAt(),
@@ -225,7 +240,7 @@ public class LessonSessionService {
         validateInterval(request.startsAt(), request.endsAt());
 
         checkNoOverlap(
-                lessonId,
+                session.getLesson().getModule().getCourse().getTeacher().getId(),
                 sessionId,
                 request.startsAt(),
                 request.endsAt()
@@ -263,11 +278,7 @@ public class LessonSessionService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Lesson lesson = findLesson(lessonId);
-
-        Long courseId = lesson.getModule()
-                .getCourse()
-                .getId();
+        Long courseId = findCourseId(lessonId);
 
         Course course = courseRepository
                 .findByIdForUpdate(courseId)
@@ -292,6 +303,7 @@ public class LessonSessionService {
             );
         }
 
+        lockTeacher(course.getTeacher().getId());
         return sessionRepository
                 .findByIdAndLesson_Id(sessionId, lessonId)
                 .orElseThrow(() ->
@@ -312,26 +324,20 @@ public class LessonSessionService {
         }
     }
 
-    private void checkNoOverlap(
-            Long lessonId,
-            Long sessionId,
-            java.time.Instant startsAt,
-            java.time.Instant endsAt
-    ) {
-        long overlaps = sessionRepository
-                .countOverlappingSessionsExcept(
-                        lessonId,
-                        sessionId,
-                        startsAt,
-                        endsAt
-                );
-
-        if (overlaps > 0) {
-            throw new BusinessConflictException(
-                    "Lesson session overlaps an existing session"
-            );
-        }
+    private Long findCourseId(Long lessonId) {
+        return lessonRepository.findCourseId(lessonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + lessonId));
     }
 
+    private void lockTeacher(Long teacherId) {
+        userRepository.findByIdForUpdate(teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found: " + teacherId));
+    }
 
+    private void checkNoOverlap(Long teacherId, Long sessionId,
+                                java.time.Instant startsAt, java.time.Instant endsAt) {
+        if (sessionRepository.countTeacherOverlaps(teacherId, sessionId == null ? -1L : sessionId, startsAt, endsAt) > 0) {
+            throw new BusinessConflictException("Lesson session overlaps another session of this teacher");
+        }
+    }
 }

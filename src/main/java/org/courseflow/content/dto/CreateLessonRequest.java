@@ -13,6 +13,7 @@ public record CreateLessonRequest(
         String title,
 
         @NotBlank
+        @Size(max = 20000)
         String content,
 
         @Size(max = 2048)

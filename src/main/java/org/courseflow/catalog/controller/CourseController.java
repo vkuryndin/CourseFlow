@@ -2,6 +2,8 @@
 package org.courseflow.catalog.controller;
 
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
@@ -26,6 +28,7 @@ import java.net.URI;
 @RequestMapping("/api/courses")
 public class CourseController {
 
+    private static final Logger LOG = LoggerFactory.getLogger(CourseController.class);
     private final CourseService courseService;
 
     public CourseController(CourseService courseService) {
@@ -209,11 +212,14 @@ public class CourseController {
                                 .equals("ROLE_ADMIN")
                 );
 
-        return courseService.reassignTeacher(
+        CourseResponse response = courseService.reassignTeacher(
                 courseId,
                 request.teacherId(),
                 isAdmin
         );
+        LOG.info("admin_action=reassign_teacher actor={} course={} teacher={}",
+                authentication.getName(), courseId, request.teacherId());
+        return response;
     }
 
 

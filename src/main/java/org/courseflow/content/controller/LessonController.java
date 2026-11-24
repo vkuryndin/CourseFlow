@@ -14,10 +14,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.content.dto.UpdateLessonRequest;
 import org.courseflow.content.dto.ChangeLessonPositionRequest;
-import org.courseflow.content.service.ContentAccessService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 
@@ -28,14 +24,11 @@ import java.net.URI;
 public class LessonController {
 
     private final LessonService lessonService;
-    private final ContentAccessService contentAccessService;
 
     public LessonController(
-            LessonService lessonService,
-            ContentAccessService contentAccessService
+            LessonService lessonService
     ) {
         this.lessonService = lessonService;
-        this.contentAccessService = contentAccessService;
     }
 
     @PostMapping
@@ -73,14 +66,8 @@ public class LessonController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        contentAccessService.checkCourseAccess(
-                courseId,
-                Long.valueOf(jwt.getSubject()),
-                authentication
-        );
-
         return lessonService.findByModule(
-                courseId, moduleId, page, size
+                courseId, moduleId, page, size, Long.valueOf(jwt.getSubject()), authentication
         );
     }
 
@@ -93,14 +80,8 @@ public class LessonController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        contentAccessService.checkCourseAccess(
-                courseId,
-                Long.valueOf(jwt.getSubject()),
-                authentication
-        );
-
         return lessonService.getById(
-                courseId, moduleId, lessonId
+                courseId, moduleId, lessonId, Long.valueOf(jwt.getSubject()), authentication
         );
     }
 

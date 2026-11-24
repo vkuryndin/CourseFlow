@@ -1,6 +1,8 @@
 
 package org.courseflow.learning.service;
 
+import java.time.Instant;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 
@@ -537,7 +539,8 @@ public class GradebookService {
                             SELECT s.student.id,
                                    s.quiz.id,
                                    COUNT(s),
-                                   MAX(s.score)
+                                   MAX(s.score),
+                                   SUM(CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.IN_PROGRESS AND s.expiresAt > :now THEN 1 ELSE 0 END)
                             FROM QuizSubmission s
                             WHERE s.student.id IN :studentIds
                               AND s.quiz.id IN :quizIds
@@ -547,6 +550,7 @@ public class GradebookService {
                     )
                     .setParameter("studentIds", studentIds)
                     .setParameter("quizIds", quizIds)
+                    .setParameter("now", Instant.now())
                     .getResultList();
 
             for (Object[] row : rows) {
@@ -557,7 +561,7 @@ public class GradebookService {
                 Integer bestScore = (Integer) row[3];
 
                 String status = bestScore == null
-                        ? "NOT_COMPLETED"
+                        ? (((Number) row[4]).longValue() > 0 ? "IN_PROGRESS" : "EXPIRED")
                         : "COMPLETED";
 
                 cells.put(

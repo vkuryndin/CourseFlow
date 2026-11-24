@@ -8,6 +8,7 @@ import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.dto.UserResponse;
+import org.courseflow.identity.dto.PublicTeacherResponse;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
@@ -99,6 +100,14 @@ public class UserService {
                 .map(UserResponse::from);
 
         return PageResponse.from(result);
+    }
+
+    @Transactional(readOnly = true)
+    public PublicTeacherResponse getPublicTeacher(Long id) {
+        User teacher = userRepository.findById(id)
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE && u.getRoles().contains(UserRole.TEACHER))
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found: " + id));
+        return new PublicTeacherResponse(teacher.getId(), teacher.getDisplayName());
     }
 
     private Specification<User> buildSpecification(

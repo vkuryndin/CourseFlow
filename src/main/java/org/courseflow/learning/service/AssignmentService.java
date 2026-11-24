@@ -1,6 +1,8 @@
 
 package org.courseflow.learning.service;
 
+import org.springframework.transaction.annotation.Isolation;
+
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
@@ -111,7 +113,7 @@ public class AssignmentService {
         return AssignmentResponse.from(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public AssignmentResponse getById(
             Long lessonId,
             Long assignmentId,
@@ -141,7 +143,7 @@ public class AssignmentService {
         return AssignmentResponse.from(assignment);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<AssignmentResponse> findByLesson(
             Long lessonId,
             Long currentUserId,

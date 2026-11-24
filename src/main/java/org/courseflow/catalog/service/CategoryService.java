@@ -5,6 +5,7 @@ import org.courseflow.catalog.dto.CategoryCreateRequest;
 import org.courseflow.catalog.dto.CategoryResponse;
 import org.courseflow.catalog.entity.Category;
 import org.courseflow.catalog.repository.CategoryRepository;
+import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
@@ -22,8 +23,39 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
 
-    public CategoryService(CategoryRepository categoryRepository) {
+    private final CourseRepository courseRepository;
+
+    public CategoryService(CategoryRepository categoryRepository,
+                           CourseRepository courseRepository) {
         this.categoryRepository = categoryRepository;
+        this.courseRepository = courseRepository;
+    }
+
+    @Transactional
+    public CategoryResponse update(Long id, CategoryCreateRequest request) {
+        Category category = lockCategory(id);
+        String name = request.name().trim();
+        if (categoryRepository.existsByNameAndIdNot(name, id)) {
+            throw new BusinessConflictException("Category already exists: " + name);
+        }
+        category.update(name, request.description().trim());
+        categoryRepository.flush();
+        return CategoryResponse.from(category);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        Category category = lockCategory(id);
+        if (courseRepository.existsByCategory_Id(id)) {
+            throw new BusinessConflictException("Category is used by courses");
+        }
+        categoryRepository.delete(category);
+        categoryRepository.flush();
+    }
+
+    private Category lockCategory(Long id) {
+        return categoryRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
     }
 
     @Transactional

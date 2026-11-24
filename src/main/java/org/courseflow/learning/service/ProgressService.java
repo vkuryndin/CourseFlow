@@ -48,6 +48,14 @@ public class ProgressService {
             String sortBy,
             String direction
     ) {
+        return getMyProgress(studentId, courseId, enrollmentStatus, null, page, size, sortBy, direction);
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public PageResponse<CourseProgressResponse> getMyProgress(
+            Long studentId, Long courseId, EnrollmentStatus enrollmentStatus,
+            CourseStatus courseStatus, int page, int size, String sortBy, String direction
+    ) {
         if (page < 0 || size < 1 || size > 100
                 || page > Integer.MAX_VALUE / size) {
 
@@ -94,6 +102,11 @@ public class ProgressService {
             );
         }
 
+        if (courseStatus != null) {
+            where.append(" AND c.status = :courseStatus");
+            parameters.put("courseStatus", courseStatus);
+        }
+
         TypedQuery<Object[]> courseQuery =
                 entityManager.createQuery(
                         """
@@ -129,13 +142,13 @@ public class ProgressService {
                 .map(row -> (Long) row[0])
                 .toList();
 
+        Instant now = Instant.now();
+
         Map<Long, List<AssignmentProgress>> assignments =
-                loadAssignments(studentId, courseIds);
+                loadAssignments(studentId, courseIds, now);
 
         Map<Long, List<QuizProgress>> quizzes =
-                loadQuizzes(studentId, courseIds);
-
-        Instant now = Instant.now();
+                loadQuizzes(studentId, courseIds, now);
 
         List<CourseProgressResponse> result =
                 new ArrayList<>();
@@ -173,7 +186,8 @@ public class ProgressService {
     private Map<Long, List<AssignmentProgress>>
     loadAssignments(
             Long studentId,
-            List<Long> courseIds
+            List<Long> courseIds,
+            Instant now
     ) {
         Map<Long, List<AssignmentProgress>> result =
                 new HashMap<>();
@@ -212,7 +226,7 @@ public class ProgressService {
             Long courseId = (Long) row[0];
 
             String status = row[5] == null
-                    ? "NOT_SUBMITTED"
+                    ? (((Instant) row[6]).isAfter(now) ? "NOT_SUBMITTED" : "OVERDUE")
                     : row[5].toString();
 
             AssignmentProgress assignment =
@@ -237,7 +251,8 @@ public class ProgressService {
     private Map<Long, List<QuizProgress>>
     loadQuizzes(
             Long studentId,
-            List<Long> courseIds
+            List<Long> courseIds,
+            Instant now
     ) {
         Map<Long, List<QuizProgress>> result =
                 new HashMap<>();
@@ -253,7 +268,8 @@ public class ProgressService {
                                q.title,
                                MAX(s.score),
                                COUNT(s.id),
-                               q.maxAttempts
+                               q.maxAttempts,
+                               SUM(CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.IN_PROGRESS AND s.expiresAt > :now THEN 1 ELSE 0 END)
                         FROM Quiz q
                         LEFT JOIN QuizSubmission s
                             ON s.quiz.id = q.id
@@ -271,6 +287,7 @@ public class ProgressService {
                 )
                 .setParameter("studentId", studentId)
                 .setParameter("courseIds", courseIds)
+                .setParameter("now", now)
                 .getResultList();
 
         for (Object[] row : rows) {
@@ -286,7 +303,7 @@ public class ProgressService {
             } else if (attemptsUsed == 0) {
                 status = "NOT_STARTED";
             } else {
-                status = "NOT_COMPLETED";
+                status = ((Number) row[6]).longValue() > 0 ? "IN_PROGRESS" : "EXPIRED";
             }
 
             QuizProgress quiz = new QuizProgress(
@@ -326,9 +343,7 @@ public class ProgressService {
 
         for (AssignmentProgress assignment : assignments) {
 
-            if (!"NOT_SUBMITTED".equals(
-                    assignment.status()
-            )) {
+            if ("SUBMITTED".equals(assignment.status()) || "GRADED".equals(assignment.status())) {
                 completedAssessments++;
             }
 

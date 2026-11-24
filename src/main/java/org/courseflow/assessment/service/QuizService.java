@@ -1,6 +1,10 @@
 
 package org.courseflow.assessment.service;
 
+import java.time.Instant;
+import org.courseflow.assessment.entity.QuizSubmissionStatus;
+import org.springframework.transaction.annotation.Isolation;
+
 import jakarta.persistence.EntityManager;
 
 import org.courseflow.assessment.dto.CreateQuizRequest;
@@ -112,7 +116,7 @@ public class QuizService {
         return QuizResponse.from(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public QuizResponse getByModule(
             Long moduleId,
             Long currentUserId,
@@ -141,7 +145,7 @@ public class QuizService {
         return QuizResponse.from(quiz);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public QuizResponse getById(
             Long quizId,
             Long currentUserId,
@@ -204,6 +208,13 @@ public class QuizService {
 
         validateQuestion(request);
 
+        long questionCount = entityManager.createQuery(
+                "SELECT COUNT(q) FROM Question q WHERE q.quiz.id = :quizId", Long.class)
+                .setParameter("quizId", quizId).getSingleResult();
+        if (questionCount >= 200) {
+            throw new BusinessConflictException("Quiz cannot have more than 200 questions");
+        }
+
         Long existingPosition = entityManager.createQuery(
                         """
                         SELECT COUNT(q)
@@ -244,7 +255,7 @@ public class QuizService {
         return QuestionResponse.forTeacher(question);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<QuestionResponse> getQuestions(
             Long quizId,
             Long currentUserId,
@@ -263,13 +274,38 @@ public class QuizService {
                 authentication
         );
 
+        Course course = quiz.getModule().getCourse();
+        boolean admin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean owner = course.getTeacher().getId().equals(currentUserId)
+                && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+        if (!admin && !owner) {
+            if (course.getStatus() != CourseStatus.ACTIVE) {
+                throw new BusinessConflictException("Quiz is in an archived course");
+            }
+            long activeAttempts = entityManager.createQuery("""
+                    SELECT COUNT(s) FROM QuizSubmission s
+                    WHERE s.quiz.id = :quizId AND s.student.id = :studentId
+                      AND s.status = :status AND s.expiresAt > :now
+                    """, Long.class)
+                    .setParameter("quizId", quizId)
+                    .setParameter("studentId", currentUserId)
+                    .setParameter("status", QuizSubmissionStatus.IN_PROGRESS)
+                    .setParameter("now", Instant.now())
+                    .getSingleResult();
+            if (activeAttempts == 0) {
+                throw new BusinessConflictException("Start an active Quiz attempt before reading questions");
+            }
+        }
+
         return loadQuestions(quizId)
                 .stream()
                 .map(QuestionResponse::forStudent)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<QuestionResponse.ManagementResponse>
     getQuestionsForManagement(
             Long quizId,
@@ -323,10 +359,10 @@ public class QuizService {
         }
 
         if (request.type() == QuestionType.MULTIPLE_CHOICE
-                && correctCount < 2) {
+                && (correctCount < 2 || correctCount == request.options().size())) {
 
             throw new BadRequestException(
-                    "MULTIPLE_CHOICE must have at least two correct options"
+                    "MULTIPLE_CHOICE must have at least two correct options and one incorrect option"
             );
         }
 

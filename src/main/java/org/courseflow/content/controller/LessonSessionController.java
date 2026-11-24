@@ -14,10 +14,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.content.dto.RescheduleLessonSessionRequest;
-import org.courseflow.content.service.ContentAccessService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 
@@ -26,14 +22,11 @@ import java.net.URI;
 public class LessonSessionController {
 
     private final LessonSessionService sessionService;
-    private final ContentAccessService contentAccessService;
 
     public LessonSessionController(
-            LessonSessionService sessionService,
-            ContentAccessService contentAccessService
+            LessonSessionService sessionService
     ) {
         this.sessionService = sessionService;
-        this.contentAccessService = contentAccessService;
     }
 
     @PostMapping
@@ -69,14 +62,8 @@ public class LessonSessionController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        contentAccessService.checkLessonAccess(
-                lessonId,
-                Long.valueOf(jwt.getSubject()),
-                authentication
-        );
-
         return sessionService.findByLesson(
-                lessonId, page, size
+                lessonId, page, size, Long.valueOf(jwt.getSubject()), authentication
         );
     }
 
@@ -88,14 +75,8 @@ public class LessonSessionController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        contentAccessService.checkLessonAccess(
-                lessonId,
-                Long.valueOf(jwt.getSubject()),
-                authentication
-        );
-
         return sessionService.getById(
-                lessonId, sessionId
+                lessonId, sessionId, Long.valueOf(jwt.getSubject()), authentication
         );
     }
 

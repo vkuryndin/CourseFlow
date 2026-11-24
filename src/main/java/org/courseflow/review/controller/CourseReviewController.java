@@ -1,6 +1,8 @@
 
 package org.courseflow.review.controller;
 
+import org.courseflow.review.dto.PublicCourseReviewResponse;
+
 import jakarta.validation.Valid;
 
 import org.courseflow.common.api.PageResponse;
@@ -84,7 +86,7 @@ public class CourseReviewController {
     }
 
     @GetMapping
-    public PageResponse<CourseReviewResponse> findByCourse(
+    public PageResponse<PublicCourseReviewResponse> findByCourse(
             @PathVariable Long courseId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,

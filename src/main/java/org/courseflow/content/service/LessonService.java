@@ -1,6 +1,11 @@
 
 package org.courseflow.content.service;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Isolation;
+
+import org.courseflow.common.validation.HttpUrls;
+
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
@@ -32,17 +37,20 @@ public class LessonService {
     private final LessonRepository lessonRepository;
     private final ModuleRepository moduleRepository;
     private final CourseRepository courseRepository;
+    private final ContentAccessService contentAccessService;
     private final EntityManager entityManager;
 
     public LessonService(
             LessonRepository lessonRepository,
             ModuleRepository moduleRepository,
+            ContentAccessService contentAccessService,
             CourseRepository courseRepository,
             EntityManager entityManager
     ) {
         this.lessonRepository = lessonRepository;
         this.moduleRepository = moduleRepository;
         this.courseRepository = courseRepository;
+        this.contentAccessService = contentAccessService;
         this.entityManager = entityManager;
     }
 
@@ -88,10 +96,7 @@ public class LessonService {
             );
         }
 
-        String videoUrl = request.videoUrl() == null
-                || request.videoUrl().isBlank()
-                ? null
-                : request.videoUrl().trim();
+        String videoUrl = HttpUrls.optional(request.videoUrl(), "videoUrl");
 
         Lesson lesson = module.addLesson(
                 request.title().trim(),
@@ -105,13 +110,16 @@ public class LessonService {
         return LessonResponse.from(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<LessonResponse> findByModule(
             Long courseId,
             Long moduleId,
             int page,
-            int size
+            int size,
+            Long currentUserId,
+            Authentication authentication
     ) {
+        contentAccessService.checkCourseAccess(courseId, currentUserId, authentication);
         if (page < 0 || size < 1 || size > 100) {
             throw new BadRequestException(
                     "Invalid pagination parameters"
@@ -134,12 +142,15 @@ public class LessonService {
         return PageResponse.from(result);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public LessonResponse getById(
             Long courseId,
             Long moduleId,
-            Long lessonId
+            Long lessonId,
+            Long currentUserId,
+            Authentication authentication
     ) {
+        contentAccessService.checkCourseAccess(courseId, currentUserId, authentication);
         findModule(courseId, moduleId);
 
         Lesson lesson = lessonRepository
@@ -180,10 +191,7 @@ public class LessonService {
 
         Lesson lesson = findLesson(moduleId, lessonId);
 
-        String videoUrl = request.videoUrl() == null
-                || request.videoUrl().isBlank()
-                ? null
-                : request.videoUrl().trim();
+        String videoUrl = HttpUrls.optional(request.videoUrl(), "videoUrl");
 
         lesson.updateDetails(
                 request.title().trim(),

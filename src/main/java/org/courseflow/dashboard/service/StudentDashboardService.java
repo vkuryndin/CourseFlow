@@ -52,6 +52,7 @@ public class StudentDashboardService {
                         studentId,
                         null,
                         EnrollmentStatus.ACTIVE,
+                        CourseStatus.ACTIVE,
                         0,
                         COURSE_LIMIT,
                         "courseTitle",

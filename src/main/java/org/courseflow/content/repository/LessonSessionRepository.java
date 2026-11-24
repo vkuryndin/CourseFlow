@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.Instant;
-import java.time.Instant;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Query;
@@ -41,33 +40,27 @@ public interface LessonSessionRepository
     );
 
     @Query("""
-        SELECT COUNT(s)
-        FROM LessonSession s
-        WHERE s.lesson.id = :lessonId
-          AND s.startsAt < :endsAt
-          AND s.endsAt > :startsAt
+        SELECT COUNT(s) FROM LessonSession s
+        WHERE s.lesson.module.course.teacher.id = :teacherId
+          AND s.lesson.module.course.status = org.courseflow.catalog.entity.CourseStatus.ACTIVE
+          AND s.id <> :sessionId
+          AND s.startsAt < :endsAt AND s.endsAt > :startsAt
         """)
-    long countOverlappingSessions(
-            @Param("lessonId") Long lessonId,
-            @Param("startsAt") Instant startsAt,
-            @Param("endsAt") Instant endsAt
-    );
-
+    long countTeacherOverlaps(@Param("teacherId") Long teacherId,
+                              @Param("sessionId") Long sessionId,
+                              @Param("startsAt") Instant startsAt,
+                              @Param("endsAt") Instant endsAt);
 
     @Query("""
-        SELECT COUNT(s)
-        FROM LessonSession s
-        WHERE s.lesson.id = :lessonId
-          AND s.id <> :sessionId
-          AND s.startsAt < :endsAt
-          AND s.endsAt > :startsAt
+        SELECT COUNT(a) FROM LessonSession a, LessonSession b
+        WHERE a.lesson.module.course.id = :courseId
+          AND b.lesson.module.course.id <> :courseId
+          AND b.lesson.module.course.teacher.id = :teacherId
+          AND b.lesson.module.course.status = org.courseflow.catalog.entity.CourseStatus.ACTIVE
+          AND a.endsAt > :now AND b.endsAt > :now
+          AND a.startsAt < b.endsAt AND a.endsAt > b.startsAt
         """)
-    long countOverlappingSessionsExcept(
-            @Param("lessonId") Long lessonId,
-            @Param("sessionId") Long sessionId,
-            @Param("startsAt") Instant startsAt,
-            @Param("endsAt") Instant endsAt
-    );
-
-
+    long countReassignmentOverlaps(@Param("courseId") Long courseId,
+                                   @Param("teacherId") Long teacherId,
+                                   @Param("now") Instant now);
 }

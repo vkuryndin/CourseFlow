@@ -11,6 +11,7 @@ import java.util.List;
 public record SubmitQuizRequest(
 
         @NotNull
+        @Size(max = 200)
         List<@NotNull @Valid AnswerRequest> answers
 
 ) {

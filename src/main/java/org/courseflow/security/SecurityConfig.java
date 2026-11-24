@@ -1,6 +1,12 @@
 
 package org.courseflow.security;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -19,10 +25,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            SecurityExceptionHandler securityExceptionHandler
+            SecurityExceptionHandler securityExceptionHandler,
+            UrlBasedCorsConfigurationSource corsConfigurationSource
     ) throws Exception {
 
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -45,6 +53,16 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+
+                        .requestMatchers(HttpMethod.GET, "/api/users/me/profile").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me/profile").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/teachers/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/users/me/assignments",
+                                "/api/users/me/submissions",
+                                "/api/users/me/quiz-attempts").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.PUT, "/api/categories/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/categories/*").hasRole("ADMIN")
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -463,6 +481,26 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public UrlBasedCorsConfigurationSource corsConfigurationSource(
+            @Value("${courseflow.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String origins) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        List<String> allowed = Arrays.stream(origins.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        if (allowed.contains("*")) {
+            throw new IllegalArgumentException("Configure explicit CORS origins, not '*'");
+        }
+        configuration.setAllowedOrigins(allowed);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        configuration.setExposedHeaders(List.of("Location", "Retry-After"));
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
     }
 
     private JwtAuthenticationConverter jwtAuthenticationConverter() {
