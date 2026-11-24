@@ -1,10 +1,9 @@
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.common.exception.RateLimitExceededException;
 import org.springframework.stereotype.Component;
-
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -26,7 +25,7 @@ public class AuthRateLimiter {
         long now = System.nanoTime();
         cleanup(now);
         consume("login:ip:" + ip, LOGIN_PER_IP, now);
-        consume("login:email:" + email.trim().toLowerCase(Locale.ROOT),
+        consume("login:email:" + EmailAddresses.normalize(email),
                 LOGIN_PER_EMAIL, now);
     }
 

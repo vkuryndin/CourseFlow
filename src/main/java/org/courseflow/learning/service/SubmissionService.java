@@ -1,8 +1,8 @@
-
 package org.courseflow.learning.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
-
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
@@ -14,32 +14,24 @@ import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.learning.dto.SubmissionResponse;
 import org.courseflow.learning.entity.Assignment;
-import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.entity.Submission;
 import org.courseflow.learning.repository.AssignmentRepository;
 import org.courseflow.learning.repository.EnrollmentRepository;
 import org.courseflow.learning.repository.SubmissionRepository;
-
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.util.Optional;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.learning.dto.GradeSubmissionRequest;
 import org.courseflow.learning.entity.SubmissionStatus;
-
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-
 import jakarta.persistence.TypedQuery;
-
 import java.util.List;
-import java.util.Locale;
 
 @Service
 public class SubmissionService {
@@ -85,11 +77,8 @@ public class SubmissionService {
                         )
                 );
 
-        if (course.getStatus() != CourseStatus.ACTIVE) {
-            throw new BusinessConflictException(
-                    "Cannot submit work to archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot submit work to archived course");
 
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -111,12 +100,7 @@ public class SubmissionService {
             throw new AccessDeniedException("Active STUDENT is required");
         }
 
-        boolean enrolled = enrollmentRepository
-                .findByStudent_IdAndCourse_Id(studentId, courseId)
-                .map(enrollment ->
-                        enrollment.getStatus() == EnrollmentStatus.ACTIVE
-                )
-                .orElse(false);
+        boolean enrolled = enrollmentRepository.hasActiveEnrollment(studentId, courseId);
 
         if (!enrolled) {
             throw new AccessDeniedException(
@@ -203,12 +187,7 @@ public class SubmissionService {
             String sortBy,
             String direction
     ) {
-        if (page < 0 || size < 1 || size > 100
-                || page > Integer.MAX_VALUE / size) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         String sortField = switch (sortBy) {
             case "id" -> "s.id";
@@ -220,15 +199,7 @@ public class SubmissionService {
             );
         };
 
-        String normalizedDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!normalizedDirection.equals("asc")
-                && !normalizedDirection.equals("desc")) {
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String normalizedDirection = Pagination.direction(direction);
 
         requireAssignmentAccess(
                 assignmentId,
@@ -357,12 +328,8 @@ public class SubmissionService {
                 )
         );
 
-        if (!isAdmin &&
-                !course.getTeacher().getId().equals(currentUserId)) {
-            throw new AccessDeniedException(
-                    "Only course teacher or ADMIN can review submissions"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Only course teacher or ADMIN can review submissions");
 
         if (forGrading
                 && course.getStatus() != CourseStatus.ACTIVE) {

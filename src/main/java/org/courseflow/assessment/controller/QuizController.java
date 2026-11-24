@@ -1,12 +1,10 @@
-
 package org.courseflow.assessment.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import org.courseflow.assessment.dto.CreateQuizRequest;
 import org.courseflow.assessment.dto.QuizResponse;
 import org.courseflow.assessment.service.QuizService;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -16,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import org.courseflow.assessment.dto.CreateQuestionRequest;
 import org.courseflow.assessment.dto.QuestionResponse;
 import org.courseflow.assessment.dto.UpdateQuizRequest;
-
 import java.util.List;
 
 @RestController
@@ -35,13 +32,9 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        Long currentUserId = Long.valueOf(jwt.getSubject());
+        Long currentUserId = CurrentUser.id(jwt);
 
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         QuizResponse response = quizService.create(
                 moduleId,
@@ -63,7 +56,7 @@ public class QuizController {
     ) {
         return quizService.getByModule(
                 moduleId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 authentication
         );
     }
@@ -76,7 +69,7 @@ public class QuizController {
     ) {
         return quizService.getById(
                 quizId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 authentication
         );
     }
@@ -89,17 +82,13 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         QuestionResponse.ManagementResponse response =
                 quizService.createQuestion(
                         quizId,
                         request,
-                        Long.valueOf(jwt.getSubject()),
+                        CurrentUser.id(jwt),
                         isAdmin
                 );
 
@@ -116,7 +105,7 @@ public class QuizController {
     ) {
         return quizService.getQuestions(
                 quizId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 authentication
         );
     }
@@ -128,15 +117,11 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return quizService.getQuestionsForManagement(
                 quizId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
     }
@@ -148,16 +133,12 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return quizService.updateQuiz(
                 quizId,
                 request,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
     }
@@ -168,15 +149,11 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         quizService.deleteQuiz(
                 quizId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
 
@@ -191,17 +168,13 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return quizService.updateQuestion(
                 quizId,
                 questionId,
                 request,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
     }
@@ -213,21 +186,16 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         quizService.deleteQuestion(
                 quizId,
                 questionId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
 
         return ResponseEntity.noContent().build();
     }
-
 
 }

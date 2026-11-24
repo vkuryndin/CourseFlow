@@ -1,19 +1,17 @@
-
 package org.courseflow.catalog.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-
 import org.courseflow.catalog.dto.CourseResponse;
 import org.courseflow.catalog.dto.CreateCourseRequest;
 import org.courseflow.catalog.dto.UpdateCourseRequest;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.service.CourseService;
 import org.courseflow.common.api.PageResponse;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,7 +19,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.catalog.dto.TagResponse;
 import org.courseflow.catalog.dto.ReassignCourseTeacherRequest;
-
 import java.net.URI;
 
 @RestController
@@ -43,8 +40,8 @@ public class CourseController {
     ) {
         CourseResponse response = courseService.create(
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         return ResponseEntity
@@ -64,8 +61,8 @@ public class CourseController {
         return courseService.update(
                 id,
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
     }
 
@@ -114,17 +111,6 @@ public class CourseController {
         );
     }
 
-    private boolean isAdmin(Authentication authentication) {
-        return authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        "ROLE_ADMIN".equals(
-                                authority.getAuthority()
-                        )
-                );
-    }
-
-
     @PostMapping("/{id}/archive")
     public CourseResponse archive(
             @PathVariable Long id,
@@ -133,8 +119,8 @@ public class CourseController {
     ) {
         return courseService.archive(
                 id,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
     }
 
@@ -146,13 +132,12 @@ public class CourseController {
     ) {
         courseService.delete(
                 id,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         return ResponseEntity.noContent().build();
     }
-
 
     @PostMapping("/{courseId}/tags/{tagId}")
     public ResponseEntity<Void> addTag(
@@ -164,8 +149,8 @@ public class CourseController {
         courseService.addTagToCourse(
                 courseId,
                 tagId,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         return ResponseEntity.noContent().build();
@@ -181,8 +166,8 @@ public class CourseController {
         courseService.removeTagFromCourse(
                 courseId,
                 tagId,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         return ResponseEntity.noContent().build();
@@ -205,12 +190,7 @@ public class CourseController {
             @Valid @RequestBody ReassignCourseTeacherRequest request,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority()
-                                .equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         CourseResponse response = courseService.reassignTeacher(
                 courseId,
@@ -221,6 +201,5 @@ public class CourseController {
                 authentication.getName(), courseId, request.teacherId());
         return response;
     }
-
 
 }

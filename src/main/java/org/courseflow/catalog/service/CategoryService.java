@@ -1,6 +1,6 @@
-
 package org.courseflow.catalog.service;
 
+import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.dto.CategoryCreateRequest;
 import org.courseflow.catalog.dto.CategoryResponse;
 import org.courseflow.catalog.entity.Category;
@@ -10,7 +10,6 @@ import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -104,17 +103,8 @@ public class CategoryService {
             );
         }
 
-        Sort.Direction sortDirection;
-
-        if (direction.equalsIgnoreCase("asc")) {
-            sortDirection = Sort.Direction.ASC;
-        } else if (direction.equalsIgnoreCase("desc")) {
-            sortDirection = Sort.Direction.DESC;
-        } else {
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        Pagination.validate(page, size);
+        Sort.Direction sortDirection = Sort.Direction.fromString(Pagination.direction(direction));
 
         Pageable pageable = PageRequest.of(
                 page,

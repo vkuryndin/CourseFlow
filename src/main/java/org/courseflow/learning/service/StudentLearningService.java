@@ -1,5 +1,6 @@
 package org.courseflow.learning.service;
 
+import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import org.courseflow.assessment.dto.MyQuizAttemptResponse;
@@ -16,7 +17,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -122,9 +122,7 @@ public class StudentLearningService {
     }
 
     private void validate(Long courseId, int page, int size) {
-        if (page < 0 || size < 1 || size > 100 || page > Integer.MAX_VALUE / size) {
-            throw new BadRequestException("Invalid pagination parameters");
-        }
+        Pagination.validate(page, size);
         if (courseId != null && courseId < 1) {
             throw new BadRequestException("Invalid courseId");
         }

@@ -1,16 +1,13 @@
-
 package org.courseflow.content.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.common.api.Pagination;
 import org.courseflow.identity.repository.UserRepository;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Isolation;
-
 import org.courseflow.common.validation.HttpUrls;
 import org.courseflow.content.entity.LessonSessionFormat;
-
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
@@ -22,11 +19,9 @@ import org.courseflow.content.entity.Lesson;
 import org.courseflow.content.entity.LessonSession;
 import org.courseflow.content.repository.LessonRepository;
 import org.courseflow.content.repository.LessonSessionRepository;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.courseflow.content.dto.RescheduleLessonSessionRequest;
@@ -74,20 +69,11 @@ public class LessonSessionService {
                         )
                 );
 
-        if (!isAdmin
-                && !currentUserId.equals(
-                course.getTeacher().getId()
-        )) {
-            throw new AccessDeniedException(
-                    "Teacher can manage only own courses"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Teacher can manage only own courses");
 
-        if (course.getStatus() == CourseStatus.ARCHIVED) {
-            throw new BusinessConflictException(
-                    "Cannot schedule lessons in an archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot schedule lessons in an archived course");
 
         Long teacherId = course.getTeacher().getId();
         lockTeacher(teacherId);
@@ -118,11 +104,7 @@ public class LessonSessionService {
             Authentication authentication
     ) {
         contentAccessService.checkLessonAccess(lessonId, currentUserId, authentication);
-        if (page < 0 || size < 1 || size > 100) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         findLesson(lessonId);
 
@@ -254,7 +236,6 @@ public class LessonSessionService {
         return LessonSessionResponse.from(session);
     }
 
-
     @Transactional
     public void delete(
             Long lessonId,
@@ -288,20 +269,11 @@ public class LessonSessionService {
                         )
                 );
 
-        if (!isAdmin
-                && !currentUserId.equals(
-                course.getTeacher().getId()
-        )) {
-            throw new AccessDeniedException(
-                    "Teacher can manage only own courses"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Teacher can manage only own courses");
 
-        if (course.getStatus() == CourseStatus.ARCHIVED) {
-            throw new BusinessConflictException(
-                    "Cannot modify sessions of an archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot modify sessions of an archived course");
 
         lockTeacher(course.getTeacher().getId());
         return sessionRepository

@@ -1,12 +1,11 @@
-
 package org.courseflow.learning.controller;
 
+import org.courseflow.security.CurrentUser;
 import org.courseflow.learning.dto.GradebookResponse;
 import org.courseflow.learning.dto.GradebookResponse.AssessmentType;
 import org.courseflow.learning.dto.GradebookResponse.ReviewStatus;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.service.GradebookService;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -59,16 +58,11 @@ public class GradebookController {
 
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority()
-                                .equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return gradebookService.getGradebook(
                 courseId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin,
                 q,
                 enrollmentStatus,

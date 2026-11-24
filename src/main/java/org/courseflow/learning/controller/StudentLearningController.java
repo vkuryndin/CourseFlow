@@ -1,5 +1,6 @@
 package org.courseflow.learning.controller;
 
+import org.courseflow.security.CurrentUser;
 import org.courseflow.assessment.dto.MyQuizAttemptResponse;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.common.api.PageResponse;
@@ -27,7 +28,7 @@ public class StudentLearningController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt) {
-        return studentLearningService.getAssignments(Long.valueOf(jwt.getSubject()), courseId, status, page, size);
+        return studentLearningService.getAssignments(CurrentUser.id(jwt), courseId, status, page, size);
     }
 
     @GetMapping("/submissions")
@@ -37,7 +38,7 @@ public class StudentLearningController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt) {
-        return studentLearningService.getSubmissions(Long.valueOf(jwt.getSubject()), courseId, status, page, size);
+        return studentLearningService.getSubmissions(CurrentUser.id(jwt), courseId, status, page, size);
     }
 
     @GetMapping("/quiz-attempts")
@@ -47,6 +48,6 @@ public class StudentLearningController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt) {
-        return studentLearningService.getQuizAttempts(Long.valueOf(jwt.getSubject()), courseId, status, page, size);
+        return studentLearningService.getQuizAttempts(CurrentUser.id(jwt), courseId, status, page, size);
     }
 }

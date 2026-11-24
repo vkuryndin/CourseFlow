@@ -1,10 +1,8 @@
-
 package org.courseflow.learning.entity;
 
 import jakarta.persistence.*;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.identity.entity.User;
-
 import java.time.Instant;
 
 @Entity
@@ -88,13 +86,8 @@ public class Enrollment {
             Course course,
             Instant now
     ) {
-        Enrollment enrollment = new Enrollment();
-
-        enrollment.student = student;
-        enrollment.course = course;
+        Enrollment enrollment = new Enrollment(student, course);
         enrollment.enrolledAt = now;
-        enrollment.endedAt = null;
-        enrollment.status = EnrollmentStatus.ACTIVE;
 
         return enrollment;
     }

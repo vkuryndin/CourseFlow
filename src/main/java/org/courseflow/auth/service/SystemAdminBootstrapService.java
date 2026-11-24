@@ -1,19 +1,16 @@
-
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.repository.UserRepository;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -52,8 +49,7 @@ public class SystemAdminBootstrapService {
             );
         }
 
-        String email = adminEmail.trim()
-                .toLowerCase(Locale.ROOT);
+        String email = EmailAddresses.normalize(adminEmail);
 
         int passwordBytes = adminPassword
                 .getBytes(StandardCharsets.UTF_8).length;

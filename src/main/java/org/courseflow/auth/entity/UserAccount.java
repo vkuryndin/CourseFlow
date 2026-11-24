@@ -1,9 +1,7 @@
-
 package org.courseflow.auth.entity;
 
 import jakarta.persistence.*;
 import org.courseflow.identity.entity.User;
-
 import java.time.Instant;
 
 @Entity
@@ -53,15 +51,6 @@ public class UserAccount {
 
     public Instant getCreatedAt() {
         return createdAt;
-    }
-
-    public void changePassword(String passwordHash) {
-        this.passwordHash = passwordHash;
-        this.passwordChangeRequired = false;
-    }
-
-    public void requirePasswordChange() {
-        this.passwordChangeRequired = true;
     }
 
     public void replacePasswordHash(String newPasswordHash) {

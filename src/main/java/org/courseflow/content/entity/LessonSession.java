@@ -1,8 +1,6 @@
-
 package org.courseflow.content.entity;
 
 import jakarta.persistence.*;
-
 import java.time.Instant;
 
 @Entity
@@ -71,17 +69,6 @@ public class LessonSession {
         return meetingUrl;
     }
 
-    public void update(
-            Instant startsAt,
-            Instant endsAt,
-            LessonSessionFormat format,
-            String meetingUrl
-    ) {
-        this.startsAt = startsAt;
-        this.endsAt = endsAt;
-        this.format = format;
-        this.meetingUrl = meetingUrl;
-    }
     public void updateDetails(
             Instant startsAt,
             Instant endsAt,

@@ -1,14 +1,12 @@
-
 package org.courseflow.content.service;
 
+import org.courseflow.security.CurrentUser;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.content.entity.Lesson;
 import org.courseflow.content.repository.LessonRepository;
-import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;
-
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -44,27 +42,18 @@ public class ContentAccessService {
                         )
                 );
 
-        if (hasRole(authentication, "ADMIN")) {
+        if (CurrentUser.hasRole(authentication, "ADMIN")) {
             return;
         }
 
-        if (hasRole(authentication, "TEACHER")
+        if (CurrentUser.hasRole(authentication, "TEACHER")
                 && course.getTeacher().getId()
                 .equals(currentUserId)) {
             return;
         }
 
-        if (hasRole(authentication, "STUDENT")) {
-            boolean activeEnrollment = enrollmentRepository
-                    .findByStudent_IdAndCourse_Id(
-                            currentUserId,
-                            courseId
-                    )
-                    .map(enrollment ->
-                            enrollment.getStatus()
-                                    == EnrollmentStatus.ACTIVE
-                    )
-                    .orElse(false);
+        if (CurrentUser.hasRole(authentication, "STUDENT")) {
+            boolean activeEnrollment = enrollmentRepository.hasActiveEnrollment(currentUserId, courseId);
 
             if (activeEnrollment) {
                 return;
@@ -100,15 +89,4 @@ public class ContentAccessService {
         );
     }
 
-    private boolean hasRole(
-            Authentication authentication,
-            String role
-    ) {
-        return authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority()
-                                .equals("ROLE_" + role)
-                );
-    }
 }

@@ -1,17 +1,13 @@
-
 package org.courseflow.review.controller;
 
+import org.courseflow.security.CurrentUser;
 import org.courseflow.review.dto.PublicCourseReviewResponse;
-
 import jakarta.validation.Valid;
-
 import org.courseflow.common.api.PageResponse;
-
 import org.courseflow.review.dto.CourseRatingResponse;
 import org.courseflow.review.dto.CourseReviewRequest;
 import org.courseflow.review.dto.CourseReviewResponse;
 import org.courseflow.review.service.CourseReviewService;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,7 +35,7 @@ public class CourseReviewController {
         CourseReviewResponse response =
                 courseReviewService.create(
                         courseId,
-                        Long.valueOf(jwt.getSubject()),
+                        CurrentUser.id(jwt),
                         request
                 );
 
@@ -56,7 +52,7 @@ public class CourseReviewController {
     ) {
         return courseReviewService.update(
                 courseId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 request
         );
     }
@@ -68,7 +64,7 @@ public class CourseReviewController {
     ) {
         courseReviewService.delete(
                 courseId,
-                Long.valueOf(jwt.getSubject())
+                CurrentUser.id(jwt)
         );
 
         return ResponseEntity.noContent().build();
@@ -81,7 +77,7 @@ public class CourseReviewController {
     ) {
         return courseReviewService.getMyReview(
                 courseId,
-                Long.valueOf(jwt.getSubject())
+                CurrentUser.id(jwt)
         );
     }
 

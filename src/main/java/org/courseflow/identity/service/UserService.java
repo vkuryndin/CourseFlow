@@ -1,9 +1,8 @@
-
 package org.courseflow.identity.service;
 
+import org.courseflow.common.api.Pagination;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.ResourceNotFoundException;
@@ -13,7 +12,6 @@ import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +19,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -68,17 +65,8 @@ public class UserService {
             );
         }
 
-        Sort.Direction sortDirection;
-
-        if ("asc".equalsIgnoreCase(direction)) {
-            sortDirection = Sort.Direction.ASC;
-        } else if ("desc".equalsIgnoreCase(direction)) {
-            sortDirection = Sort.Direction.DESC;
-        } else {
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        Pagination.validate(page, size);
+        Sort.Direction sortDirection = Sort.Direction.fromString(Pagination.direction(direction));
 
         Sort sort = Sort.by(sortDirection, sortBy);
 

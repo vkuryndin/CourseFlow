@@ -1,13 +1,11 @@
-
 package org.courseflow.identity.controller;
 
+import org.courseflow.security.CurrentUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.identity.dto.AdminCreateUserRequest;
 import org.courseflow.identity.dto.UpdateUserRequest;
@@ -17,12 +15,10 @@ import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.service.AdminUserService;
 import org.courseflow.identity.service.UserService;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
 import java.net.URI;
 
 @RestController
@@ -45,7 +41,7 @@ public class UserController {
     public UserResponse getMe(
             @AuthenticationPrincipal Jwt jwt
     ) {
-        Long userId = Long.valueOf(jwt.getSubject());
+        Long userId = CurrentUser.id(jwt);
         return userService.getById(userId);
     }
 

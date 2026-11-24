@@ -1,12 +1,10 @@
-
 package org.courseflow.learning.controller;
 
+import org.courseflow.security.CurrentUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.service.EnrollmentService;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,7 +33,7 @@ public class EnrollmentController {
             @PathVariable Long courseId,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        Long studentId = Long.valueOf(jwt.getSubject());
+        Long studentId = CurrentUser.id(jwt);
 
         EnrollmentService.EnrollResult result =
                 enrollmentService.enroll(courseId, studentId);
@@ -54,7 +52,7 @@ public class EnrollmentController {
             @PathVariable Long courseId,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        Long studentId = Long.valueOf(jwt.getSubject());
+        Long studentId = CurrentUser.id(jwt);
 
         return enrollmentService.getMyEnrollment(
                 courseId,
@@ -67,7 +65,7 @@ public class EnrollmentController {
             @PathVariable Long courseId,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        Long studentId = Long.valueOf(jwt.getSubject());
+        Long studentId = CurrentUser.id(jwt);
 
         enrollmentService.withdraw(courseId, studentId);
 
@@ -97,13 +95,9 @@ public class EnrollmentController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        Long currentUserId = Long.valueOf(jwt.getSubject());
+        Long currentUserId = CurrentUser.id(jwt);
 
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return enrollmentService.getCourseEnrollments(
                 courseId,

@@ -1,11 +1,9 @@
-
 package org.courseflow.catalog.service;
 
+import org.courseflow.common.api.Pagination;
 import org.courseflow.content.repository.LessonSessionRepository;
 import java.time.Instant;
-
 import jakarta.persistence.criteria.Predicate;
-
 import org.courseflow.catalog.dto.CourseResponse;
 import org.courseflow.catalog.dto.CreateCourseRequest;
 import org.courseflow.catalog.dto.UpdateCourseRequest;
@@ -22,9 +20,7 @@ import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
-import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -34,16 +30,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-
 import org.courseflow.catalog.dto.TagResponse;
 import org.courseflow.catalog.entity.Tag;
 import org.courseflow.catalog.repository.TagRepository;
-import org.courseflow.catalog.dto.ReassignCourseTeacherRequest;
 
 @Service
 public class CourseService {
@@ -149,11 +142,8 @@ public class CourseService {
             }
         }
 
-        if (course.getStatus() == CourseStatus.ARCHIVED) {
-            throw new BusinessConflictException(
-                    "Cannot edit an archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot edit an archived course");
 
         Category category =
                 findCategory(request.categoryId());
@@ -199,11 +189,7 @@ public class CourseService {
             String sortBy,
             String direction
     ) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (categoryId != null && categoryId < 1) {
             throw new BadRequestException(
@@ -223,15 +209,7 @@ public class CourseService {
             );
         }
 
-        String sortDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!sortDirection.equals("asc")
-                && !sortDirection.equals("desc")) {
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String sortDirection = Pagination.direction(direction);
 
         String search = q == null
                 ? ""
@@ -348,10 +326,7 @@ public class CourseService {
     }
 
     private void ensureTeacherNotEnrolled(Long courseId, Long teacherId) {
-        boolean enrolled = enrollmentRepository
-                .findByStudent_IdAndCourse_Id(teacherId, courseId)
-                .map(e -> e.getStatus() == EnrollmentStatus.ACTIVE)
-                .orElse(false);
+        boolean enrolled = enrollmentRepository.hasActiveEnrollment(teacherId, courseId);
         if (enrolled) {
             throw new BusinessConflictException(
                     "Withdraw active enrollment before assigning the course teacher"
@@ -447,14 +422,8 @@ public class CourseService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        if (!isAdmin
-                && !currentUserId.equals(
-                course.getTeacher().getId()
-        )) {
-            throw new AccessDeniedException(
-                    "Teacher can manage only own courses"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Teacher can manage only own courses");
     }
 
     private boolean hasHistoricalDependencies(Long courseId) {
@@ -495,7 +464,6 @@ public class CourseService {
 
         return count > 0;
     }
-
 
     @Transactional
     public void addTagToCourse(
@@ -547,11 +515,7 @@ public class CourseService {
             int page,
             int size
     ) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (!courseRepository.existsById(courseId)) {
             throw new ResourceNotFoundException(
@@ -588,11 +552,8 @@ public class CourseService {
 
         checkCourseOwner(course, currentUserId, isAdmin);
 
-        if (course.getStatus() == CourseStatus.ARCHIVED) {
-            throw new BusinessConflictException(
-                    "Cannot modify tags of an archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot modify tags of an archived course");
 
         return course;
     }
@@ -626,6 +587,5 @@ public class CourseService {
 
         return CourseResponse.from(course);
     }
-
 
 }

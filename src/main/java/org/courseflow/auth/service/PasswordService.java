@@ -1,7 +1,6 @@
 package org.courseflow.auth.service;
 
 import org.courseflow.auth.dto.ChangePasswordRequest;
-import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.PasswordResetTokenRepository;
@@ -10,11 +9,9 @@ import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.UserStatus;
 import org.springframework.security.access.AccessDeniedException;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
@@ -97,8 +94,6 @@ public class PasswordService {
                 Instant.now()
         );
 
-        authSessionRepository
-                .findAllByUserAccount_User_IdAndRevokedFalse(userId)
-                .forEach(AuthSession::revoke);
+        authSessionRepository.revokeActiveSessionsByUserId(userId);
     }
 }

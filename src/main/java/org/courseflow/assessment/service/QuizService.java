@@ -1,42 +1,35 @@
-
 package org.courseflow.assessment.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.assessment.repository.QuizSubmissionRepository;
+import org.courseflow.assessment.repository.QuestionRepository;
+import org.courseflow.security.CurrentUser;
 import java.time.Instant;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.springframework.transaction.annotation.Isolation;
-
 import jakarta.persistence.EntityManager;
-
 import org.courseflow.assessment.dto.CreateQuizRequest;
 import org.courseflow.assessment.dto.QuizResponse;
 import org.courseflow.assessment.entity.Quiz;
 import org.courseflow.assessment.repository.QuizRepository;
-
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
-
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-
 import org.courseflow.content.entity.Module;
 import org.courseflow.content.repository.ModuleRepository;
 import org.courseflow.content.service.ContentAccessService;
-
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import org.courseflow.assessment.dto.CreateQuestionRequest;
 import org.courseflow.assessment.dto.QuestionResponse;
 import org.courseflow.assessment.entity.Question;
 import org.courseflow.assessment.entity.QuestionType;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.assessment.dto.UpdateQuizRequest;
-
 import java.util.List;
-
 import java.util.Optional;
 
 @Service
@@ -46,6 +39,8 @@ public class QuizService {
     private final ModuleRepository moduleRepository;
     private final CourseRepository courseRepository;
     private final ContentAccessService contentAccessService;
+    private final QuestionRepository questionRepository;
+    private final QuizSubmissionRepository quizSubmissionRepository;
     private final EntityManager entityManager;
 
     public QuizService(
@@ -53,12 +48,16 @@ public class QuizService {
             ModuleRepository moduleRepository,
             CourseRepository courseRepository,
             ContentAccessService contentAccessService,
+            QuestionRepository questionRepository,
+            QuizSubmissionRepository quizSubmissionRepository,
             EntityManager entityManager
     ) {
         this.quizRepository = quizRepository;
         this.moduleRepository = moduleRepository;
         this.courseRepository = courseRepository;
         this.contentAccessService = contentAccessService;
+        this.questionRepository = questionRepository;
+        this.quizSubmissionRepository = quizSubmissionRepository;
         this.entityManager = entityManager;
     }
 
@@ -86,18 +85,11 @@ public class QuizService {
                         )
                 );
 
-        if (!isAdmin &&
-                !course.getTeacher().getId().equals(currentUserId)) {
-            throw new AccessDeniedException(
-                    "Only course teacher or ADMIN can create Quiz"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Only course teacher or ADMIN can create Quiz");
 
-        if (course.getStatus() != CourseStatus.ACTIVE) {
-            throw new BusinessConflictException(
-                    "Cannot create Quiz in archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot create Quiz in archived course");
 
         if (findQuizByModule(moduleId).isPresent()) {
             throw new BusinessConflictException(
@@ -172,18 +164,7 @@ public class QuizService {
     }
 
     private Optional<Quiz> findQuizByModule(Long moduleId) {
-        return entityManager.createQuery(
-                        """
-                        SELECT q
-                        FROM Quiz q
-                        WHERE q.module.id = :moduleId
-                        """,
-                        Quiz.class
-                )
-                .setParameter("moduleId", moduleId)
-                .setMaxResults(1)
-                .getResultStream()
-                .findFirst();
+        return quizRepository.findByModule_Id(moduleId);
     }
 
     @Transactional
@@ -208,27 +189,12 @@ public class QuizService {
 
         validateQuestion(request);
 
-        long questionCount = entityManager.createQuery(
-                "SELECT COUNT(q) FROM Question q WHERE q.quiz.id = :quizId", Long.class)
-                .setParameter("quizId", quizId).getSingleResult();
+        long questionCount = questionRepository.countByQuiz_Id(quizId);
         if (questionCount >= 200) {
             throw new BusinessConflictException("Quiz cannot have more than 200 questions");
         }
 
-        Long existingPosition = entityManager.createQuery(
-                        """
-                        SELECT COUNT(q)
-                        FROM Question q
-                        WHERE q.quiz.id = :quizId
-                          AND q.position = :position
-                        """,
-                        Long.class
-                )
-                .setParameter("quizId", quizId)
-                .setParameter("position", request.position())
-                .getSingleResult();
-
-        if (existingPosition > 0) {
+        if (questionRepository.existsByQuiz_IdAndPosition(quizId, request.position())) {
             throw new BusinessConflictException(
                     "Question position is already occupied"
             );
@@ -275,15 +241,12 @@ public class QuizService {
         );
 
         Course course = quiz.getModule().getCourse();
-        boolean admin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean admin = CurrentUser.hasRole(authentication, "ADMIN");
         boolean owner = course.getTeacher().getId().equals(currentUserId)
-                && authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+                && CurrentUser.hasRole(authentication, "TEACHER");
         if (!admin && !owner) {
-            if (course.getStatus() != CourseStatus.ACTIVE) {
-                throw new BusinessConflictException("Quiz is in an archived course");
-            }
+            CourseAccessPolicy.requireActive(course,
+                "Quiz is in an archived course");
             long activeAttempts = entityManager.createQuery("""
                     SELECT COUNT(s) FROM QuizSubmission s
                     WHERE s.quiz.id = :quizId AND s.student.id = :studentId
@@ -326,18 +289,7 @@ public class QuizService {
     }
 
     private List<Question> loadQuestions(Long quizId) {
-        return entityManager.createQuery(
-                        """
-                        SELECT DISTINCT q
-                        FROM Question q
-                        LEFT JOIN FETCH q.answerOptions
-                        WHERE q.quiz.id = :quizId
-                        ORDER BY q.position ASC, q.id ASC
-                        """,
-                        Question.class
-                )
-                .setParameter("quizId", quizId)
-                .getResultList();
+        return questionRepository.findWithOptionsByQuizId(quizId);
     }
 
     private void validateQuestion(
@@ -380,18 +332,7 @@ public class QuizService {
     }
 
     private boolean hasQuizSubmissions(Long quizId) {
-        Long count = entityManager.createQuery(
-                        """
-                        SELECT COUNT(s)
-                        FROM QuizSubmission s
-                        WHERE s.quiz.id = :quizId
-                        """,
-                        Long.class
-                )
-                .setParameter("quizId", quizId)
-                .getSingleResult();
-
-        return count > 0;
+        return quizSubmissionRepository.existsByQuiz_Id(quizId);
     }
 
     private Quiz requireQuizManagementAccess(
@@ -400,18 +341,7 @@ public class QuizService {
             boolean isAdmin,
             boolean forModification
     ) {
-        Long courseId = entityManager.createQuery(
-                        """
-                        SELECT q.module.course.id
-                        FROM Quiz q
-                        WHERE q.id = :quizId
-                        """,
-                        Long.class
-                )
-                .setParameter("quizId", quizId)
-                .getResultList()
-                .stream()
-                .findFirst()
+        Long courseId = quizRepository.findCourseIdByQuizId(quizId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Quiz not found: " + quizId
@@ -428,13 +358,8 @@ public class QuizService {
                 )
         );
 
-        if (!isAdmin &&
-                !course.getTeacher().getId().equals(currentUserId)) {
-
-            throw new AccessDeniedException(
-                    "Only course teacher or ADMIN can manage Quiz"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Only course teacher or ADMIN can manage Quiz");
 
         if (forModification
                 && course.getStatus() != CourseStatus.ACTIVE) {
@@ -451,7 +376,6 @@ public class QuizService {
                         )
                 );
     }
-
 
     @Transactional
     public QuizResponse updateQuiz(
@@ -542,22 +466,7 @@ public class QuizService {
 
         validateQuestion(request);
 
-        Long existingPosition = entityManager.createQuery(
-                        """
-                        SELECT COUNT(q)
-                        FROM Question q
-                        WHERE q.quiz.id = :quizId
-                          AND q.position = :position
-                          AND q.id <> :questionId
-                        """,
-                        Long.class
-                )
-                .setParameter("quizId", quizId)
-                .setParameter("position", request.position())
-                .setParameter("questionId", questionId)
-                .getSingleResult();
-
-        if (existingPosition > 0) {
+        if (questionRepository.existsByQuiz_IdAndPositionAndIdNot(quizId, request.position(), questionId)) {
             throw new BusinessConflictException(
                     "Question position is already occupied"
             );
@@ -646,29 +555,10 @@ public class QuizService {
         return quiz;
     }
 
-    private Question findQuestion(
-            Long quizId,
-            Long questionId
-    ) {
-        return entityManager.createQuery(
-                        """
-                        SELECT q
-                        FROM Question q
-                        WHERE q.id = :questionId
-                          AND q.quiz.id = :quizId
-                        """,
-                        Question.class
-                )
-                .setParameter("questionId", questionId)
-                .setParameter("quizId", quizId)
-                .getResultList()
-                .stream()
-                .findFirst()
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Question not found in Quiz: " + questionId
-                        )
-                );
+    private Question findQuestion(Long quizId, Long questionId) {
+        return questionRepository.findByIdAndQuiz_Id(questionId, quizId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Question not found in Quiz: " + questionId));
     }
 
     private void deleteAnswerOptions(Long questionId) {
@@ -681,7 +571,5 @@ public class QuizService {
                 .setParameter("questionId", questionId)
                 .executeUpdate();
     }
-
-
 
 }

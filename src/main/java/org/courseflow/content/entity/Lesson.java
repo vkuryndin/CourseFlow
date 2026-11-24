@@ -1,9 +1,7 @@
-
 package org.courseflow.content.entity;
 
 import jakarta.persistence.*;
 import org.courseflow.learning.entity.Assignment;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -93,18 +91,6 @@ public class Lesson {
         return List.copyOf(assignments);
     }
 
-    public void update(
-            String title,
-            String content,
-            String videoUrl,
-            Integer position
-    ) {
-        this.title = title;
-        this.content = content;
-        this.videoUrl = videoUrl;
-        this.position = position;
-    }
-
     public LessonSession addSession(
             Instant startsAt,
             Instant endsAt,
@@ -124,24 +110,6 @@ public class Lesson {
         return session;
     }
 
-    public Assignment addAssignment(
-            String title,
-            String description,
-            Instant dueAt,
-            Integer maxScore
-    ) {
-        Assignment assignment = new Assignment(
-                this,
-                title,
-                description,
-                dueAt,
-                maxScore
-        );
-
-        assignments.add(assignment);
-
-        return assignment;
-    }
     public void updateDetails(
             String title,
             String content,

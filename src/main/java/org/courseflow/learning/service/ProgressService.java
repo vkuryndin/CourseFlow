@@ -1,30 +1,25 @@
-
 package org.courseflow.learning.service;
 
+import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
-
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
-
 import org.courseflow.learning.dto.CourseProgressResponse;
 import org.courseflow.learning.dto.CourseProgressResponse.AssignmentProgress;
 import org.courseflow.learning.dto.CourseProgressResponse.QuizProgress;
 import org.courseflow.learning.entity.EnrollmentStatus;
-
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -56,13 +51,7 @@ public class ProgressService {
             Long studentId, Long courseId, EnrollmentStatus enrollmentStatus,
             CourseStatus courseStatus, int page, int size, String sortBy, String direction
     ) {
-        if (page < 0 || size < 1 || size > 100
-                || page > Integer.MAX_VALUE / size) {
-
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (courseId != null && courseId < 1) {
             throw new BadRequestException(
@@ -438,16 +427,7 @@ public class ProgressService {
             );
         };
 
-        String normalizedDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!normalizedDirection.equals("asc")
-                && !normalizedDirection.equals("desc")) {
-
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String normalizedDirection = Pagination.direction(direction);
 
         String orderBy = " ORDER BY "
                 + field

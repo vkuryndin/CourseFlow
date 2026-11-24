@@ -1,22 +1,19 @@
-
 package org.courseflow.content.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.api.PageResponse;
-import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.content.dto.CreateModuleRequest;
 import org.courseflow.content.dto.ModuleResponse;
 import org.courseflow.content.entity.Module;
 import org.courseflow.content.repository.ModuleRepository;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
@@ -56,20 +53,11 @@ public class ModuleService {
                         )
                 );
 
-        if (!isAdmin
-                && !currentUserId.equals(
-                course.getTeacher().getId()
-        )) {
-            throw new AccessDeniedException(
-                    "Teacher can manage only own courses"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Teacher can manage only own courses");
 
-        if (course.getStatus() == CourseStatus.ARCHIVED) {
-            throw new BusinessConflictException(
-                    "Cannot add modules to archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot add modules to archived course");
 
         if (moduleRepository.existsByCourse_IdAndPosition(
                 courseId, request.position()
@@ -102,11 +90,7 @@ public class ModuleService {
             int page,
             int size
     ) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (!courseRepository.existsById(courseId)) {
             throw new ResourceNotFoundException(
@@ -161,7 +145,6 @@ public class ModuleService {
 
         return ModuleResponse.from(module);
     }
-
 
     @Transactional
     public ModuleResponse changePosition(
@@ -288,25 +271,13 @@ public class ModuleService {
                         )
                 );
 
-        if (!isAdmin
-                && !currentUserId.equals(
-                course.getTeacher().getId()
-        )) {
-            throw new AccessDeniedException(
-                    "Teacher can manage only own courses"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Teacher can manage only own courses");
 
-        if (course.getStatus() == CourseStatus.ARCHIVED) {
-            throw new BusinessConflictException(
-                    "Cannot modify an archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot modify an archived course");
 
         return course;
     }
-
-
-
 
 }

@@ -1,59 +1,42 @@
-
 package org.courseflow.assessment.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.assessment.repository.QuestionRepository;
+import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
-
 import org.courseflow.assessment.dto.QuizAttemptResponse;
 import org.courseflow.assessment.entity.Quiz;
 import org.courseflow.assessment.entity.QuizSubmission;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.assessment.repository.QuizRepository;
 import org.courseflow.assessment.repository.QuizSubmissionRepository;
-
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
-
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.repository.UserRepository;
-
-import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;
-
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.util.Optional;
 import org.courseflow.assessment.dto.SubmitQuizRequest;
 import org.courseflow.assessment.entity.AnswerOption;
 import org.courseflow.assessment.entity.Question;
-import org.courseflow.assessment.entity.QuestionType;
 import org.courseflow.common.exception.BadRequestException;
-
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import jakarta.persistence.TypedQuery;
-
 import org.courseflow.assessment.dto.QuizAttemptDetailResponse;
 import org.courseflow.common.api.PageResponse;
-
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-
-import java.util.Locale;
-
 
 @Service
 public class QuizAttemptService {
@@ -63,6 +46,7 @@ public class QuizAttemptService {
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
+    private final QuestionRepository questionRepository;
     private final EntityManager entityManager;
 
     public QuizAttemptService(
@@ -71,6 +55,7 @@ public class QuizAttemptService {
             CourseRepository courseRepository,
             EnrollmentRepository enrollmentRepository,
             UserRepository userRepository,
+            QuestionRepository questionRepository,
             EntityManager entityManager
     ) {
         this.quizRepository = quizRepository;
@@ -78,6 +63,7 @@ public class QuizAttemptService {
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.userRepository = userRepository;
+        this.questionRepository = questionRepository;
         this.entityManager = entityManager;
     }
 
@@ -107,11 +93,8 @@ public class QuizAttemptService {
                 studentId
         );
 
-        if (course.getStatus() != CourseStatus.ACTIVE) {
-            throw new BusinessConflictException(
-                    "Cannot start Quiz in archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot start Quiz in archived course");
 
         if (course.getTeacher().getId().equals(studentId)) {
             throw new AccessDeniedException(
@@ -170,7 +153,6 @@ public class QuizAttemptService {
         );
     }
 
-
     @Transactional
     public QuizAttemptResponse getMyAttempt(
             Long quizId,
@@ -197,20 +179,8 @@ public class QuizAttemptService {
         return QuizAttemptResponse.from(attempt);
     }
 
-
     private Course lockCourseForQuizShared(Long quizId) {
-        Long courseId = entityManager.createQuery(
-                        """
-                        SELECT q.module.course.id
-                        FROM Quiz q
-                        WHERE q.id = :quizId
-                        """,
-                        Long.class
-                )
-                .setParameter("quizId", quizId)
-                .getResultList()
-                .stream()
-                .findFirst()
+        Long courseId = quizRepository.findCourseIdByQuizId(quizId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Quiz not found: " + quizId
@@ -235,16 +205,7 @@ public class QuizAttemptService {
             Long courseId,
             Long studentId
     ) {
-        boolean active = enrollmentRepository
-                .findByStudent_IdAndCourse_Id(
-                        studentId,
-                        courseId
-                )
-                .map(enrollment ->
-                        enrollment.getStatus()
-                                == EnrollmentStatus.ACTIVE
-                )
-                .orElse(false);
+        boolean active = enrollmentRepository.hasActiveEnrollment(studentId, courseId);
 
         if (!active) {
             throw new AccessDeniedException(
@@ -270,20 +231,8 @@ public class QuizAttemptService {
     }
 
     private boolean hasQuestions(Long quizId) {
-        Long count = entityManager.createQuery(
-                        """
-                        SELECT COUNT(q)
-                        FROM Question q
-                        WHERE q.quiz.id = :quizId
-                        """,
-                        Long.class
-                )
-                .setParameter("quizId", quizId)
-                .getSingleResult();
-
-        return count > 0;
+        return questionRepository.countByQuiz_Id(quizId) > 0;
     }
-
 
     @Transactional
     public Optional<QuizAttemptResponse> submit(
@@ -306,11 +255,8 @@ public class QuizAttemptService {
                 studentId
         );
 
-        if (course.getStatus() != CourseStatus.ACTIVE) {
-            throw new BusinessConflictException(
-                    "Cannot submit Quiz in archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot submit Quiz in archived course");
 
         if (course.getTeacher().getId().equals(studentId)) {
             throw new AccessDeniedException(
@@ -333,18 +279,7 @@ public class QuizAttemptService {
             return Optional.empty();
         }
 
-        List<Question> questions = entityManager.createQuery(
-                        """
-                        SELECT DISTINCT q
-                        FROM Question q
-                        LEFT JOIN FETCH q.answerOptions
-                        WHERE q.quiz.id = :quizId
-                        ORDER BY q.position ASC, q.id ASC
-                        """,
-                        Question.class
-                )
-                .setParameter("quizId", quizId)
-                .getResultList();
+        List<Question> questions = questionRepository.findWithOptionsByQuizId(quizId);
 
         if (questions.isEmpty()) {
             throw new BusinessConflictException(
@@ -353,35 +288,9 @@ public class QuizAttemptService {
         }
 
         Map<Long, Set<Long>> selectedAnswers =
-                validateAnswers(questions, request);
+                QuizGrader.validateAnswers(questions, request);
 
-        int correctQuestions = 0;
-
-        for (Question question : questions) {
-
-            Set<Long> selected = selectedAnswers.getOrDefault(
-                    question.getId(),
-                    Set.of()
-            );
-
-            Set<Long> correct = new HashSet<>();
-
-            for (AnswerOption option
-                    : question.getAnswerOptions()) {
-
-                if (option.isCorrect()) {
-                    correct.add(option.getId());
-                }
-            }
-
-            if (selected.equals(correct)) {
-                correctQuestions++;
-            }
-        }
-
-        int score = (int) Math.round(
-                correctQuestions * 100.0 / questions.size()
-        );
+        int score = QuizGrader.score(questions, selectedAnswers);
 
         // Check deadline again before saving the result.
         now = Instant.now();
@@ -416,86 +325,6 @@ public class QuizAttemptService {
         return Optional.of(
                 QuizAttemptResponse.from(attempt)
         );
-    }
-
-    private Map<Long, Set<Long>> validateAnswers(
-            List<Question> questions,
-            SubmitQuizRequest request
-    ) {
-        Map<Long, Question> questionsById =
-                new HashMap<>();
-
-        for (Question question : questions) {
-            questionsById.put(
-                    question.getId(),
-                    question
-            );
-        }
-
-        Map<Long, Set<Long>> selectedAnswers =
-                new HashMap<>();
-
-        for (SubmitQuizRequest.AnswerRequest answer
-                : request.answers()) {
-
-            Long questionId = answer.questionId();
-
-            Question question =
-                    questionsById.get(questionId);
-
-            if (question == null) {
-                throw new BadRequestException(
-                        "Question does not belong to Quiz: "
-                                + questionId
-                );
-            }
-
-            if (selectedAnswers.containsKey(questionId)) {
-                throw new BadRequestException(
-                        "Duplicate question: " + questionId
-                );
-            }
-
-            Set<Long> selected =
-                    new HashSet<>(answer.optionIds());
-
-            if (selected.size() != answer.optionIds().size()) {
-                throw new BadRequestException(
-                        "Duplicate answer options are not allowed"
-                );
-            }
-
-            if (question.getType()
-                    == QuestionType.SINGLE_CHOICE
-                    && selected.size() > 1) {
-
-                throw new BadRequestException(
-                        "SINGLE_CHOICE accepts only one option"
-                );
-            }
-
-            Set<Long> allowedOptions = new HashSet<>();
-
-            for (AnswerOption option
-                    : question.getAnswerOptions()) {
-
-                allowedOptions.add(option.getId());
-            }
-
-            if (!allowedOptions.containsAll(selected)) {
-                throw new BadRequestException(
-                        "Answer option does not belong to question: "
-                                + questionId
-                );
-            }
-
-            selectedAnswers.put(
-                    questionId,
-                    selected
-            );
-        }
-
-        return selectedAnswers;
     }
 
     private QuizSubmission findOwnedAttempt(Long quizId, Long attemptId, Long studentId) {
@@ -606,7 +435,6 @@ public class QuizAttemptService {
         return buildAttemptDetail(attempt);
     }
 
-
     private void requireResultsAccess(
             Long quizId,
             Long currentUserId,
@@ -614,14 +442,8 @@ public class QuizAttemptService {
     ) {
         Course course = lockCourseForQuizShared(quizId);
 
-        if (!isAdmin &&
-                !course.getTeacher().getId()
-                        .equals(currentUserId)) {
-
-            throw new AccessDeniedException(
-                    "Only course teacher or ADMIN can view Quiz results"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Only course teacher or ADMIN can view Quiz results");
     }
 
     private PageResponse<QuizAttemptResponse> findAttemptPage(
@@ -633,13 +455,7 @@ public class QuizAttemptService {
             String sortBy,
             String direction
     ) {
-        if (page < 0 || size < 1 || size > 100
-                || page > Integer.MAX_VALUE / size) {
-
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (studentId != null && studentId < 1) {
             throw new BadRequestException(
@@ -659,16 +475,7 @@ public class QuizAttemptService {
             );
         };
 
-        String normalizedDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!normalizedDirection.equals("asc")
-                && !normalizedDirection.equals("desc")) {
-
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String normalizedDirection = Pagination.direction(direction);
 
         refreshExpiredAttempts(
                 quizId,
@@ -803,7 +610,5 @@ public class QuizAttemptService {
                 answers
         );
     }
-
-
 
 }

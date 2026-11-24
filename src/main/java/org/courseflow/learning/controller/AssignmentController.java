@@ -1,13 +1,11 @@
-
 package org.courseflow.learning.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.learning.dto.AssignmentResponse;
 import org.courseflow.learning.dto.CreateAssignmentRequest;
 import org.courseflow.learning.service.AssignmentService;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -34,13 +32,9 @@ public class AssignmentController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        Long currentUserId = Long.valueOf(jwt.getSubject());
+        Long currentUserId = CurrentUser.id(jwt);
 
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         AssignmentResponse response = assignmentService.create(
                 lessonId,
@@ -66,7 +60,7 @@ public class AssignmentController {
     ) {
         return assignmentService.findByLesson(
                 lessonId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 authentication,
                 page,
                 size,
@@ -85,7 +79,7 @@ public class AssignmentController {
         return assignmentService.getById(
                 lessonId,
                 assignmentId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 authentication
         );
     }
@@ -98,17 +92,13 @@ public class AssignmentController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return assignmentService.update(
                 lessonId,
                 assignmentId,
                 request,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
     }
@@ -120,16 +110,12 @@ public class AssignmentController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         assignmentService.delete(
                 lessonId,
                 assignmentId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
 

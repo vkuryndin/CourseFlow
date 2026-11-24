@@ -1,9 +1,8 @@
-
 package org.courseflow.dashboard.controller;
 
+import org.courseflow.security.CurrentUser;
 import org.courseflow.dashboard.dto.StudentDashboardResponse;
 import org.courseflow.dashboard.service.StudentDashboardService;
-
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +27,7 @@ public class StudentDashboardController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return studentDashboardService.getDashboard(
-                Long.valueOf(jwt.getSubject())
+                CurrentUser.id(jwt)
         );
     }
 }

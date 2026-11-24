@@ -1,12 +1,10 @@
-
 package org.courseflow.learning.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import org.courseflow.learning.dto.CreateSubmissionRequest;
 import org.courseflow.learning.dto.SubmissionResponse;
 import org.courseflow.learning.service.SubmissionService;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.learning.dto.GradeSubmissionRequest;
 import org.courseflow.learning.entity.SubmissionStatus;
-
 import org.springframework.security.core.Authentication;
 
 @RestController
@@ -38,7 +35,7 @@ public class SubmissionController {
     ) {
         SubmissionResponse response = submissionService.submit(
                 assignmentId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 request.content()
         );
 
@@ -54,7 +51,7 @@ public class SubmissionController {
     ) {
         return submissionService.getMySubmission(
                 assignmentId,
-                Long.valueOf(jwt.getSubject())
+                CurrentUser.id(jwt)
         );
     }
 
@@ -69,15 +66,11 @@ public class SubmissionController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return submissionService.findByAssignment(
                 assignmentId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin,
                 status,
                 page,
@@ -95,17 +88,13 @@ public class SubmissionController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return submissionService.grade(
                 assignmentId,
                 submissionId,
                 request,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
     }

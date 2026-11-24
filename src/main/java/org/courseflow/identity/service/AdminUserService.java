@@ -1,7 +1,6 @@
-
 package org.courseflow.identity.service;
 
-import org.courseflow.auth.entity.AuthSession;
+import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.PasswordResetTokenRepository;
@@ -22,13 +21,10 @@ import org.courseflow.identity.repository.ProfileRepository;
 import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -66,7 +62,7 @@ public class AdminUserService {
 
     @Transactional
     public UserResponse create(AdminCreateUserRequest request) {
-        String email = normalizeEmail(request.email());
+        String email = EmailAddresses.normalize(request.email());
 
         if (userRepository.existsByEmail(email)) {
             throw new BusinessConflictException(
@@ -176,7 +172,7 @@ public class AdminUserService {
         }
 
         String newName = request.displayName().trim();
-        String newEmail = normalizeEmail(request.email());
+        String newEmail = EmailAddresses.normalize(request.email());
 
         boolean emailChanged =
                 !Objects.equals(user.getEmail(), newEmail);
@@ -362,12 +358,7 @@ public class AdminUserService {
     }
 
     private void revokeSessions(Long userId) {
-        authSessionRepository
-                .findAllByUserAccount_User_IdAndRevokedFalse(userId)
-                .forEach(AuthSession::revoke);
+        authSessionRepository.revokeActiveSessionsByUserId(userId);
     }
 
-    private String normalizeEmail(String email) {
-        return email.trim().toLowerCase(Locale.ROOT);
-    }
 }

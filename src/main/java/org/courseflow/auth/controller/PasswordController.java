@@ -1,11 +1,9 @@
-
 package org.courseflow.auth.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import org.courseflow.auth.dto.ChangePasswordRequest;
 import org.courseflow.auth.service.PasswordService;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -29,7 +27,7 @@ public class PasswordController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
-        Long userId = Long.valueOf(jwt.getSubject());
+        Long userId = CurrentUser.id(jwt);
 
         passwordService.changePassword(userId, request);
 

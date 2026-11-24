@@ -1,31 +1,24 @@
-
 package org.courseflow.review.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.common.api.Pagination;
 import org.courseflow.review.dto.PublicCourseReviewResponse;
-
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
-
-import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;
-
 import org.courseflow.review.dto.CourseRatingResponse;
 import org.courseflow.review.dto.CourseReviewRequest;
 import org.courseflow.review.dto.CourseReviewResponse;
 import org.courseflow.review.entity.CourseReview;
 import org.courseflow.review.repository.CourseReviewRepository;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -33,8 +26,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
-
-import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -167,13 +158,7 @@ public class CourseReviewService {
     ) {
         requireCourseExists(courseId);
 
-        if (page < 0 || size < 1 || size > 100
-                || page > Integer.MAX_VALUE / size) {
-
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
             throw new BadRequestException(
@@ -181,16 +166,7 @@ public class CourseReviewService {
             );
         }
 
-        String normalizedDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!normalizedDirection.equals("asc")
-                && !normalizedDirection.equals("desc")) {
-
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String normalizedDirection = Pagination.direction(direction);
 
         Sort.Direction sortDirection =
                 normalizedDirection.equals("asc")
@@ -263,16 +239,7 @@ public class CourseReviewService {
             );
         }
 
-        boolean enrolled = enrollmentRepository
-                .findByStudent_IdAndCourse_Id(
-                        studentId,
-                        courseId
-                )
-                .map(enrollment ->
-                        enrollment.getStatus()
-                                == EnrollmentStatus.ACTIVE
-                )
-                .orElse(false);
+        boolean enrolled = enrollmentRepository.hasActiveEnrollment(studentId, courseId);
 
         if (!enrolled) {
             throw new AccessDeniedException(
@@ -280,11 +247,8 @@ public class CourseReviewService {
             );
         }
 
-        if (course.getStatus() != CourseStatus.ACTIVE) {
-            throw new BusinessConflictException(
-                    "Cannot modify review in archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot modify review in archived course");
 
         return course;
     }

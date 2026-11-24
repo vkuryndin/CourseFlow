@@ -1,6 +1,6 @@
-
 package org.courseflow.catalog.service;
 
+import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.dto.TagRequest;
 import org.courseflow.catalog.dto.TagResponse;
 import org.courseflow.catalog.entity.Tag;
@@ -9,15 +9,12 @@ import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -40,11 +37,7 @@ public class TagService {
             String sortBy,
             String direction
     ) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (!SORT_FIELDS.contains(sortBy)) {
             throw new BadRequestException(
@@ -52,15 +45,7 @@ public class TagService {
             );
         }
 
-        String normalizedDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!normalizedDirection.equals("asc")
-                && !normalizedDirection.equals("desc")) {
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String normalizedDirection = Pagination.direction(direction);
 
         String search = q == null ? "" : q.trim();
 

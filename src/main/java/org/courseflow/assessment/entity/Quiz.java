@@ -1,9 +1,7 @@
-
 package org.courseflow.assessment.entity;
 
 import jakarta.persistence.*;
 import org.courseflow.content.entity.Module;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,11 +77,7 @@ public class Quiz {
             Integer timeLimit,
             Integer maxAttempts
     ) {
-        if (timeLimit == null || timeLimit < 1) {
-            throw new IllegalArgumentException(
-                    "Time limit must be at least 1 minute"
-            );
-        }
+        validateTimeLimit(timeLimit);
 
         if (maxAttempts == null || maxAttempts < 1) {
             throw new IllegalArgumentException(
@@ -97,13 +91,16 @@ public class Quiz {
     }
 
     private void setTimeLimit(Integer timeLimit) {
+        validateTimeLimit(timeLimit);
+        this.timeLimit = timeLimit;
+    }
+
+    private static void validateTimeLimit(Integer timeLimit) {
         if (timeLimit == null || timeLimit < 1) {
             throw new IllegalArgumentException(
                     "Time limit must be at least 1 minute"
             );
         }
-
-        this.timeLimit = timeLimit;
     }
 
     public Question addQuestion(

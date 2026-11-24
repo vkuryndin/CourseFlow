@@ -1,8 +1,8 @@
-
 package org.courseflow.learning.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
@@ -13,7 +13,6 @@ import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.entity.Enrollment;
 import org.courseflow.learning.repository.EnrollmentRepository;
-
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +20,10 @@ import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.learning.dto.EnrollmentListItemResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-
-import java.util.Locale;
 import java.util.Set;
-
-
 import java.time.Instant;
 
 @Service
@@ -68,11 +62,8 @@ public class EnrollmentService {
                         )
                 );
 
-        if (course.getStatus() != CourseStatus.ACTIVE) {
-            throw new BusinessConflictException(
-                    "Cannot enroll in an archived course"
-            );
-        }
+        CourseAccessPolicy.requireActive(course,
+                "Cannot enroll in an archived course");
 
         User student = userRepository.findByIdForUpdate(studentId)
                 .orElseThrow(() ->
@@ -203,12 +194,8 @@ public class EnrollmentService {
                         )
                 );
 
-        if (!isAdmin
-                && !course.getTeacher().getId().equals(currentUserId)) {
-            throw new AccessDeniedException(
-                    "Teacher can view enrollments only for own courses"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Teacher can view enrollments only for own courses");
 
         PageRequest pageable = enrollmentPage(
                 page, size, sortBy, direction
@@ -275,11 +262,7 @@ public class EnrollmentService {
             String sortBy,
             String direction
     ) {
-        if (page < 0 || size < 1 || size > 100) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (!Set.of("id", "enrolledAt", "status")
                 .contains(sortBy)) {
@@ -288,15 +271,7 @@ public class EnrollmentService {
             );
         }
 
-        String normalizedDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!normalizedDirection.equals("asc")
-                && !normalizedDirection.equals("desc")) {
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String normalizedDirection = Pagination.direction(direction);
 
         Sort.Direction springDirection =
                 normalizedDirection.equals("asc")

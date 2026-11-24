@@ -1,10 +1,9 @@
-
 package org.courseflow.assessment.controller;
 
+import org.courseflow.security.CurrentUser;
 import org.courseflow.assessment.dto.QuizAttemptResponse;
 import org.courseflow.assessment.service.QuizAttemptService;
 import org.courseflow.common.exception.BusinessConflictException;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,7 +14,6 @@ import org.courseflow.assessment.dto.SubmitQuizRequest;
 import org.courseflow.assessment.dto.QuizAttemptDetailResponse;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.common.api.PageResponse;
-
 import org.springframework.security.core.Authentication;
 
 @RestController
@@ -38,7 +36,7 @@ public class QuizAttemptController {
         QuizAttemptService.StartResult result =
                 quizAttemptService.start(
                         quizId,
-                        Long.valueOf(jwt.getSubject())
+                        CurrentUser.id(jwt)
                 );
 
         if (result.attempt() == null) {
@@ -65,7 +63,7 @@ public class QuizAttemptController {
         return quizAttemptService.getMyAttempt(
                 quizId,
                 attemptId,
-                Long.valueOf(jwt.getSubject())
+                CurrentUser.id(jwt)
         );
     }
 
@@ -79,7 +77,7 @@ public class QuizAttemptController {
         return quizAttemptService.submit(
                 quizId,
                 attemptId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 request
         ).orElseThrow(() ->
                 new BusinessConflictException(
@@ -103,7 +101,7 @@ public class QuizAttemptController {
     ) {
         return quizAttemptService.getMyAttempts(
                 quizId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 status,
                 page,
                 size,
@@ -127,16 +125,11 @@ public class QuizAttemptController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority()
-                                .equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return quizAttemptService.getQuizResults(
                 quizId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin,
                 studentId,
                 status,
@@ -156,7 +149,7 @@ public class QuizAttemptController {
         return quizAttemptService.getMyResult(
                 quizId,
                 attemptId,
-                Long.valueOf(jwt.getSubject())
+                CurrentUser.id(jwt)
         );
     }
 
@@ -167,20 +160,14 @@ public class QuizAttemptController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority()
-                                .equals("ROLE_ADMIN")
-                );
+        boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         return quizAttemptService.getResultForManagement(
                 quizId,
                 attemptId,
-                Long.valueOf(jwt.getSubject()),
+                CurrentUser.id(jwt),
                 isAdmin
         );
     }
-
 
 }

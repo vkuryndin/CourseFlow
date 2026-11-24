@@ -1,10 +1,7 @@
-
 package org.courseflow.learning.entity;
 
 import jakarta.persistence.*;
 import org.courseflow.content.entity.Lesson;
-import org.courseflow.identity.entity.User;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,33 +76,6 @@ public class Assignment {
 
     public List<Submission> getSubmissions() {
         return List.copyOf(submissions);
-    }
-
-    public void update(
-            String title,
-            String description,
-            Instant dueAt,
-            Integer maxScore
-    ) {
-        this.title = title;
-        this.description = description;
-        this.dueAt = dueAt;
-        this.maxScore = maxScore;
-    }
-
-    public Submission addSubmission(
-            User student,
-            String content
-    ) {
-        Submission submission = new Submission(
-                this,
-                student,
-                content
-        );
-
-        submissions.add(submission);
-
-        return submission;
     }
 
     public void updateDetails(

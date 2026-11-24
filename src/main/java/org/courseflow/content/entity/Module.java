@@ -1,9 +1,7 @@
-
 package org.courseflow.content.entity;
 
 import jakarta.persistence.*;
 import org.courseflow.catalog.entity.Course;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -73,16 +71,6 @@ public class Module {
 
     public List<Lesson> getLessons() {
         return List.copyOf(lessons);
-    }
-
-    public void update(
-            String title,
-            String description,
-            Integer position
-    ) {
-        this.title = title;
-        this.description = description;
-        this.position = position;
     }
 
     public Lesson addLesson(

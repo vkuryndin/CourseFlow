@@ -1,4 +1,3 @@
-
 package org.courseflow.catalog.entity;
 
 import jakarta.persistence.*;
@@ -6,7 +5,6 @@ import org.courseflow.content.entity.Module;
 import org.courseflow.identity.entity.User;
 import org.courseflow.learning.entity.Enrollment;
 import org.courseflow.review.entity.CourseReview;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -140,24 +138,6 @@ public class Course {
         return List.copyOf(reviews);
     }
 
-    public void update(
-            String title,
-            String description,
-            Category category,
-            Integer duration,
-            LocalDate startDate
-    ) {
-        this.title = title;
-        this.description = description;
-        this.category = category;
-        this.duration = duration;
-        this.startDate = startDate;
-    }
-
-    public void changeTeacher(User teacher) {
-        this.teacher = teacher;
-    }
-
     public void addTag(Tag tag) {
         this.tags.add(tag);
     }
@@ -185,35 +165,9 @@ public class Course {
         return module;
     }
 
-    public Enrollment addEnrollment(User student) {
-        Enrollment enrollment = new Enrollment(student, this);
-
-        enrollments.add(enrollment);
-
-        return enrollment;
-    }
-
-    public CourseReview addReview(
-            User student,
-            Integer rating,
-            String comment
-    ) {
-        CourseReview review = new CourseReview(
-                this,
-                student,
-                rating,
-                comment
-        );
-
-        reviews.add(review);
-
-        return review;
-    }
-
     public void archive() {
         this.status = CourseStatus.ARCHIVED;
     }
-
 
     public void updateDetails(
             String newTitle,

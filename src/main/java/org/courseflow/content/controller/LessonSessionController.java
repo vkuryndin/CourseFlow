@@ -1,20 +1,17 @@
-
 package org.courseflow.content.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.content.dto.CreateLessonSessionRequest;
 import org.courseflow.content.dto.LessonSessionResponse;
 import org.courseflow.content.service.LessonSessionService;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.content.dto.RescheduleLessonSessionRequest;
-
 import java.net.URI;
 
 @RestController
@@ -39,8 +36,8 @@ public class LessonSessionController {
         LessonSessionResponse response = sessionService.create(
                 lessonId,
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         URI location = URI.create(
@@ -53,7 +50,6 @@ public class LessonSessionController {
                 .body(response);
     }
 
-
     @GetMapping
     public PageResponse<LessonSessionResponse> findByLesson(
             @PathVariable Long lessonId,
@@ -63,10 +59,9 @@ public class LessonSessionController {
             Authentication authentication
     ) {
         return sessionService.findByLesson(
-                lessonId, page, size, Long.valueOf(jwt.getSubject()), authentication
+                lessonId, page, size, CurrentUser.id(jwt), authentication
         );
     }
-
 
     @GetMapping("/{sessionId}")
     public LessonSessionResponse getById(
@@ -76,16 +71,8 @@ public class LessonSessionController {
             Authentication authentication
     ) {
         return sessionService.getById(
-                lessonId, sessionId, Long.valueOf(jwt.getSubject()), authentication
+                lessonId, sessionId, CurrentUser.id(jwt), authentication
         );
-    }
-
-    private boolean isAdmin(Authentication authentication) {
-        return authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
     }
 
     @PutMapping("/{sessionId}")
@@ -100,8 +87,8 @@ public class LessonSessionController {
                 lessonId,
                 sessionId,
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
     }
 
@@ -117,8 +104,8 @@ public class LessonSessionController {
                 lessonId,
                 sessionId,
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
     }
 
@@ -132,8 +119,8 @@ public class LessonSessionController {
         sessionService.delete(
                 lessonId,
                 sessionId,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         return ResponseEntity.noContent().build();

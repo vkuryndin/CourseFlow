@@ -1,30 +1,24 @@
-
 package org.courseflow.learning.service;
 
+import org.courseflow.catalog.service.CourseAccessPolicy;
+import org.courseflow.common.api.Pagination;
 import java.time.Instant;
-
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
-
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.repository.CourseRepository;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-
 import org.courseflow.learning.dto.GradebookResponse;
 import org.courseflow.learning.dto.GradebookResponse.*;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.entity.SubmissionStatus;
-
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -73,12 +67,7 @@ public class GradebookService {
                 isAdmin
         );
 
-        if (page < 0 || size < 1 || size > 100
-                || page > Integer.MAX_VALUE / size) {
-            throw new BadRequestException(
-                    "Invalid pagination parameters"
-            );
-        }
+        Pagination.validate(page, size);
 
         if (type == AssessmentType.QUIZ
                 && reviewStatus != null) {
@@ -236,14 +225,8 @@ public class GradebookService {
                         )
                 );
 
-        if (!isAdmin &&
-                !course.getTeacher().getId()
-                        .equals(currentUserId)) {
-
-            throw new AccessDeniedException(
-                    "Teacher can view only own course gradebook"
-            );
-        }
+        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
+                "Teacher can view only own course gradebook");
     }
 
     private void requireModule(
@@ -283,15 +266,7 @@ public class GradebookService {
             );
         };
 
-        String normalizedDirection =
-                direction.toLowerCase(Locale.ROOT);
-
-        if (!normalizedDirection.equals("asc")
-                && !normalizedDirection.equals("desc")) {
-            throw new BadRequestException(
-                    "Direction must be asc or desc"
-            );
-        }
+        String normalizedDirection = Pagination.direction(direction);
 
         String orderBy = " ORDER BY "
                 + field

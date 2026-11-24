@@ -1,7 +1,7 @@
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.dto.ResetPasswordRequest;
-import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.auth.entity.PasswordResetToken;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
@@ -9,7 +9,6 @@ import org.courseflow.auth.repository.PasswordResetTokenRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.identity.entity.UserStatus;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -31,7 +29,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
-import java.util.Locale;
 
 @Service
 public class PasswordResetService {
@@ -79,7 +76,7 @@ public class PasswordResetService {
     public void requestReset(String email) {
 
         String normalizedEmail =
-                email.trim().toLowerCase(Locale.ROOT);
+                EmailAddresses.normalize(email);
 
         Long accountId = userAccountRepository
                 .findAccountIdByUserEmail(normalizedEmail)
@@ -220,11 +217,7 @@ public class PasswordResetService {
         );
 
         // Every JWT issued before the reset is revoked.
-        authSessionRepository
-                .findAllByUserAccount_User_IdAndRevokedFalse(
-                        account.getUser().getId()
-                )
-                .forEach(AuthSession::revoke);
+        authSessionRepository.revokeActiveSessionsByUserId(account.getUser().getId());
     }
 
     private String generateToken() {

@@ -1,5 +1,6 @@
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.dto.LoginRequest;
 import org.courseflow.auth.dto.LoginResponse;
 import org.courseflow.auth.dto.RegistrationRequest;
@@ -15,16 +16,13 @@ import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.security.JwtService;
-
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,7 +55,7 @@ public class AuthService {
     public RegistrationResponse register(
             RegistrationRequest request
     ) {
-        String email = normalizeEmail(request.email());
+        String email = EmailAddresses.normalize(request.email());
 
         if (userRepository.existsByEmail(email)) {
             throw new BusinessConflictException(
@@ -95,7 +93,7 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        String email = normalizeEmail(request.email());
+        String email = EmailAddresses.normalize(request.email());
 
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new BadRequestException("Password must not exceed 72 UTF-8 bytes");
@@ -162,10 +160,6 @@ public class AuthService {
                 user.getRoles(),
                 account.isPasswordChangeRequired()
         );
-    }
-
-    private String normalizeEmail(String email) {
-        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private BadCredentialsException invalidCredentials() {

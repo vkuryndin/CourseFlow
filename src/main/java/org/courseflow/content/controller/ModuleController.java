@@ -1,13 +1,11 @@
-
 package org.courseflow.content.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.content.dto.CreateModuleRequest;
 import org.courseflow.content.dto.ModuleResponse;
 import org.courseflow.content.service.ModuleService;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,7 +13,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.courseflow.content.dto.UpdateModuleRequest;
 import org.courseflow.content.dto.ChangeModulePositionRequest;
-
 import java.net.URI;
 
 @RestController
@@ -38,8 +35,8 @@ public class ModuleController {
         ModuleResponse response = moduleService.create(
                 courseId,
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         URI location = URI.create(
@@ -63,15 +60,6 @@ public class ModuleController {
         );
     }
 
-    private boolean isAdmin(Authentication authentication) {
-        return authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                );
-    }
-
-
     @GetMapping("/{moduleId}")
     public ModuleResponse getById(
             @PathVariable Long courseId,
@@ -92,8 +80,8 @@ public class ModuleController {
                 courseId,
                 moduleId,
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
     }
 
@@ -109,8 +97,8 @@ public class ModuleController {
                 courseId,
                 moduleId,
                 request,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
     }
 
@@ -124,8 +112,8 @@ public class ModuleController {
         moduleService.delete(
                 courseId,
                 moduleId,
-                Long.valueOf(jwt.getSubject()),
-                isAdmin(authentication)
+                CurrentUser.id(jwt),
+                CurrentUser.isAdmin(authentication)
         );
 
         return ResponseEntity.noContent().build();

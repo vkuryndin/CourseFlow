@@ -1,5 +1,6 @@
 package org.courseflow.identity.controller;
 
+import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.courseflow.identity.dto.ProfileResponse;
 import org.courseflow.identity.dto.UpdateProfileRequest;
@@ -19,12 +20,12 @@ public class ProfileController {
 
     @GetMapping
     public ProfileResponse get(@AuthenticationPrincipal Jwt jwt) {
-        return profileService.getMyProfile(Long.valueOf(jwt.getSubject()));
+        return profileService.getMyProfile(CurrentUser.id(jwt));
     }
 
     @PutMapping
     public ProfileResponse update(@AuthenticationPrincipal Jwt jwt,
                                   @Valid @RequestBody UpdateProfileRequest request) {
-        return profileService.updateMyProfile(Long.valueOf(jwt.getSubject()), request);
+        return profileService.updateMyProfile(CurrentUser.id(jwt), request);
     }
 }

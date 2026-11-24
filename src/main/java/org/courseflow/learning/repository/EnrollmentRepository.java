@@ -1,14 +1,11 @@
-
 package org.courseflow.learning.repository;
 
 import org.courseflow.learning.entity.Enrollment;
 import org.courseflow.learning.entity.EnrollmentStatus;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.Optional;
 
 public interface EnrollmentRepository
@@ -51,4 +48,9 @@ public interface EnrollmentRepository
             Long studentId,
             EnrollmentStatus status
     );
+    boolean existsByStudent_IdAndCourse_IdAndStatus(Long studentId, Long courseId, EnrollmentStatus status);
+
+    default boolean hasActiveEnrollment(Long studentId, Long courseId) {
+        return existsByStudent_IdAndCourse_IdAndStatus(studentId, courseId, EnrollmentStatus.ACTIVE);
+    }
 }

@@ -1,11 +1,11 @@
-
 package org.courseflow.assessment.repository;
 
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Query;
 import org.courseflow.assessment.entity.Quiz;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.Optional;
 
 public interface QuizRepository
@@ -19,4 +19,6 @@ public interface QuizRepository
             Long courseId,
             Pageable pageable
     );
+    @Query("SELECT q.module.course.id FROM Quiz q WHERE q.id = :quizId")
+    Optional<Long> findCourseIdByQuizId(@Param("quizId") Long quizId);
 }
