@@ -2,10 +2,7 @@ package org.courseflow.catalog.service;
 
 import org.courseflow.common.exception.EditVersion;
 import java.time.Clock;
-import org.courseflow.common.api.Pagination;
-import org.courseflow.common.api.SearchPatterns;
-import org.courseflow.content.repository.LessonSessionRepository;
-import jakarta.persistence.criteria.Predicate;
+import org.courseflow.content.service.LessonScheduleChecks;
 import org.courseflow.catalog.dto.CourseResponse;
 import org.courseflow.catalog.dto.CreateCourseRequest;
 import org.courseflow.catalog.dto.UpdateCourseRequest;
@@ -14,72 +11,50 @@ import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.repository.CategoryRepository;
 import org.courseflow.catalog.repository.CourseRepository;
-import org.courseflow.common.api.PageResponse;
-import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
-import org.courseflow.learning.repository.EnrollmentRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
+import org.courseflow.learning.service.EnrollmentAccess;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import org.courseflow.catalog.dto.TagResponse;
-import org.courseflow.catalog.entity.Tag;
-import org.courseflow.catalog.repository.TagRepository;
 
 @Service
 public class CourseService {
 
     private final Clock clock;
-
-    private static final Set<String> ALLOWED_SORT_FIELDS =
-            Set.of(
-                    "id",
-                    "title",
-                    "duration",
-                    "startDate",
-                    "status"
-            );
+    private final CourseGuard courseGuard;
 
     private final CourseRepository courseRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final EntityManager entityManager;
-    private final TagRepository tagRepository;
-    private final EnrollmentRepository enrollmentRepository;
-    private final LessonSessionRepository sessionRepository;
+    private final EnrollmentAccess enrollmentAccess;
+    private final LessonScheduleChecks scheduleChecks;
 
     public CourseService(
             CourseRepository courseRepository,
             CategoryRepository categoryRepository,
             UserRepository userRepository,
             EntityManager entityManager,
-            TagRepository tagRepository,
-            EnrollmentRepository enrollmentRepository,
-            LessonSessionRepository sessionRepository,
-            Clock clock
+            EnrollmentAccess enrollmentAccess,
+            LessonScheduleChecks scheduleChecks,
+            Clock clock,
+            CourseGuard courseGuard
     ) {
         this.clock = clock;
+        this.courseGuard = courseGuard;
         this.courseRepository = courseRepository;
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
         this.entityManager = entityManager;
-        this.tagRepository = tagRepository;
-        this.enrollmentRepository = enrollmentRepository;
-        this.sessionRepository = sessionRepository;
+        this.enrollmentAccess = enrollmentAccess;
+        this.scheduleChecks = scheduleChecks;
     }
 
     @Transactional
@@ -122,15 +97,7 @@ public class CourseService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = courseRepository.findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        checkCourseOwner(course, currentUserId, isAdmin);
-        CourseAccessPolicy.requireActive(course,
+        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
                 "Cannot edit an archived course");
 
         // Keep the existing request field for compatibility, but prohibit
@@ -158,145 +125,6 @@ public class CourseService {
         return CourseResponse.from(course);
     }
 
-    @Transactional(readOnly = true)
-    public CourseResponse getById(Long id) {
-        Course course = courseRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + id
-                        )
-                );
-
-        return CourseResponse.from(course);
-    }
-
-    @Transactional(readOnly = true)
-    public PageResponse<CourseResponse> findAll(
-            int page,
-            int size,
-            String q,
-            Long categoryId,
-            Long teacherId,
-            CourseStatus status,
-            String sortBy,
-            String direction
-    ) {
-        Pagination.validate(page, size);
-
-        if (categoryId != null && categoryId < 1) {
-            throw new BadRequestException(
-                    "categoryId must be positive"
-            );
-        }
-
-        if (teacherId != null && teacherId < 1) {
-            throw new BadRequestException(
-                    "teacherId must be positive"
-            );
-        }
-
-        if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
-            throw new BadRequestException(
-                    "Unsupported sort field: " + sortBy
-            );
-        }
-
-        String sortDirection = Pagination.direction(direction);
-
-        String search = q == null
-                ? ""
-                : q.trim().toLowerCase(Locale.ROOT);
-
-        if (search.length() > 200) {
-            throw new BadRequestException(
-                    "Search query is too long"
-            );
-        }
-
-        Specification<Course> specification =
-                (root, query, builder) -> {
-
-                    List<Predicate> predicates =
-                            new ArrayList<>();
-
-                    if (!search.isEmpty()) {
-                        String pattern = SearchPatterns.containsLiteral(search);
-
-                        Predicate titleMatches = builder.like(
-                                builder.lower(root.get("title")),
-                                pattern, '\\'
-                        );
-
-                        Predicate descriptionMatches = builder.like(
-                                builder.lower(root.get("description")),
-                                pattern, '\\'
-                        );
-
-                        predicates.add(
-                                builder.or(
-                                        titleMatches,
-                                        descriptionMatches
-                                )
-                        );
-                    }
-
-                    if (categoryId != null) {
-                        predicates.add(
-                                builder.equal(
-                                        root.get("category").get("id"),
-                                        categoryId
-                                )
-                        );
-                    }
-
-                    if (teacherId != null) {
-                        predicates.add(
-                                builder.equal(
-                                        root.get("teacher").get("id"),
-                                        teacherId
-                                )
-                        );
-                    }
-
-                    if (status != null) {
-                        predicates.add(
-                                builder.equal(
-                                        root.get("status"),
-                                        status
-                                )
-                        );
-                    }
-
-                    return builder.and(
-                            predicates.toArray(new Predicate[0])
-                    );
-                };
-
-        Sort.Direction springDirection =
-                sortDirection.equals("desc")
-                        ? Sort.Direction.DESC
-                        : Sort.Direction.ASC;
-
-        Sort sort = Sort.by(
-                springDirection,
-                sortBy
-        );
-
-        // Stable ordering when several courses
-        // have the same value in the primary sort field.
-        if (!sortBy.equals("id")) {
-            sort = sort.and(Sort.by("id"));
-        }
-
-        PageRequest pageable = PageRequest.of(page, size, sort);
-
-        Page<CourseResponse> result = courseRepository
-                .findAll(specification, pageable)
-                .map(CourseResponse::from);
-
-        return PageResponse.from(result);
-    }
-
     private Category findCategory(Long categoryId) {
         return categoryRepository.findByIdForShare(categoryId)
                 .orElseThrow(() ->
@@ -309,13 +137,13 @@ public class CourseService {
     // The target teacher has already been locked by findActiveTeacher.
     private void ensureScheduleCompatible(Course course, Long teacherId) {
         if (course.getStatus() == CourseStatus.ACTIVE && !course.getTeacher().getId().equals(teacherId)
-                && sessionRepository.countReassignmentOverlaps(course.getId(), teacherId, clock.instant()) > 0) {
+                && scheduleChecks.hasReassignmentOverlap(course.getId(), teacherId, clock.instant())) {
             throw new BusinessConflictException("New teacher has overlapping scheduled lessons");
         }
     }
 
     private void ensureTeacherNotEnrolled(Long courseId, Long teacherId) {
-        boolean enrolled = enrollmentRepository.hasActiveEnrollment(teacherId, courseId);
+        boolean enrolled = enrollmentAccess.hasActiveEnrollment(teacherId, courseId);
         if (enrolled) {
             throw new BusinessConflictException(
                     "Withdraw active enrollment before assigning the course teacher"
@@ -352,19 +180,11 @@ public class CourseService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        checkCourseOwner(course, currentUserId, isAdmin);
+        Course course = courseGuard.lockOwned(courseId, currentUserId, isAdmin);
 
         // Repeated archival is idempotent.
         if (course.getStatus() != CourseStatus.ARCHIVED) {
-            if (sessionRepository.existsByLesson_Module_Course_IdAndEndsAtGreaterThan(
+            if (scheduleChecks.hasUnfinishedSessions(
                     courseId, clock.instant())) {
                 throw new BusinessConflictException(
                         "Cancel future sessions and wait for ongoing sessions to finish before archiving");
@@ -383,15 +203,7 @@ public class CourseService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        checkCourseOwner(course, currentUserId, isAdmin);
+        Course course = courseGuard.lockOwned(courseId, currentUserId, isAdmin);
 
         if (hasHistoricalDependencies(courseId)) {
             throw new BusinessConflictException(
@@ -410,15 +222,6 @@ public class CourseService {
                             + "related records exist"
             );
         }
-    }
-
-    private void checkCourseOwner(
-            Course course,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
-                "Teacher can manage only own courses");
     }
 
     private boolean hasHistoricalDependencies(Long courseId) {
@@ -461,99 +264,6 @@ public class CourseService {
     }
 
     @Transactional
-    public void addTagToCourse(
-            Long courseId,
-            Long tagId,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        Course course = findCourseForTagModification(
-                courseId, currentUserId, isAdmin
-        );
-
-        Tag tag = tagRepository.findByIdForShare(tagId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Tag not found: " + tagId
-                        )
-                );
-
-        // Set prevents duplicate links.
-        course.addTag(tag);
-    }
-
-    @Transactional
-    public void removeTagFromCourse(
-            Long courseId,
-            Long tagId,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        Course course = findCourseForTagModification(
-                courseId, currentUserId, isAdmin
-        );
-
-        Tag tag = tagRepository.findByIdForShare(tagId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Tag not found: " + tagId
-                        )
-                );
-
-        // Removing an absent link is idempotent.
-        course.removeTag(tag);
-    }
-
-    @Transactional(readOnly = true)
-    public PageResponse<TagResponse> findCourseTags(
-            Long courseId,
-            int page,
-            int size
-    ) {
-        Pagination.validate(page, size);
-
-        if (!courseRepository.existsById(courseId)) {
-            throw new ResourceNotFoundException(
-                    "Course not found: " + courseId
-            );
-        }
-
-        PageRequest pageable = PageRequest.of(
-                page,
-                size,
-                Sort.by("name").ascending()
-                        .and(Sort.by("id").ascending())
-        );
-
-        Page<TagResponse> result = tagRepository
-                .findByCourseId(courseId, pageable)
-                .map(TagResponse::from);
-
-        return PageResponse.from(result);
-    }
-
-    private Course findCourseForTagModification(
-            Long courseId,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        checkCourseOwner(course, currentUserId, isAdmin);
-
-        CourseAccessPolicy.requireActive(course,
-                "Cannot modify tags of an archived course");
-
-        return course;
-    }
-
-    @Transactional
     public CourseResponse reassignTeacher(
             Long courseId,
             Long newTeacherId,
@@ -566,13 +276,7 @@ public class CourseService {
             );
         }
 
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.lock(courseId);
 
         User newTeacher = findActiveTeacher(newTeacherId);
 

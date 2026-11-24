@@ -11,11 +11,9 @@ import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
-import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
-import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.security.JwtService;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,7 +33,6 @@ public class AuthService {
     private final AccountCreator accountCreator;
     private final TransactionTemplate transaction;
 
-    private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
     private final AuthSessionRepository authSessionRepository;
     private final PasswordEncoder passwordEncoder;
@@ -43,7 +40,6 @@ public class AuthService {
     private final String dummyPasswordHash;
 
     public AuthService(
-            UserRepository userRepository,
             UserAccountRepository userAccountRepository,
             AuthSessionRepository authSessionRepository,
             PasswordEncoder passwordEncoder,
@@ -55,7 +51,6 @@ public class AuthService {
         this.clock = clock;
         this.accountCreator = accountCreator;
         this.transaction = new TransactionTemplate(transactionManager);
-        this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
         this.passwordEncoder = passwordEncoder;
@@ -64,21 +59,8 @@ public class AuthService {
     }
 
     public RegistrationResponse register(RegistrationRequest request) {
-        String email = EmailAddresses.normalize(request.email());
-        PasswordBytes.requireFits(request.password(), "Password");
-        // Fast duplicate check; the unique database constraint is authoritative.
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessConflictException("Email is already registered");
-        }
-        String passwordHash = passwordEncoder.encode(request.password());
-        return transaction.execute(status -> {
-            if (userRepository.existsByEmail(email)) {
-                throw new BusinessConflictException("Email is already registered");
-            }
-            User savedUser = accountCreator.create(request.displayName().trim(), email,
-                    Set.of(UserRole.STUDENT), passwordHash, false);
-            return RegistrationResponse.from(savedUser);
-        });
+        return accountCreator.create(request.displayName(), request.email(),
+                Set.of(UserRole.STUDENT), request.password(), false, RegistrationResponse::from);
     }
 
     public LoginResponse login(LoginRequest request) {

@@ -1,5 +1,6 @@
 package org.courseflow.dashboard.service;
 
+import org.courseflow.dashboard.dto.UpcomingSession;
 import java.time.Instant;
 import org.courseflow.content.entity.LessonSessionFormat;
 
@@ -11,4 +12,9 @@ public record UpcomingSessionRow(Long sessionId, Long courseId, String courseTit
             FROM LessonSession s
             JOIN s.lesson l JOIN l.module m JOIN m.course c
             """;
+
+    UpcomingSession toResponse() {
+        return new UpcomingSession(sessionId, courseId, courseTitle, lessonId, lessonTitle,
+                startsAt, endsAt, format.toString(), meetingUrl);
+    }
 }

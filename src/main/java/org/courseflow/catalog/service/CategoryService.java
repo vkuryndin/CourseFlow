@@ -9,7 +9,6 @@ import org.courseflow.catalog.entity.Category;
 import org.courseflow.catalog.repository.CategoryRepository;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.api.PageResponse;
-import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
@@ -103,11 +102,8 @@ public class CategoryService {
             String sortBy,
             String direction
     ) {
-        if (!sortBy.equals("id") && !sortBy.equals("name")) {
-            throw new BadRequestException(
-                    "Sorting is supported only by id or name"
-            );
-        }
+        Pagination.requireSortField(sortBy, java.util.Set.of("id", "name"),
+                "Sorting is supported only by id or name");
 
         Pagination.validate(page, size);
         Sort sort = Pagination.stableSort(sortBy, direction);

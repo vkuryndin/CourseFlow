@@ -41,11 +41,7 @@ public class TagService {
     ) {
         Pagination.validate(page, size);
 
-        if (!SORT_FIELDS.contains(sortBy)) {
-            throw new BadRequestException(
-                    "Unsupported sort field: " + sortBy
-            );
-        }
+        Pagination.requireSortField(sortBy, SORT_FIELDS, "Unsupported sort field: " + sortBy);
 
         String normalizedDirection = Pagination.direction(direction);
 

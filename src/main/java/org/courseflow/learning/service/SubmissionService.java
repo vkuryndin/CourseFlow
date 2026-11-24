@@ -1,5 +1,7 @@
 package org.courseflow.learning.service;
 
+import java.util.Map;
+import org.courseflow.common.api.JpqlPages;
 import org.courseflow.learning.service.EnrollmentAccess;
 import org.courseflow.identity.service.StudentAccess;
 import org.courseflow.common.exception.EditVersion;
@@ -26,9 +28,6 @@ import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.learning.dto.GradeSubmissionRequest;
 import org.courseflow.learning.entity.SubmissionStatus;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import jakarta.persistence.TypedQuery;
 import java.util.List;
 
 @Service
@@ -207,47 +206,15 @@ public class SubmissionService {
             where += " AND s.status = :status";
         }
 
-        String orderBy = " ORDER BY " + sortField
-                + " " + normalizedDirection;
+        String orderBy = Pagination.orderBy(sortField, normalizedDirection, "s.id");
 
-        if (!sortBy.equals("id")) {
-            orderBy += ", s.id ASC";
-        }
-
-        TypedQuery<Submission> dataQuery =
-                entityManager.createQuery(
-                        "SELECT s " + where + orderBy,
-                        Submission.class
-                ).setParameter("assignmentId", assignmentId);
-
-        TypedQuery<Long> countQuery =
-                entityManager.createQuery(
-                        "SELECT COUNT(s) " + where,
-                        Long.class
-                ).setParameter("assignmentId", assignmentId);
-
-        if (status != null) {
-            dataQuery.setParameter("status", status);
-            countQuery.setParameter("status", status);
-        }
-
-        List<SubmissionResponse> items = dataQuery
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList()
-                .stream()
-                .map(SubmissionResponse::from)
-                .toList();
-
-        long total = countQuery.getSingleResult();
-
-        return PageResponse.from(
-                new PageImpl<>(
-                        items,
-                        PageRequest.of(page, size),
-                        total
-                )
-        );
+        Map<String, Object> parameters = new java.util.HashMap<>();
+        parameters.put("assignmentId", assignmentId);
+        if (status != null) parameters.put("status", status);
+        var result = JpqlPages.findPage(entityManager, Submission.class,
+                "SELECT s", "COUNT(s)", where, orderBy, parameters, page, size);
+        List<SubmissionResponse> items = result.rows().stream().map(SubmissionResponse::from).toList();
+        return new JpqlPages.Result<>(items, result.total(), page, size).response();
     }
 
     @Transactional

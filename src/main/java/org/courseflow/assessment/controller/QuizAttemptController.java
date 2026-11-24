@@ -5,6 +5,7 @@ import java.net.URI;
 import org.courseflow.security.CurrentUser;
 import org.courseflow.assessment.dto.QuizAttemptResponse;
 import org.courseflow.assessment.service.QuizAttemptService;
+import org.courseflow.assessment.service.QuizAttemptQueryService;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,11 +23,14 @@ import org.springframework.security.core.Authentication;
 public class QuizAttemptController {
 
     private final QuizAttemptService quizAttemptService;
+    private final QuizAttemptQueryService quizAttemptQueryService;
 
     public QuizAttemptController(
-            QuizAttemptService quizAttemptService
+            QuizAttemptService quizAttemptService,
+            QuizAttemptQueryService quizAttemptQueryService
     ) {
         this.quizAttemptService = quizAttemptService;
+        this.quizAttemptQueryService = quizAttemptQueryService;
     }
 
     @PostMapping
@@ -66,7 +70,7 @@ public class QuizAttemptController {
             @PathVariable Long attemptId,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return quizAttemptService.getMyAttempt(
+        return quizAttemptQueryService.getMyAttempt(
                 quizId,
                 attemptId,
                 CurrentUser.id(jwt)
@@ -105,7 +109,7 @@ public class QuizAttemptController {
             String direction,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return quizAttemptService.getMyAttempts(
+        return quizAttemptQueryService.getMyAttempts(
                 quizId,
                 CurrentUser.id(jwt),
                 status,
@@ -133,7 +137,7 @@ public class QuizAttemptController {
     ) {
         boolean isAdmin = CurrentUser.isAdmin(authentication);
 
-        return quizAttemptService.getQuizResults(
+        return quizAttemptQueryService.getQuizResults(
                 quizId,
                 CurrentUser.id(jwt),
                 isAdmin,
@@ -152,7 +156,7 @@ public class QuizAttemptController {
             @PathVariable Long attemptId,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return quizAttemptService.getMyResult(
+        return quizAttemptQueryService.getMyResult(
                 quizId,
                 attemptId,
                 CurrentUser.id(jwt)
@@ -168,7 +172,7 @@ public class QuizAttemptController {
     ) {
         boolean isAdmin = CurrentUser.isAdmin(authentication);
 
-        return quizAttemptService.getResultForManagement(
+        return quizAttemptQueryService.getResultForManagement(
                 quizId,
                 attemptId,
                 CurrentUser.id(jwt),

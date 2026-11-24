@@ -23,7 +23,6 @@ import org.courseflow.content.repository.LessonRepository;
 import org.courseflow.content.repository.LessonSessionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.courseflow.content.dto.RescheduleLessonSessionRequest;
@@ -106,8 +105,7 @@ public class LessonSessionService {
         PageRequest pageable = PageRequest.of(
                 page,
                 size,
-                Sort.by("startsAt").ascending()
-                        .and(Sort.by("id").ascending())
+                Pagination.stableSort("startsAt", "asc")
         );
 
         Page<LessonSessionResponse> result =

@@ -5,7 +5,6 @@ import org.courseflow.common.api.SearchPatterns;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.courseflow.common.api.PageResponse;
-import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.dto.UserResponse;
 import org.courseflow.identity.dto.PublicTeacherResponse;
@@ -60,21 +59,11 @@ public class UserService {
             String sortBy,
             String direction
     ) {
-        if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
-            throw new BadRequestException(
-                    "Sorting is supported only by id, "
-                            + "displayName or email"
-            );
-        }
+        Pagination.requireSortField(sortBy, ALLOWED_SORT_FIELDS, "Sorting is supported only by id, "
+                            + "displayName or email");
 
         Pagination.validate(page, size);
-        Sort.Direction sortDirection = Sort.Direction.fromString(Pagination.direction(direction));
-
-        Sort sort = Sort.by(sortDirection, sortBy);
-
-        if (!"id".equals(sortBy)) {
-            sort = sort.and(Sort.by("id"));
-        }
+        Sort sort = Pagination.stableSort(sortBy, direction);
 
         Pageable pageable = PageRequest.of(
                 page,

@@ -154,24 +154,9 @@ public class AssignmentService {
 
         Pagination.validate(page, size);
 
-        if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
-            throw new BadRequestException(
-                    "Unsupported sort field: " + sortBy
-            );
-        }
+        Pagination.requireSortField(sortBy, ALLOWED_SORT_FIELDS, "Unsupported sort field: " + sortBy);
 
-        String normalizedDirection = Pagination.direction(direction);
-
-        Sort.Direction sortDirection =
-                normalizedDirection.equals("asc")
-                        ? Sort.Direction.ASC
-                        : Sort.Direction.DESC;
-
-        Sort sort = Sort.by(sortDirection, sortBy);
-
-        if (!sortBy.equals("id")) {
-            sort = sort.and(Sort.by("id"));
-        }
+        Sort sort = Pagination.stableSort(sortBy, direction);
 
         PageRequest pageable =
                 PageRequest.of(page, size, sort);

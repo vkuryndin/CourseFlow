@@ -1,9 +1,10 @@
 package org.courseflow.learning.service;
 
+import org.courseflow.common.api.JpqlPages;
 import java.time.Clock;
 import org.courseflow.common.api.Pagination;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
+import org.courseflow.learning.repository.ProgressQueryRepository;
+import org.courseflow.learning.repository.ProgressQueryRepository.*;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
@@ -12,8 +13,6 @@ import org.courseflow.learning.dto.CourseProgressSummaryResponse;
 import org.courseflow.learning.dto.CourseProgressResponse.AssignmentProgress;
 import org.courseflow.learning.dto.CourseProgressResponse.QuizProgress;
 import org.courseflow.learning.entity.EnrollmentStatus;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
@@ -25,28 +24,16 @@ import java.util.Map;
 
 @Service
 public class ProgressService {
-    public record CourseRow(Long courseId, String title, CourseStatus courseStatus,
-                            EnrollmentStatus enrollmentStatus) {}
-    public record AssignmentRow(Long courseId, Long assignmentId, String title, Integer maxScore,
-                                Integer score, org.courseflow.learning.entity.SubmissionStatus status, Instant dueAt) {}
-    public record QuizRow(Long courseId, Long quizId, String title, Integer bestScore,
-                          Long attemptsUsed, Integer maxAttempts, Long activeAttempts) {}
-
-
-    public record AssignmentAggregate(Long courseId, Long total, Long completed,
-                                      Long evaluated, Double performanceSum, Long upcoming) {}
-    public record QuizAggregate(Long courseId, Long total, Long evaluated, Long performanceSum) {}
-
     private final Clock clock;
 
-    private final EntityManager entityManager;
+    private final ProgressQueryRepository queries;
 
     public ProgressService(
-            EntityManager entityManager,
+            ProgressQueryRepository queries,
             Clock clock
     ) {
         this.clock = clock;
-        this.entityManager = entityManager;
+        this.queries = queries;
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -105,73 +92,10 @@ public class ProgressService {
             );
         }
 
-        String orderBy = buildOrderBy(
-                sortBy,
-                direction
-        );
-
-        Map<String, Object> parameters =
-                new HashMap<>();
-
-        parameters.put("studentId", studentId);
-
-        StringBuilder where = new StringBuilder("""
-                FROM Enrollment e
-                JOIN e.course c
-                WHERE e.student.id = :studentId
-                """);
-
-        if (courseId != null) {
-            where.append(" AND c.id = :courseId");
-            parameters.put("courseId", courseId);
-        }
-
-        if (enrollmentStatus != null) {
-            where.append(
-                    " AND e.status = :enrollmentStatus"
-            );
-
-            parameters.put(
-                    "enrollmentStatus",
-                    enrollmentStatus
-            );
-        }
-
-        if (courseStatus != null) {
-            where.append(" AND c.status = :courseStatus");
-            parameters.put("courseStatus", courseStatus);
-        }
-
-        TypedQuery<CourseRow> courseQuery =
-                entityManager.createQuery(
-                        """
-                        SELECT c.id,
-                               c.title,
-                               c.status,
-                               e.status
-                        """
-                                + where
-                                + orderBy,
-                        CourseRow.class
-                );
-
-        TypedQuery<Long> countQuery =
-                entityManager.createQuery(
-                        "SELECT COUNT(e) " + where,
-                        Long.class
-                );
-
-        parameters.forEach((name, value) -> {
-            courseQuery.setParameter(name, value);
-            countQuery.setParameter(name, value);
-        });
-
-        List<CourseRow> courses = courseQuery
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-
-        long total = countQuery.getSingleResult();
+        var paged = queries.findCourses(studentId, courseId, enrollmentStatus, courseStatus,
+                page, size, sortBy, direction);
+        List<CourseRow> courses = paged.rows();
+        long total = paged.total();
 
         List<Long> courseIds = courses.stream()
                 .map(row -> row.courseId())
@@ -179,40 +103,8 @@ public class ProgressService {
 
         Map<Long, AssignmentAggregate> assignments = new HashMap<>();
         Map<Long, QuizAggregate> quizzes = new HashMap<>();
-        if (!courseIds.isEmpty()) {
-            for (var row : entityManager.createQuery("""
-                    SELECT a.lesson.module.course.id, COUNT(a.id),
-                           SUM(CASE WHEN s.status IN (org.courseflow.learning.entity.SubmissionStatus.SUBMITTED,
-                                                     org.courseflow.learning.entity.SubmissionStatus.GRADED) THEN 1 ELSE 0 END),
-                           SUM(CASE WHEN s.status = org.courseflow.learning.entity.SubmissionStatus.GRADED
-                                         AND s.score IS NOT NULL THEN 1 ELSE 0 END),
-                           SUM(CASE WHEN s.status = org.courseflow.learning.entity.SubmissionStatus.GRADED
-                                         AND s.score IS NOT NULL THEN CAST(s.score AS Double) * 100.0D / a.maxScore ELSE 0.0D END),
-                           SUM(CASE WHEN s.id IS NULL AND a.dueAt > :now THEN 1 ELSE 0 END)
-                    FROM Assignment a
-                    LEFT JOIN Submission s ON s.assignment.id = a.id AND s.student.id = :studentId
-                    WHERE a.lesson.module.course.id IN :courseIds
-                    GROUP BY a.lesson.module.course.id
-                    """, AssignmentAggregate.class)
-                    .setParameter("studentId", studentId).setParameter("courseIds", courseIds)
-                    .setParameter("now", now).getResultList()) {
-                assignments.put(row.courseId(), row);
-            }
-            // Hibernate HQL derived root: first find the best score per quiz,
-            // then aggregate by course so multiple attempts never inflate progress.
-            for (var row : entityManager.createQuery("""
-                    SELECT x.cid, COUNT(x.qid), COUNT(x.best), SUM(x.best)
-                    FROM (SELECT q.module.course.id AS cid, q.id AS qid, MAX(s.score) AS best
-                          FROM Quiz q LEFT JOIN QuizSubmission s
-                            ON s.quiz.id = q.id AND s.student.id = :studentId
-                          WHERE q.module.course.id IN :courseIds
-                          GROUP BY q.module.course.id, q.id) x
-                    GROUP BY x.cid
-                    """, QuizAggregate.class)
-                    .setParameter("studentId", studentId).setParameter("courseIds", courseIds).getResultList()) {
-                quizzes.put(row.courseId(), row);
-            }
-        }
+        for (var row : queries.aggregateAssignments(studentId, courseIds, now)) assignments.put(row.courseId(), row);
+        for (var row : queries.aggregateQuizzes(studentId, courseIds)) quizzes.put(row.courseId(), row);
         List<CourseProgressSummaryResponse> result = new ArrayList<>();
         for (CourseRow row : courses) {
             var a = assignments.get(row.courseId());
@@ -232,7 +124,7 @@ public class ProgressService {
                     evaluated == 0 ? null : (int) Math.round(performance / evaluated),
                     assignmentCount, quizCount, deadlines));
         }
-        return PageResponse.from(new PageImpl<>(result, PageRequest.of(page, size), total));
+        return new JpqlPages.Result<>(result, total, page, size).response();
     }
 
     private Map<Long, List<AssignmentProgress>>
@@ -248,34 +140,7 @@ public class ProgressService {
             return result;
         }
 
-        TypedQuery<AssignmentRow> query = entityManager.createQuery(
-                        """
-                        SELECT a.lesson.module.course.id,
-                               a.id,
-                               a.title,
-                               a.maxScore,
-                               s.score,
-                               s.status,
-                               a.dueAt
-                        FROM Assignment a
-                        LEFT JOIN Submission s
-                            ON s.assignment.id = a.id
-                           AND s.student.id = :studentId
-                        WHERE a.lesson.module.course.id
-                            IN :courseIds
-                        """ + (deadlinesOnly ? " AND s.id IS NULL AND a.dueAt > :now " : "") + """
-                        ORDER BY a.lesson.module.course.id,
-                                 a.dueAt,
-                                 a.id
-                        """,
-                        AssignmentRow.class
-                )
-                .setParameter("studentId", studentId)
-                .setParameter("courseIds", courseIds);
-        if (deadlinesOnly) query.setParameter("now", now);
-        List<AssignmentRow> rows = query.setFirstResult(detailPage * detailSize)
-                .setMaxResults(detailSize).getResultList();
-
+        List<AssignmentRow> rows = queries.findAssignments(studentId, courseIds, now, detailPage, detailSize, deadlinesOnly);
         for (AssignmentRow row : rows) {
 
             Long courseId = row.courseId();
@@ -314,38 +179,7 @@ public class ProgressService {
             return result;
         }
 
-        List<QuizRow> rows = entityManager.createQuery(
-                        """
-                        SELECT q.module.course.id,
-                               q.id,
-                               q.title,
-                               MAX(s.score),
-                               COUNT(s.id),
-                               q.maxAttempts,
-                               """ + AssessmentStatuses.ACTIVE_ATTEMPT_COUNT + """
-
-                        FROM Quiz q
-                        LEFT JOIN QuizSubmission s
-                            ON s.quiz.id = q.id
-                           AND s.student.id = :studentId
-                        WHERE q.module.course.id
-                            IN :courseIds
-                        GROUP BY q.module.course.id,
-                                 q.id,
-                                 q.title,
-                                 q.maxAttempts
-                        ORDER BY q.module.course.id,
-                                 q.id
-                        """,
-                        QuizRow.class
-                )
-                .setParameter("studentId", studentId)
-                .setParameter("courseIds", courseIds)
-                .setParameter("now", now)
-                .setFirstResult(detailPage * detailSize)
-                .setMaxResults(detailSize)
-                .getResultList();
-
+        List<QuizRow> rows = queries.findQuizzes(studentId, courseIds, now, detailPage, detailSize);
         for (QuizRow row : rows) {
 
             Long courseId = row.courseId();
@@ -372,29 +206,4 @@ public class ProgressService {
         return result;
     }
 
-    private String buildOrderBy(
-            String sortBy,
-            String direction
-    ) {
-        String field = switch (sortBy) {
-            case "courseId" -> "c.id";
-            case "courseTitle" -> "c.title";
-            default -> throw new BadRequestException(
-                    "Unsupported sort field: " + sortBy
-            );
-        };
-
-        String normalizedDirection = Pagination.direction(direction);
-
-        String orderBy = " ORDER BY "
-                + field
-                + " "
-                + normalizedDirection;
-
-        if (!sortBy.equals("courseId")) {
-            orderBy += ", c.id ASC";
-        }
-
-        return orderBy;
-    }
 }

@@ -39,19 +39,6 @@ public record TeacherDashboardResponse(
     ) {
     }
 
-    public record UpcomingSession(
-            Long sessionId,
-            Long courseId,
-            String courseTitle,
-            Long lessonId,
-            String lessonTitle,
-            Instant startsAt,
-            Instant endsAt,
-            String format,
-            String meetingUrl
-    ) {
-    }
-
     public record RecentQuizResult(
             Long attemptId,
             Long quizId,

@@ -1,6 +1,7 @@
 
 package org.courseflow.auth.dto;
 
+import org.courseflow.common.validation.MaxUtf8Bytes;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -22,6 +23,7 @@ public record RegistrationRequest(
                 max = 72,
                 message = "Password must contain 8 to 72 characters"
         )
+        @MaxUtf8Bytes(72)
         String password
 
 ) {

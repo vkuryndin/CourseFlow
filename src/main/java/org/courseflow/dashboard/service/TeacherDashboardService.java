@@ -26,6 +26,7 @@ public class TeacherDashboardService {
 
 
     private final Clock clock;
+    private final UpcomingSessions upcomingSessionsService;
 
     private static final int COURSE_LIMIT = 5;
     private static final int EVENT_LIMIT = 10;
@@ -34,9 +35,11 @@ public class TeacherDashboardService {
 
     public TeacherDashboardService(
             EntityManager entityManager,
-            Clock clock
+            Clock clock,
+            UpcomingSessions upcomingSessionsService
     ) {
         this.clock = clock;
+        this.upcomingSessionsService = upcomingSessionsService;
         this.entityManager = entityManager;
     }
 
@@ -64,7 +67,7 @@ public class TeacherDashboardService {
                 countPendingSubmissions(teacherId),
                 findCourses(teacherId),
                 findPendingSubmissions(teacherId),
-                findUpcomingSessions(teacherId, now),
+                upcomingSessionsService.forTeacher(teacherId, now, EVENT_LIMIT),
                 findRecentQuizResults(teacherId)
         );
     }
@@ -228,44 +231,6 @@ public class TeacherDashboardService {
                 )
                 .setMaxResults(EVENT_LIMIT)
                 .getResultList();
-    }
-
-    private List<UpcomingSession> findUpcomingSessions(
-            Long teacherId,
-            Instant now
-    ) {
-        List<UpcomingSessionRow> rows = entityManager.createQuery(
-                        UpcomingSessionRow.SELECT + """
-                        WHERE c.teacher.id = :teacherId
-                          AND c.status = :courseStatus
-                          AND s.endsAt > :now
-                        ORDER BY s.startsAt ASC,
-                                 s.id ASC
-                        """,
-                        UpcomingSessionRow.class
-                )
-                .setParameter("teacherId", teacherId)
-                .setParameter("now", now)
-                .setParameter(
-                        "courseStatus",
-                        CourseStatus.ACTIVE
-                )
-                .setMaxResults(EVENT_LIMIT)
-                .getResultList();
-
-        return rows.stream()
-                .map(row -> new UpcomingSession(
-                        row.sessionId(),
-                        row.courseId(),
-                        row.courseTitle(),
-                        row.lessonId(),
-                        row.lessonTitle(),
-                        row.startsAt(),
-                        row.endsAt(),
-                        row.format().toString(),
-                        row.meetingUrl()
-                ))
-                .toList();
     }
 
     private List<RecentQuizResult> findRecentQuizResults(

@@ -13,6 +13,8 @@ import org.courseflow.catalog.dto.CreateCourseRequest;
 import org.courseflow.catalog.dto.UpdateCourseRequest;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.catalog.service.CourseService;
+import org.courseflow.catalog.service.CourseQueryService;
+import org.courseflow.catalog.service.CourseTagService;
 import org.courseflow.common.api.PageResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -30,8 +32,13 @@ public class CourseController {
     private static final Logger LOG = LoggerFactory.getLogger(CourseController.class);
     private final CourseService courseService;
 
-    public CourseController(CourseService courseService) {
+    private final CourseQueryService courseQueryService;
+    private final CourseTagService courseTagService;
+
+    public CourseController(CourseService courseService, CourseQueryService courseQueryService, CourseTagService courseTagService) {
         this.courseService = courseService;
+        this.courseQueryService = courseQueryService;
+        this.courseTagService = courseTagService;
     }
 
     @PostMapping
@@ -74,7 +81,7 @@ public class CourseController {
     public CourseResponse getById(
             @PathVariable Long id
     ) {
-        return courseService.getById(id);
+        return courseQueryService.getById(id);
     }
 
     @GetMapping
@@ -103,7 +110,7 @@ public class CourseController {
             @RequestParam(defaultValue = "asc")
             String direction
     ) {
-        return courseService.findAll(
+        return courseQueryService.findAll(
                 page,
                 size,
                 q,
@@ -155,7 +162,7 @@ public class CourseController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        courseService.addTagToCourse(
+        courseTagService.addTagToCourse(
                 courseId,
                 tagId,
                 CurrentUser.id(jwt),
@@ -173,7 +180,7 @@ public class CourseController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        courseService.removeTagFromCourse(
+        courseTagService.removeTagFromCourse(
                 courseId,
                 tagId,
                 CurrentUser.id(jwt),
@@ -189,7 +196,7 @@ public class CourseController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return courseService.findCourseTags(
+        return courseTagService.findCourseTags(
                 courseId, page, size
         );
     }

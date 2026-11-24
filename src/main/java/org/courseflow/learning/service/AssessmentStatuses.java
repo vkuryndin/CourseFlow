@@ -17,9 +17,4 @@ final class AssessmentStatuses {
         return activeAttempts > 0 ? "IN_PROGRESS" : "EXPIRED";
     }
 
-    // The same aggregation is used in both read models (alias s and parameter now).
-    static final String ACTIVE_ATTEMPT_COUNT = """
-            SUM(CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.IN_PROGRESS
-                       AND s.expiresAt > :now THEN 1 ELSE 0 END)
-            """;
 }

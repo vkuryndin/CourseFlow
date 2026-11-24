@@ -14,10 +14,33 @@ public class CourseGuard {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public Course lockEditable(Long courseId, Long userId, boolean admin, String archivedMessage) {
-        Course course = courses.findByIdForUpdate(courseId).orElseThrow(() ->
-                new ResourceNotFoundException("Course not found: " + courseId));
-        CourseAccessPolicy.requireOwnerOrAdmin(course, userId, admin, "Teacher can manage only own courses");
+        Course course = lockOwned(courseId, userId, admin);
         CourseAccessPolicy.requireActive(course, archivedMessage);
         return course;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Course lockOwned(Long courseId, Long userId, boolean admin) {
+        Course course = lock(courseId);
+        CourseAccessPolicy.requireOwnerOrAdmin(course, userId, admin, "Teacher can manage only own courses");
+        return course;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Course lock(Long courseId) {
+        return courses.findByIdForUpdate(courseId).orElseThrow(() ->
+                new ResourceNotFoundException("Course not found: " + courseId));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public Course find(Long courseId) {
+        return courses.findById(courseId).orElseThrow(() ->
+                new ResourceNotFoundException("Course not found: " + courseId));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Course lockShared(Long courseId) {
+        return courses.findByIdForShare(courseId).orElseThrow(() ->
+                new ResourceNotFoundException("Course not found: " + courseId));
     }
 }

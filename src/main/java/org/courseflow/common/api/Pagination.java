@@ -27,4 +27,16 @@ public final class Pagination {
         Sort sort = Sort.by(Sort.Direction.fromString(direction(direction)), sortBy);
         return "id".equals(sortBy) ? sort : sort.and(Sort.by("id"));
     }
+
+    public static void requireSortField(String sortBy, java.util.Set<String> allowed, String message) {
+        if (sortBy == null || !allowed.contains(sortBy)) {
+            throw new BadRequestException(message);
+        }
+    }
+
+    /** Only pass expressions selected from a server-side allowlist. */
+    public static String orderBy(String field, String direction, String tieBreaker) {
+        String order = " ORDER BY " + field + " " + direction(direction);
+        return field.equals(tieBreaker) ? order : order + ", " + tieBreaker + " ASC";
+    }
 }

@@ -3,13 +3,11 @@ package org.courseflow.identity.service;
 import org.courseflow.auth.service.CredentialLifecycle;
 import java.time.Clock;
 import org.courseflow.auth.service.AccountCreator;
-import org.courseflow.common.validation.PasswordBytes;
 import org.courseflow.common.exception.EditVersion;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
-import org.courseflow.catalog.repository.CourseRepository;
-import org.courseflow.catalog.entity.CourseStatus;
+import org.courseflow.catalog.service.CourseParticipation;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.dto.AdminCreateUserRequest;
@@ -22,9 +20,7 @@ import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.ProfileRepository;
 import org.courseflow.identity.repository.UserRepository;
-import org.courseflow.learning.entity.EnrollmentStatus;
-import org.courseflow.learning.repository.EnrollmentRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.courseflow.learning.service.EnrollmentAccess;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Objects;
@@ -40,18 +36,16 @@ public class AdminUserService {
     private final UserAccountRepository userAccountRepository;
     private final CredentialLifecycle credentialLifecycle;
     private final ProfileRepository profileRepository;
-    private final EnrollmentRepository enrollmentRepository;
-    private final CourseRepository courseRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final EnrollmentAccess enrollmentAccess;
+    private final CourseParticipation courseParticipation;
 
     public AdminUserService(
             UserRepository userRepository,
             UserAccountRepository userAccountRepository,
             CredentialLifecycle credentialLifecycle,
             ProfileRepository profileRepository,
-            EnrollmentRepository enrollmentRepository,
-            CourseRepository courseRepository,
-            PasswordEncoder passwordEncoder,
+            EnrollmentAccess enrollmentAccess,
+            CourseParticipation courseParticipation,
             AccountCreator accountCreator,
             Clock clock
     ) {
@@ -61,28 +55,14 @@ public class AdminUserService {
         this.userAccountRepository = userAccountRepository;
         this.credentialLifecycle = credentialLifecycle;
         this.profileRepository = profileRepository;
-        this.enrollmentRepository = enrollmentRepository;
-        this.courseRepository = courseRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.enrollmentAccess = enrollmentAccess;
+        this.courseParticipation = courseParticipation;
     }
 
-    @Transactional
     public UserResponse create(AdminCreateUserRequest request) {
-        String email = EmailAddresses.normalize(request.email());
-
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessConflictException(
-                    "Email is already registered"
-            );
-        }
-
-        PasswordBytes.requireFits(request.password(), "Password");
-
-        User savedUser = accountCreator.create(request.displayName().trim(), email,
-                request.roles(), passwordEncoder.encode(request.password()),
-                !Boolean.FALSE.equals(request.passwordChangeRequired()));
-
-        return UserResponse.from(savedUser);
+        return accountCreator.create(request.displayName(), request.email(),
+                request.roles(), request.password(),
+                !Boolean.FALSE.equals(request.passwordChangeRequired()), UserResponse::from);
     }
 
     @Transactional
@@ -127,7 +107,7 @@ public class AdminUserService {
 
         if (user.getRoles().contains(UserRole.TEACHER)
                 && !requestedRoles.contains(UserRole.TEACHER)
-                && courseRepository.existsByTeacher_Id(userId)) {
+                && courseParticipation.teachesAnyCourse(userId)) {
             throw new BusinessConflictException(
                     "Reassign all courses before removing TEACHER role"
             );
@@ -135,8 +115,7 @@ public class AdminUserService {
 
         if (user.getRoles().contains(UserRole.STUDENT)
                 && !requestedRoles.contains(UserRole.STUDENT)
-                && enrollmentRepository.existsByStudent_IdAndStatus(
-                        userId, EnrollmentStatus.ACTIVE)) {
+                && enrollmentAccess.hasActiveEnrollments(userId)) {
             throw new BusinessConflictException(
                     "Withdraw active enrollments before removing STUDENT role"
             );
@@ -215,7 +194,7 @@ public class AdminUserService {
 
         // Course creation and reassignment lock the target teacher, too.
         if (user.getStatus() == UserStatus.ACTIVE
-                && courseRepository.existsByTeacher_IdAndStatus(userId, CourseStatus.ACTIVE)) {
+                && courseParticipation.teachesActiveCourse(userId)) {
             throw new BusinessConflictException(
                     "Reassign or archive active courses before deactivating their teacher");
         }
@@ -272,10 +251,7 @@ public class AdminUserService {
 
         // No active student enrollments may remain.
         boolean hasActiveEnrollments =
-                enrollmentRepository.existsByStudent_IdAndStatus(
-                        userId,
-                        EnrollmentStatus.ACTIVE
-                );
+                enrollmentAccess.hasActiveEnrollments(userId);
 
         if (hasActiveEnrollments) {
             throw new BusinessConflictException(
@@ -285,7 +261,7 @@ public class AdminUserService {
         }
 
         // All courses, including archived, must be reassigned.
-        if (courseRepository.existsByTeacher_Id(userId)) {
+        if (courseParticipation.teachesAnyCourse(userId)) {
             throw new BusinessConflictException(
                     "User still teaches courses. "
                             + "Reassign them before deletion"

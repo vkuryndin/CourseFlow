@@ -16,7 +16,6 @@ import org.courseflow.learning.repository.EnrollmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.courseflow.common.api.PageResponse;
-import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.learning.dto.EnrollmentListItemResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.springframework.data.domain.Page;
@@ -252,26 +251,9 @@ public class EnrollmentService {
     ) {
         Pagination.validate(page, size);
 
-        if (!Set.of("id", "enrolledAt", "status")
-                .contains(sortBy)) {
-            throw new BadRequestException(
-                    "Unsupported sort field: " + sortBy
-            );
-        }
+        Pagination.requireSortField(sortBy, Set.of("id", "enrolledAt", "status"), "Unsupported sort field: " + sortBy);
 
-        String normalizedDirection = Pagination.direction(direction);
-
-        Sort.Direction springDirection =
-                normalizedDirection.equals("asc")
-                        ? Sort.Direction.ASC
-                        : Sort.Direction.DESC;
-
-        Sort sort = Sort.by(springDirection, sortBy);
-
-        // Stable ordering for pagination.
-        if (!sortBy.equals("id")) {
-            sort = sort.and(Sort.by("id"));
-        }
+        Sort sort = Pagination.stableSort(sortBy, direction);
 
         return PageRequest.of(page, size, sort);
     }

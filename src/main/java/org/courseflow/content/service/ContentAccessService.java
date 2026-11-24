@@ -2,11 +2,11 @@ package org.courseflow.content.service;
 
 import org.courseflow.security.CurrentUser;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.repository.CourseRepository;
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.content.entity.Lesson;
 import org.courseflow.content.repository.LessonRepository;
-import org.courseflow.learning.repository.EnrollmentRepository;
+import org.courseflow.learning.service.EnrollmentAccess;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -15,18 +15,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ContentAccessService {
 
-    private final CourseRepository courseRepository;
+    private final CourseGuard courseGuard;
     private final LessonRepository lessonRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentAccess enrollmentAccess;
 
     public ContentAccessService(
-            CourseRepository courseRepository,
+            CourseGuard courseGuard,
             LessonRepository lessonRepository,
-            EnrollmentRepository enrollmentRepository
+            EnrollmentAccess enrollmentAccess
     ) {
-        this.courseRepository = courseRepository;
+        this.courseGuard = courseGuard;
         this.lessonRepository = lessonRepository;
-        this.enrollmentRepository = enrollmentRepository;
+        this.enrollmentAccess = enrollmentAccess;
     }
 
     @Transactional(readOnly = true)
@@ -35,12 +35,7 @@ public class ContentAccessService {
             Long currentUserId,
             Authentication authentication
     ) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.find(courseId);
 
         if (CurrentUser.hasRole(authentication, "ADMIN")) {
             return;
@@ -53,7 +48,7 @@ public class ContentAccessService {
         }
 
         if (CurrentUser.hasRole(authentication, "STUDENT")) {
-            boolean activeEnrollment = enrollmentRepository.hasActiveEnrollment(currentUserId, courseId);
+            boolean activeEnrollment = enrollmentAccess.hasActiveEnrollment(currentUserId, courseId);
 
             if (activeEnrollment) {
                 return;

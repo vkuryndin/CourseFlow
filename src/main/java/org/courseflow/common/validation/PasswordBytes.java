@@ -9,7 +9,11 @@ public final class PasswordBytes {
     private PasswordBytes() {}
 
     public static boolean fits(String password) {
-        return password.getBytes(StandardCharsets.UTF_8).length <= MAX_BYTES;
+        return fits(password, MAX_BYTES);
+    }
+
+    public static boolean fits(String password, int maxBytes) {
+        return password.getBytes(StandardCharsets.UTF_8).length <= maxBytes;
     }
 
     public static void requireFits(String password, String label) {

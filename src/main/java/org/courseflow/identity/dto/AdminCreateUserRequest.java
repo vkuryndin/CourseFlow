@@ -1,6 +1,7 @@
 
 package org.courseflow.identity.dto;
 
+import org.courseflow.common.validation.MaxUtf8Bytes;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -23,6 +24,7 @@ public record AdminCreateUserRequest(
 
         @NotBlank
         @Size(min = 8, max = 72)
+        @MaxUtf8Bytes(72)
         String password,
 
         @NotEmpty

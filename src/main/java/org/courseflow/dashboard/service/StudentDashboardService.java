@@ -8,7 +8,7 @@ import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.api.PageResponse;
 
 import org.courseflow.dashboard.dto.StudentDashboardResponse;
-import org.courseflow.dashboard.dto.StudentDashboardResponse.UpcomingSession;
+import org.courseflow.dashboard.dto.UpcomingSession;
 import org.courseflow.dashboard.dto.StudentDashboardResponse.UpcomingDeadline;
 
 import org.courseflow.learning.dto.CourseProgressSummaryResponse;
@@ -26,6 +26,7 @@ import java.util.List;
 public class StudentDashboardService {
 
     private final Clock clock;
+    private final UpcomingSessions upcomingSessionsService;
 
     private static final int COURSE_LIMIT = 5;
     private static final int EVENT_LIMIT = 10;
@@ -36,9 +37,11 @@ public class StudentDashboardService {
     public StudentDashboardService(
             EntityManager entityManager,
             ProgressService progressService,
-            Clock clock
+            Clock clock,
+            UpcomingSessions upcomingSessionsService
     ) {
         this.clock = clock;
+        this.upcomingSessionsService = upcomingSessionsService;
         this.entityManager = entityManager;
         this.progressService = progressService;
     }
@@ -53,10 +56,7 @@ public class StudentDashboardService {
                 progressService.getDashboardProgress(studentId, COURSE_LIMIT, now);
 
         List<UpcomingSession> upcomingSessions =
-                findUpcomingSessions(
-                        studentId,
-                        now
-                );
+                upcomingSessionsService.forStudent(studentId, now, EVENT_LIMIT);
 
         List<UpcomingDeadline> upcomingDeadlines =
                 findUpcomingDeadlines(
@@ -70,54 +70,6 @@ public class StudentDashboardService {
                 upcomingSessions,
                 upcomingDeadlines
         );
-    }
-
-    private List<UpcomingSession> findUpcomingSessions(
-            Long studentId,
-            Instant now
-    ) {
-        List<UpcomingSessionRow> rows = entityManager.createQuery(
-                        UpcomingSessionRow.SELECT + """
-                        WHERE c.status = :courseStatus
-                          AND s.endsAt > :now
-                          AND EXISTS (
-                              SELECT e.id
-                              FROM Enrollment e
-                              WHERE e.course.id = c.id
-                                AND e.student.id = :studentId
-                                AND e.status = :enrollmentStatus
-                          )
-                        ORDER BY s.startsAt ASC,
-                                 s.id ASC
-                        """,
-                        UpcomingSessionRow.class
-                )
-                .setParameter("studentId", studentId)
-                .setParameter("now", now)
-                .setParameter(
-                        "enrollmentStatus",
-                        EnrollmentStatus.ACTIVE
-                )
-                .setParameter(
-                        "courseStatus",
-                        CourseStatus.ACTIVE
-                )
-                .setMaxResults(EVENT_LIMIT)
-                .getResultList();
-
-        return rows.stream()
-                .map(row -> new UpcomingSession(
-                        row.sessionId(),
-                        row.courseId(),
-                        row.courseTitle(),
-                        row.lessonId(),
-                        row.lessonTitle(),
-                        row.startsAt(),
-                        row.endsAt(),
-                        row.format().toString(),
-                        row.meetingUrl()
-                ))
-                .toList();
     }
 
     private List<UpcomingDeadline> findUpcomingDeadlines(

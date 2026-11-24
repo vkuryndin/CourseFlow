@@ -19,7 +19,6 @@ import org.courseflow.content.repository.LessonRepository;
 import org.courseflow.content.repository.ModuleRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
@@ -103,8 +102,7 @@ public class LessonService {
         PageRequest pageable = PageRequest.of(
                 page,
                 size,
-                Sort.by("position").ascending()
-                        .and(Sort.by("id").ascending())
+                Pagination.stableSort("position", "asc")
         );
 
         Page<LessonSummaryResponse> result = lessonRepository

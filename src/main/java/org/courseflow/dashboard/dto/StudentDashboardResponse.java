@@ -13,19 +13,6 @@ public record StudentDashboardResponse(
         List<UpcomingSession> upcomingSessions,
         List<UpcomingDeadline> upcomingDeadlines
 ) {
-    public record UpcomingSession(
-            Long sessionId,
-            Long courseId,
-            String courseTitle,
-            Long lessonId,
-            String lessonTitle,
-            Instant startsAt,
-            Instant endsAt,
-            String format,
-            String meetingUrl
-    ) {
-    }
-
     public record UpcomingDeadline(
             Long assignmentId,
             Long courseId,

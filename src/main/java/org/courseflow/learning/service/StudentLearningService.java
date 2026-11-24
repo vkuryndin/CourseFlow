@@ -1,9 +1,9 @@
 package org.courseflow.learning.service;
 
+import org.courseflow.common.api.JpqlPages;
 import java.time.Clock;
 import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
 import org.courseflow.assessment.dto.MyQuizAttemptResponse;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.catalog.entity.CourseStatus;
@@ -13,8 +13,6 @@ import org.courseflow.learning.dto.MyAssignmentResponse;
 import org.courseflow.learning.dto.MySubmissionResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.entity.SubmissionStatus;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,8 +69,8 @@ public class StudentLearningService {
                     a.id, l.id, l.title, c.id, c.title, a.title, a.description, a.dueAt,
                     a.maxScore, s.id,
                 """ + ASSIGNMENT_STATUS + ", s.score) ";
-        return findPage(MyAssignmentResponse.class, select, "COUNT(a)", from,
-                " ORDER BY a.dueAt ASC, a.id ASC", params, page, size);
+        return JpqlPages.findPage(entityManager, MyAssignmentResponse.class, select, "COUNT(a)", from,
+                " ORDER BY a.dueAt ASC, a.id ASC", params, page, size).response();
     }
 
     // Historical submissions remain available after withdrawal or archiving.
@@ -93,8 +91,8 @@ public class StudentLearningService {
                     s.id, a.id, a.title, c.id, c.title, s.content, s.submittedAt,
                     s.status, s.score, a.maxScore, s.feedback)
                 """;
-        return findPage(MySubmissionResponse.class, select, "COUNT(s)", from,
-                " ORDER BY s.submittedAt DESC, s.id DESC", params, page, size);
+        return JpqlPages.findPage(entityManager, MySubmissionResponse.class, select, "COUNT(s)", from,
+                " ORDER BY s.submittedAt DESC, s.id DESC", params, page, size).response();
     }
 
     // Expiration in this read-only view is calculated at a single instant.
@@ -120,8 +118,8 @@ public class StudentLearningService {
                     CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.IN_PROGRESS
                               AND s.expiresAt <= :now THEN s.expiresAt ELSE s.finishedAt END)
                 """;
-        return findPage(MyQuizAttemptResponse.class, select, "COUNT(s)", from,
-                " ORDER BY s.takenAt DESC, s.id DESC", params, page, size);
+        return JpqlPages.findPage(entityManager, MyQuizAttemptResponse.class, select, "COUNT(s)", from,
+                " ORDER BY s.takenAt DESC, s.id DESC", params, page, size).response();
     }
 
     private void validate(Long courseId, int page, int size) {
@@ -142,15 +140,4 @@ public class StudentLearningService {
         return courseId == null ? "" : " AND c.id = :courseId";
     }
 
-    private <T> PageResponse<T> findPage(Class<T> type, String select, String count,
-                                         String from, String order, Map<String, Object> params,
-                                         int page, int size) {
-        TypedQuery<T> data = entityManager.createQuery(select + " " + from + order, type);
-        TypedQuery<Long> total = entityManager.createQuery("SELECT " + count + " " + from, Long.class);
-        // Some parameters (e.g. now) are needed only by the data projection.
-        data.getParameters().forEach(p -> data.setParameter(p.getName(), params.get(p.getName())));
-        total.getParameters().forEach(p -> total.setParameter(p.getName(), params.get(p.getName())));
-        var rows = data.setFirstResult(page * size).setMaxResults(size).getResultList();
-        return PageResponse.from(new PageImpl<>(rows, PageRequest.of(page, size), total.getSingleResult()));
-    }
 }

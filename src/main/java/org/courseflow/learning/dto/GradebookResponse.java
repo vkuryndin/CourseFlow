@@ -21,7 +21,9 @@ public record GradebookResponse(
     }
 
     public enum ReviewStatus {
+        /** No submission yet, including overdue assignments (backwards-compatible filter). */
         NOT_SUBMITTED,
+        OVERDUE,
         SUBMITTED,
         GRADED
     }

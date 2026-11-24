@@ -131,6 +131,12 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex,
             HttpServletRequest request
     ) {
+        var errors = ex.getBindingResult().getFieldErrors();
+        if (errors.size() == 1 && ex.getBindingResult().getErrorCount() == 1
+                && "MaxUtf8Bytes".equals(errors.get(0).getCode())) {
+            return buildResponse(HttpStatus.BAD_REQUEST, errors.get(0).getDefaultMessage(),
+                    request, "BAD_REQUEST");
+        }
         String message = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()

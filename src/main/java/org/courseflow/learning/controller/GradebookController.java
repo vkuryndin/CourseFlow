@@ -33,6 +33,8 @@ public class GradebookController {
             @RequestParam(required = false)
             EnrollmentStatus enrollmentStatus,
 
+            @io.swagger.v3.oas.annotations.Parameter(description =
+                    "Assignment filter: NOT_SUBMITTED includes all missing submissions; OVERDUE includes only missing submissions at or after the deadline.")
             @RequestParam(required = false)
             ReviewStatus reviewStatus,
 

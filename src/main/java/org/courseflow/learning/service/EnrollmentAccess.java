@@ -1,6 +1,7 @@
 package org.courseflow.learning.service;
 
 import org.courseflow.learning.repository.EnrollmentRepository;
+import org.courseflow.learning.entity.EnrollmentStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -13,8 +14,18 @@ public class EnrollmentAccess {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireActive(Long studentId, Long courseId, String message) {
-        if (!enrollments.hasActiveEnrollment(studentId, courseId)) {
+        if (!hasActiveEnrollment(studentId, courseId)) {
             throw new AccessDeniedException(message);
         }
+    }
+    /** Used by account lifecycle checks inside the caller's user-lock transaction. */
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public boolean hasActiveEnrollments(Long studentId) {
+        return enrollments.existsByStudent_IdAndStatus(studentId, EnrollmentStatus.ACTIVE);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public boolean hasActiveEnrollment(Long studentId, Long courseId) {
+        return enrollments.hasActiveEnrollment(studentId, courseId);
     }
 }
