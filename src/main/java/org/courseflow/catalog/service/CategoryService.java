@@ -106,10 +106,15 @@ public class CategoryService {
         Pagination.validate(page, size);
         Sort.Direction sortDirection = Sort.Direction.fromString(Pagination.direction(direction));
 
+        Sort sort = Sort.by(sortDirection, sortBy);
+        if (!sortBy.equals("id")) {
+            sort = sort.and(Sort.by("id"));
+        }
+
         Pageable pageable = PageRequest.of(
                 page,
                 size,
-                Sort.by(sortDirection, sortBy)
+                sort
         );
 
         Page<Category> categories;

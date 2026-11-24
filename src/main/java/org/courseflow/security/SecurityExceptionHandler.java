@@ -3,8 +3,9 @@ package org.courseflow.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
+import org.courseflow.common.api.RequestIdFilter;
 import org.courseflow.common.exception.ApiErrorResponse;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -58,10 +59,15 @@ public class SecurityExceptionHandler
                 status == HttpStatus.UNAUTHORIZED
                         ? "Authentication is required"
                         : "Access denied",
-                request.getRequestURI()
+                request.getRequestURI(),
+                status == HttpStatus.UNAUTHORIZED ? "AUTHENTICATION_REQUIRED" : "ACCESS_DENIED",
+                RequestIdFilter.requestId(request)
         );
 
         response.setStatus(status.value());
+        if (status == HttpStatus.UNAUTHORIZED) {
+            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+        }
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 

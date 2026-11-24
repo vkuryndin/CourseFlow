@@ -1,12 +1,15 @@
 package org.courseflow.learning.controller;
 
+import org.springframework.http.HttpStatus;
+
+import java.net.URI;
+
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.learning.dto.AssignmentResponse;
 import org.courseflow.learning.dto.CreateAssignmentRequest;
 import org.courseflow.learning.service.AssignmentService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,6 +29,7 @@ public class AssignmentController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<AssignmentResponse> create(
             @PathVariable Long lessonId,
             @Valid @RequestBody CreateAssignmentRequest request,
@@ -44,7 +48,7 @@ public class AssignmentController {
         );
 
         return ResponseEntity
-                .status(HttpStatus.CREATED)
+                .created(URI.create("/api/lessons/" + lessonId + "/assignments/" + response.id()))
                 .body(response);
     }
 
@@ -104,6 +108,7 @@ public class AssignmentController {
     }
 
     @DeleteMapping("/{assignmentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(
             @PathVariable Long lessonId,
             @PathVariable Long assignmentId,

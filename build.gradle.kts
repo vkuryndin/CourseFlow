@@ -30,5 +30,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-mail")
 
 
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
+
     runtimeOnly("org.postgresql:postgresql")
+}
+
+// Retain names of controller parameters for Spring MVC and OpenAPI.
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-parameters")
 }

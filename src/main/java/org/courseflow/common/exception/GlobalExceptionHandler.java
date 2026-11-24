@@ -2,13 +2,16 @@
 package org.courseflow.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
-
+import org.courseflow.common.api.RequestIdFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -40,8 +43,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.NOT_FOUND,
                 ex.getMessage(),
-                request
-        );
+                request, "RESOURCE_NOT_FOUND");
     }
 
     @ExceptionHandler(BadRequestException.class)
@@ -52,8 +54,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 ex.getMessage(),
-                request
-        );
+                request, "BAD_REQUEST");
     }
 
     @ExceptionHandler(BusinessConflictException.class)
@@ -64,8 +65,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.CONFLICT,
                 ex.getMessage(),
-                request
-        );
+                request, "BUSINESS_CONFLICT");
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -76,8 +76,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.FORBIDDEN,
                 "Access denied",
-                request
-        );
+                request, "ACCESS_DENIED");
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -88,8 +87,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.UNAUTHORIZED,
                 "Invalid email or password",
-                request
-        );
+                request, "INVALID_CREDENTIALS");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -113,8 +111,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 message,
-                request
-        );
+                request, "VALIDATION_FAILED");
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
@@ -125,8 +122,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 "Invalid request parameters",
-                request
-        );
+                request, "VALIDATION_FAILED");
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -137,8 +133,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 "Invalid or missing JSON request body",
-                request
-        );
+                request, "INVALID_JSON");
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -149,8 +144,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 "Invalid value for parameter: " + ex.getName(),
-                request
-        );
+                request, "INVALID_PARAMETER");
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -161,8 +155,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 "Missing parameter: " + ex.getParameterName(),
-                request
-        );
+                request, "MISSING_PARAMETER");
     }
 
     @ExceptionHandler({
@@ -177,7 +170,7 @@ public class GlobalExceptionHandler {
         log.warn("Concurrent operation conflict for {}: {}",
                 request.getRequestURI(), ex.getClass().getSimpleName());
         return buildResponse(HttpStatus.CONFLICT,
-                "Concurrent operation conflict; reload and retry if appropriate", request);
+                "Concurrent operation conflict; reload and retry if appropriate", request, "CONCURRENT_CONFLICT");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -193,8 +186,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.CONFLICT,
                 "Operation conflicts with database constraints",
-                request
-        );
+                request, "DATA_CONFLICT");
     }
 
     @ExceptionHandler({
@@ -208,8 +200,7 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.NOT_FOUND,
                 "Endpoint not found",
-                request
-        );
+                request, "ENDPOINT_NOT_FOUND");
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -217,11 +208,10 @@ public class GlobalExceptionHandler {
             HttpRequestMethodNotSupportedException ex,
             HttpServletRequest request
     ) {
-        return buildResponse(
-                HttpStatus.METHOD_NOT_ALLOWED,
-                "HTTP method is not supported for this endpoint",
-                request
-        );
+        ApiErrorResponse body = buildResponse(HttpStatus.METHOD_NOT_ALLOWED,
+                "HTTP method is not supported for this endpoint", request, "METHOD_NOT_ALLOWED").getBody();
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .headers(ex.getHeaders()).contentType(MediaType.APPLICATION_JSON).body(body);
     }
 
     @ExceptionHandler(RateLimitExceededException.class)
@@ -230,9 +220,9 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         ResponseEntity<ApiErrorResponse> result = buildResponse(
-                HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request
-        );
+                HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request, "RATE_LIMIT_EXCEEDED");
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.RETRY_AFTER,
                         Long.toString(ex.getRetryAfterSeconds()))
                 .body(result.getBody());
@@ -247,7 +237,22 @@ public class GlobalExceptionHandler {
         if (status == null) {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
         }
-        return buildResponse(status, status.getReasonPhrase(), request);
+        return buildResponse(status, status.getReasonPhrase(), request,
+                status == HttpStatus.SERVICE_UNAVAILABLE ? "SERVICE_UNAVAILABLE" : "HTTP_" + status.value());
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Unsupported request content type", request, "UNSUPPORTED_MEDIA_TYPE");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotAcceptable(
+            HttpMediaTypeNotAcceptableException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_ACCEPTABLE,
+                "Requested response format is not supported", request, "NOT_ACCEPTABLE");
     }
 
     @ExceptionHandler(Exception.class)
@@ -264,23 +269,25 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Internal server error",
-                request
-        );
+                request, "INTERNAL_ERROR");
     }
 
     private ResponseEntity<ApiErrorResponse> buildResponse(
             HttpStatus status,
             String message,
-            HttpServletRequest request
+            HttpServletRequest request,
+            String code
     ) {
         ApiErrorResponse body = new ApiErrorResponse(
                 Instant.now(),
                 status.value(),
                 status.getReasonPhrase(),
                 message,
-                request.getRequestURI()
+                request.getRequestURI(),
+                code,
+                RequestIdFilter.requestId(request)
         );
 
-        return ResponseEntity.status(status).body(body);
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
     }
 }

@@ -3,6 +3,7 @@ package org.courseflow.auth.controller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -28,6 +30,7 @@ public class AdminPasswordResetController {
     }
 
     @PostMapping("/{id}/password-reset")
+    @ResponseStatus(HttpStatus.ACCEPTED)
     public ResponseEntity<Void> resetPassword(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt

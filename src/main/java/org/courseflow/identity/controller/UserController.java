@@ -1,5 +1,7 @@
 package org.courseflow.identity.controller;
 
+import org.springframework.http.HttpStatus;
+
 import org.courseflow.security.CurrentUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,6 +89,7 @@ public class UserController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<UserResponse> create(
             @Valid @RequestBody AdminCreateUserRequest request,
             @AuthenticationPrincipal Jwt jwt
@@ -142,6 +145,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt

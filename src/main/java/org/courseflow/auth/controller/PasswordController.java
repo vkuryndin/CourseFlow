@@ -1,5 +1,9 @@
 package org.courseflow.auth.controller;
 
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+import org.springframework.http.HttpStatus;
+
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.courseflow.auth.dto.ChangePasswordRequest;
@@ -23,6 +27,7 @@ public class PasswordController {
     }
 
     @PostMapping("/change-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> changePassword(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChangePasswordRequest request

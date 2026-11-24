@@ -1,5 +1,7 @@
 package org.courseflow.content.controller;
 
+import org.springframework.http.HttpStatus;
+
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.courseflow.common.api.PageResponse;
@@ -27,6 +29,7 @@ public class LessonSessionController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<LessonSessionResponse> create(
             @PathVariable Long lessonId,
             @Valid @RequestBody CreateLessonSessionRequest request,
@@ -110,6 +113,7 @@ public class LessonSessionController {
     }
 
     @DeleteMapping("/{sessionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(
             @PathVariable Long lessonId,
             @PathVariable Long sessionId,

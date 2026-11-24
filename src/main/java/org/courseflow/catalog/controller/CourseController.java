@@ -1,5 +1,7 @@
 package org.courseflow.catalog.controller;
 
+import org.springframework.http.HttpStatus;
+
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -33,6 +35,7 @@ public class CourseController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<CourseResponse> create(
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication,
@@ -125,6 +128,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt,
@@ -140,6 +144,7 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/tags/{tagId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> addTag(
             @PathVariable Long courseId,
             @PathVariable Long tagId,
@@ -157,6 +162,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{courseId}/tags/{tagId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> removeTag(
             @PathVariable Long courseId,
             @PathVariable Long tagId,

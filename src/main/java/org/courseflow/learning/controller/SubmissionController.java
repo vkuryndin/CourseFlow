@@ -1,11 +1,14 @@
 package org.courseflow.learning.controller;
 
+import org.springframework.http.HttpStatus;
+
+import java.net.URI;
+
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.courseflow.learning.dto.CreateSubmissionRequest;
 import org.courseflow.learning.dto.SubmissionResponse;
 import org.courseflow.learning.service.SubmissionService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -28,6 +31,7 @@ public class SubmissionController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<SubmissionResponse> submit(
             @PathVariable Long assignmentId,
             @Valid @RequestBody CreateSubmissionRequest request,
@@ -40,7 +44,7 @@ public class SubmissionController {
         );
 
         return ResponseEntity
-                .status(HttpStatus.CREATED)
+                .created(URI.create("/api/assignments/" + assignmentId + "/submissions/me"))
                 .body(response);
     }
 

@@ -1,11 +1,14 @@
 package org.courseflow.learning.controller;
 
+import org.springframework.http.HttpStatus;
+
+import java.net.URI;
+
 import org.courseflow.security.CurrentUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.service.EnrollmentService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -29,6 +32,8 @@ public class EnrollmentController {
     }
 
     @PostMapping
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Existing resource", useReturnTypeSchema = true)
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Resource created", useReturnTypeSchema = true)
     public ResponseEntity<EnrollmentResponse> enroll(
             @PathVariable Long courseId,
             @AuthenticationPrincipal Jwt jwt
@@ -40,7 +45,7 @@ public class EnrollmentController {
 
         if (result.created()) {
             return ResponseEntity
-                    .status(HttpStatus.CREATED)
+                    .created(URI.create("/api/courses/" + courseId + "/enrollments/me"))
                     .body(result.enrollment());
         }
 
@@ -61,6 +66,7 @@ public class EnrollmentController {
     }
 
     @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> withdraw(
             @PathVariable Long courseId,
             @AuthenticationPrincipal Jwt jwt
@@ -74,6 +80,7 @@ public class EnrollmentController {
 
     // ADMIN may withdraw even an inactive student. Keep the enrollment history.
     @DeleteMapping("/students/{studentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> withdrawStudent(
             @PathVariable Long courseId,
             @PathVariable Long studentId,

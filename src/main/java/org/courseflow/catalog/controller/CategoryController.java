@@ -9,7 +9,7 @@ import org.courseflow.catalog.dto.CategoryCreateRequest;
 import org.courseflow.catalog.dto.CategoryResponse;
 import org.courseflow.catalog.service.CategoryService;
 import org.courseflow.common.api.PageResponse;
-
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +26,7 @@ public class CategoryController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<CategoryResponse> create(
             @Valid @RequestBody CategoryCreateRequest request
     ) {
@@ -47,6 +48,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
@@ -65,7 +67,11 @@ public class CategoryController {
             @RequestParam(defaultValue = "20")
             @Min(1) @Max(100) int size,
 
-            @RequestParam(defaultValue = "")
+            @RequestParam(required = false)
+            String q,
+
+            @RequestParam(required = false)
+            @io.swagger.v3.oas.annotations.Parameter(deprecated = true, description = "Legacy alias for q")
             String search,
 
             @RequestParam(defaultValue = "name")
@@ -77,7 +83,7 @@ public class CategoryController {
         return categoryService.findAll(
                 page,
                 size,
-                search,
+                q != null ? q : search,
                 sortBy,
                 direction
         );

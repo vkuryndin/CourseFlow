@@ -1,5 +1,7 @@
 package org.courseflow.content.controller;
 
+import org.springframework.http.HttpStatus;
+
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.courseflow.common.api.PageResponse;
@@ -30,6 +32,7 @@ public class LessonController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<LessonResponse> create(
             @PathVariable Long courseId,
             @PathVariable Long moduleId,
@@ -120,6 +123,7 @@ public class LessonController {
     }
 
     @DeleteMapping("/{lessonId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(
             @PathVariable Long courseId,
             @PathVariable Long moduleId,

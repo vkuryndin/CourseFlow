@@ -1,5 +1,9 @@
 package org.courseflow.review.controller;
 
+import org.springframework.http.HttpStatus;
+
+import java.net.URI;
+
 import org.courseflow.security.CurrentUser;
 import org.courseflow.review.dto.PublicCourseReviewResponse;
 import jakarta.validation.Valid;
@@ -8,7 +12,6 @@ import org.courseflow.review.dto.CourseRatingResponse;
 import org.courseflow.review.dto.CourseReviewRequest;
 import org.courseflow.review.dto.CourseReviewResponse;
 import org.courseflow.review.service.CourseReviewService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -27,6 +30,7 @@ public class CourseReviewController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<CourseReviewResponse> create(
             @PathVariable Long courseId,
             @Valid @RequestBody CourseReviewRequest request,
@@ -40,7 +44,7 @@ public class CourseReviewController {
                 );
 
         return ResponseEntity
-                .status(HttpStatus.CREATED)
+                .created(URI.create("/api/courses/" + courseId + "/reviews/me"))
                 .body(response);
     }
 
@@ -58,6 +62,7 @@ public class CourseReviewController {
     }
 
     @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(
             @PathVariable Long courseId,
             @AuthenticationPrincipal Jwt jwt

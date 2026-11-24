@@ -1,10 +1,11 @@
 package org.courseflow.assessment.controller;
 
+import java.net.URI;
+
 import org.courseflow.security.CurrentUser;
 import org.courseflow.assessment.dto.QuizAttemptResponse;
 import org.courseflow.assessment.service.QuizAttemptService;
 import org.courseflow.common.exception.BusinessConflictException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -29,6 +30,8 @@ public class QuizAttemptController {
     }
 
     @PostMapping
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Existing resource", useReturnTypeSchema = true)
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Resource created", useReturnTypeSchema = true)
     public ResponseEntity<QuizAttemptResponse> start(
             @PathVariable Long quizId,
             @AuthenticationPrincipal Jwt jwt
@@ -47,7 +50,7 @@ public class QuizAttemptController {
 
         if (result.created()) {
             return ResponseEntity
-                    .status(HttpStatus.CREATED)
+                    .created(URI.create("/api/quizzes/" + quizId + "/attempts/" + result.attempt().id()))
                     .body(result.attempt());
         }
 

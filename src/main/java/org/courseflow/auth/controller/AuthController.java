@@ -37,6 +37,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<RegistrationResponse> register(
             @Valid @RequestBody RegistrationRequest request
     ) {
@@ -58,6 +59,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> logout(
             @AuthenticationPrincipal Jwt jwt
     ) {

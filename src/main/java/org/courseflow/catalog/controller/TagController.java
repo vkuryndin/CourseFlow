@@ -7,7 +7,7 @@ import org.courseflow.catalog.dto.TagRequest;
 import org.courseflow.catalog.dto.TagResponse;
 import org.courseflow.catalog.service.TagService;
 import org.courseflow.common.api.PageResponse;
-
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,6 +46,7 @@ public class TagController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<TagResponse> create(
             @Valid @RequestBody TagRequest request
     ) {
@@ -67,6 +68,7 @@ public class TagController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(
             @PathVariable Long id
     ) {

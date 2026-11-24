@@ -1,5 +1,7 @@
 package org.courseflow.assessment.controller;
 
+import java.net.URI;
+
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.courseflow.assessment.dto.CreateQuizRequest;
@@ -26,6 +28,7 @@ public class QuizController {
     }
 
     @PostMapping("/api/modules/{moduleId}/quiz")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<QuizResponse> create(
             @PathVariable Long moduleId,
             @Valid @RequestBody CreateQuizRequest request,
@@ -44,7 +47,7 @@ public class QuizController {
         );
 
         return ResponseEntity
-                .status(HttpStatus.CREATED)
+                .created(URI.create("/api/quizzes/" + response.id()))
                 .body(response);
     }
 
@@ -75,6 +78,7 @@ public class QuizController {
     }
 
     @PostMapping("/api/quizzes/{quizId}/questions")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<QuestionResponse.ManagementResponse>
     createQuestion(
             @PathVariable Long quizId,
@@ -144,6 +148,7 @@ public class QuizController {
     }
 
     @DeleteMapping("/api/quizzes/{quizId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> deleteQuiz(
             @PathVariable Long quizId,
             @AuthenticationPrincipal Jwt jwt,
@@ -180,6 +185,7 @@ public class QuizController {
     }
 
     @DeleteMapping("/api/quizzes/{quizId}/questions/{questionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> deleteQuestion(
             @PathVariable Long quizId,
             @PathVariable Long questionId,

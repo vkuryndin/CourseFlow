@@ -26,7 +26,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             SecurityExceptionHandler securityExceptionHandler,
-            UrlBasedCorsConfigurationSource corsConfigurationSource
+            UrlBasedCorsConfigurationSource corsConfigurationSource,
+            @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled
     ) throws Exception {
 
         http
@@ -52,7 +53,13 @@ public class SecurityConfig {
                                 )
                 )
 
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    if (apiDocsEnabled) {
+                        auth.requestMatchers(HttpMethod.GET,
+                                "/v3/api-docs", "/v3/api-docs.yaml", "/v3/api-docs/swagger-config",
+                                "/swagger-ui.html", "/swagger-ui/**").permitAll();
+                    }
+                    auth
 
                         .requestMatchers(HttpMethod.GET, "/api/users/me/profile").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/users/me/profile").authenticated()
@@ -466,8 +473,8 @@ public class SecurityConfig {
                                 "/api/system/status"
                         ).authenticated()
 
-                        .anyRequest().denyAll()
-                )
+                        .anyRequest().denyAll();
+                })
 
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .authenticationEntryPoint(
@@ -495,7 +502,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(allowed);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        configuration.setExposedHeaders(List.of("Location", "Retry-After"));
+        configuration.setExposedHeaders(List.of("Location", "Retry-After", "X-Request-Id", "WWW-Authenticate"));
         configuration.setAllowCredentials(false);
         configuration.setMaxAge(600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
