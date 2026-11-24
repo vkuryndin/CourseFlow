@@ -18,7 +18,13 @@ public record CourseProgressResponse(
         Integer performancePercent,
         List<AssignmentProgress> assignments,
         List<QuizProgress> quizzes,
-        List<AssignmentProgress> upcomingDeadlines
+        List<AssignmentProgress> upcomingDeadlines,
+        boolean detailsIncluded,
+        int detailPage,
+        int detailSize,
+        long totalAssignments,
+        long totalQuizzes,
+        long totalUpcomingDeadlines
 ) {
     public record AssignmentProgress(
             Long assignmentId,

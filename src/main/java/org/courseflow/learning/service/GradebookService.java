@@ -75,7 +75,8 @@ public class GradebookService {
             int page,
             int size,
             String sortBy,
-            String direction
+            String direction,
+            int columnPage, int columnSize
     ) {
         requireCourseAccess(
                 courseId,
@@ -84,6 +85,7 @@ public class GradebookService {
         );
 
         Pagination.validate(page, size);
+        Pagination.validate(columnPage, columnSize);
 
         if (type == AssessmentType.QUIZ
                 && reviewStatus != null) {
@@ -171,7 +173,11 @@ public class GradebookService {
         long total = countQuery.getSingleResult();
 
         Map<Long, Instant> assignmentDeadlines = new HashMap<>();
-        List<Column> columns = loadColumns(courseId, moduleId, type, assignmentDeadlines);
+        long assignmentCount = type == AssessmentType.QUIZ ? 0 : countColumns(courseId, moduleId, AssessmentType.ASSIGNMENT);
+        long quizCount = type == AssessmentType.ASSIGNMENT ? 0 : countColumns(courseId, moduleId, AssessmentType.QUIZ);
+        long totalColumns = assignmentCount + quizCount;
+        List<Column> columns = loadColumns(courseId, moduleId, assignmentDeadlines,
+                columnPage * columnSize, columnSize, assignmentCount, quizCount);
         Instant now = clock.instant();
 
         List<Long> studentIds = studentRows
@@ -216,7 +222,8 @@ public class GradebookService {
         return new GradebookResponse(
                 courseId,
                 columns,
-                students
+                students, columnPage, columnSize, totalColumns,
+                totalColumns / columnSize + (totalColumns % columnSize == 0 ? 0 : 1)
         );
     }
 
@@ -333,16 +340,25 @@ public class GradebookService {
         where.append(")");
     }
 
+    private long countColumns(Long courseId, Long moduleId, AssessmentType type) {
+        String path = type == AssessmentType.ASSIGNMENT ? "a.lesson.module" : "a.module";
+        String entity = type == AssessmentType.ASSIGNMENT ? "Assignment" : "Quiz";
+        String jpql = "SELECT COUNT(a.id) FROM " + entity + " a WHERE " + path + ".course.id = :courseId";
+        if (moduleId != null) jpql += " AND " + path + ".id = :moduleId";
+        TypedQuery<Long> query = entityManager.createQuery(jpql, Long.class).setParameter("courseId", courseId);
+        if (moduleId != null) query.setParameter("moduleId", moduleId);
+        return query.getSingleResult();
+    }
+
     private List<Column> loadColumns(
             Long courseId,
             Long moduleId,
-            AssessmentType type,
-            Map<Long, Instant> assignmentDeadlines
+            Map<Long, Instant> assignmentDeadlines, int offset, int limit,
+            long assignmentCount, long quizCount
     ) {
         List<Column> columns = new ArrayList<>();
 
-        if (type == null
-                || type == AssessmentType.ASSIGNMENT) {
+        if (offset < assignmentCount) {
 
             String jpql = """
                     SELECT a.id,
@@ -376,7 +392,7 @@ public class GradebookService {
                 query.setParameter("moduleId", moduleId);
             }
 
-            for (AssignmentColumn row : query.getResultList()) {
+            for (AssignmentColumn row : query.setFirstResult(offset).setMaxResults(limit).getResultList()) {
                 assignmentDeadlines.put(row.id(), row.dueAt());
 
                 columns.add(new Column(
@@ -390,8 +406,9 @@ public class GradebookService {
             }
         }
 
-        if (type == null
-                || type == AssessmentType.QUIZ) {
+        int remaining = limit - columns.size();
+        int quizOffset = (int) Math.max(0L, offset - assignmentCount);
+        if (remaining > 0 && quizOffset < quizCount) {
 
             String jpql = """
                     SELECT q.id,
@@ -422,7 +439,7 @@ public class GradebookService {
                 query.setParameter("moduleId", moduleId);
             }
 
-            for (QuizColumn row : query.getResultList()) {
+            for (QuizColumn row : query.setFirstResult(quizOffset).setMaxResults(remaining).getResultList()) {
 
                 columns.add(new Column(
                         row.id(),

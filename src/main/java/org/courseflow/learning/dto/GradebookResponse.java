@@ -9,7 +9,11 @@ import java.util.List;
 public record GradebookResponse(
         Long courseId,
         List<Column> columns,
-        PageResponse<StudentRow> students
+        PageResponse<StudentRow> students,
+        int columnPage,
+        int columnSize,
+        long totalColumns,
+        long totalColumnPages
 ) {
     public enum AssessmentType {
         ASSIGNMENT,

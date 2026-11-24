@@ -42,6 +42,15 @@ public class ProgressController {
             @RequestParam(defaultValue = "asc")
             String direction,
 
+            @RequestParam(required = false)
+            Boolean includeDetails,
+
+            @RequestParam(defaultValue = "0")
+            int detailPage,
+
+            @RequestParam(defaultValue = "50")
+            int detailSize,
+
             @AuthenticationPrincipal Jwt jwt
     ) {
         return progressService.getMyProgress(
@@ -51,7 +60,10 @@ public class ProgressController {
                 page,
                 size,
                 sortBy,
-                direction
+                direction,
+                includeDetails == null ? courseId != null : includeDetails,
+                detailPage,
+                detailSize
         );
     }
 }

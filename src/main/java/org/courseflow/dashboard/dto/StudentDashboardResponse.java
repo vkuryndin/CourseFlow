@@ -2,14 +2,14 @@
 package org.courseflow.dashboard.dto;
 
 import org.courseflow.common.api.PageResponse;
-import org.courseflow.learning.dto.CourseProgressResponse;
+import org.courseflow.learning.dto.CourseProgressSummaryResponse;
 
 import java.time.Instant;
 import java.util.List;
 
 public record StudentDashboardResponse(
         long activeCourseCount,
-        PageResponse<CourseProgressResponse> courses,
+        PageResponse<CourseProgressSummaryResponse> courses,
         List<UpcomingSession> upcomingSessions,
         List<UpcomingDeadline> upcomingDeadlines
 ) {

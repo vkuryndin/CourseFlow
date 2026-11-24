@@ -48,6 +48,12 @@ public class GradebookController {
             @RequestParam(defaultValue = "20")
             int size,
 
+            @RequestParam(defaultValue = "0")
+            int columnPage,
+
+            @RequestParam(defaultValue = "50")
+            int columnSize,
+
             @RequestParam(defaultValue = "studentName")
             String sortBy,
 
@@ -72,7 +78,9 @@ public class GradebookController {
                 page,
                 size,
                 sortBy,
-                direction
+                direction,
+                columnPage,
+                columnSize
         );
     }
 }

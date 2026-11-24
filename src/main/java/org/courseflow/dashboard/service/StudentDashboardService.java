@@ -11,7 +11,7 @@ import org.courseflow.dashboard.dto.StudentDashboardResponse;
 import org.courseflow.dashboard.dto.StudentDashboardResponse.UpcomingSession;
 import org.courseflow.dashboard.dto.StudentDashboardResponse.UpcomingDeadline;
 
-import org.courseflow.learning.dto.CourseProgressResponse;
+import org.courseflow.learning.dto.CourseProgressSummaryResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.service.ProgressService;
 
@@ -49,17 +49,8 @@ public class StudentDashboardService {
     ) {
         Instant now = clock.instant();
 
-        PageResponse<CourseProgressResponse> courses =
-                progressService.getMyProgress(
-                        studentId,
-                        null,
-                        EnrollmentStatus.ACTIVE,
-                        CourseStatus.ACTIVE,
-                        0,
-                        COURSE_LIMIT,
-                        "courseTitle",
-                        "asc"
-                );
+        PageResponse<CourseProgressSummaryResponse> courses =
+                progressService.getDashboardProgress(studentId, COURSE_LIMIT, now);
 
         List<UpcomingSession> upcomingSessions =
                 findUpcomingSessions(
@@ -88,7 +79,7 @@ public class StudentDashboardService {
         List<UpcomingSessionRow> rows = entityManager.createQuery(
                         UpcomingSessionRow.SELECT + """
                         WHERE c.status = :courseStatus
-                          AND s.startsAt >= :now
+                          AND s.endsAt > :now
                           AND EXISTS (
                               SELECT e.id
                               FROM Enrollment e

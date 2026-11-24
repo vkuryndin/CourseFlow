@@ -238,7 +238,7 @@ public class TeacherDashboardService {
                         UpcomingSessionRow.SELECT + """
                         WHERE c.teacher.id = :teacherId
                           AND c.status = :courseStatus
-                          AND s.startsAt >= :now
+                          AND s.endsAt > :now
                         ORDER BY s.startsAt ASC,
                                  s.id ASC
                         """,
