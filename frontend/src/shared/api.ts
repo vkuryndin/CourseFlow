@@ -1,0 +1,31 @@
+import axios from 'axios';
+import {formatDate} from './datetime';
+import {names} from './labels';
+import {useQuery,useQueryClient} from '@tanstack/react-query';
+export type Data=Record<string,any>;
+export type Page<T=Data>={content:T[];page:number;size:number;totalElements:number;totalPages:number;first:boolean;last:boolean};
+export type Session={accessToken:string;tokenType:string;expiresAt:string;userId:number;displayName:string;roles:string[];passwordChangeRequired:boolean};
+const key='courseflow.session';
+export function readSession():Session|null{try{const s=JSON.parse(sessionStorage.getItem(key)||'null');return s?.accessToken&&Date.parse(s.expiresAt)>Date.now()?s:null}catch{return null}}
+export function storeSession(s:Session|null){if(s)sessionStorage.setItem(key,JSON.stringify(s));else sessionStorage.removeItem(key)}
+export const http=axios.create({timeout:20000,paramsSerializer:{indexes:null}});
+http.interceptors.request.use(c=>{const s=readSession();if(s)c.headers.Authorization=`Bearer ${s.accessToken}`;return c});
+http.interceptors.response.use(r=>r,e=>{if(e.response?.status===401&&readSession()&&!String(e.config?.url).startsWith('/api/auth/')){storeSession(null);window.dispatchEvent(new Event('courseflow:expired'))}return Promise.reject(e)});
+export async function request<T=Data>(method:string,path:string,data?:unknown,params?:Data):Promise<T>{return (await http.request<T>({method,url:path,data,params})).data}
+export const get=<T=Data>(path:string,params?:Data)=>request<T>('GET',path,undefined,params);
+export async function optional(path:string,params?:Data){try{return await get(path,params)}catch(e){if(axios.isAxiosError(e)&&e.response?.status===404)return null;throw e}}
+export async function all(path:string,params:Data={}):Promise<Data[]>{const out:Data[]=[];for(let page=0;page<10000;page++){const r=await get<Page|Data[]>(path,{...params,page,size:100});if(Array.isArray(r))return r;out.push(...r.content);if(r.last||page+1>=r.totalPages)return out}throw new Error('Превышен предел страниц')}
+export function useGet<T=Data>(path:string,params?:Data,enabled=true){return useQuery({queryKey:['api',path,params],queryFn:()=>get<T>(path,params),enabled:enabled&&!!path,retry:false})}
+export function useAll(path:string,params?:Data,enabled=true){return useQuery({queryKey:['all',path,params],queryFn:()=>all(path,params),enabled:enabled&&!!path,retry:false})}
+export function useRefresh(){const q=useQueryClient();return ()=>q.invalidateQueries()}
+const errors:Record<number,string>={400:'Проверьте введённые данные',401:'Необходимо войти в систему',403:'Доступ запрещён',404:'Объект не найден',409:'Конфликт данных или версий. Обновите данные перед повтором',429:'Слишком много запросов. Повторите позже',500:'Внутренняя ошибка сервера',503:'Сервис временно недоступен'};
+const errorMessages:Record<string,string>={ 'ONLINE session requires meetingUrl':'Для онлайн-занятия укажите URL встречи','OFFLINE session must not have meetingUrl':'Для очного занятия URL встречи не допускается','Session start must be in the future':'Начало занятия должно быть в будущем','Session start time must be before end time':'Окончание занятия должно быть позже начала','A session that has already started cannot be changed or deleted':'Начавшееся занятие нельзя изменить или удалить','Lesson session overlaps another session of this teacher':'Занятие пересекается с другим занятием преподавателя','meetingUrl must be an absolute HTTP or HTTPS URL':'Укажите абсолютный URL встречи с http:// или https://','Invalid email or password':'Неверный email или пароль','Request validation failed':'Не пройдена проверка данных','Invalid request parameters':'Некорректные параметры запроса','Concurrent operation conflict; reload and retry if appropriate':'Конфликт изменений. Обновите данные и повторите операцию','Invalid or missing JSON request body':'Некорректное тело запроса','Operation conflicts with database constraints':'Операция нарушает ограничения базы данных'};
+function translateError(message:string){return errorMessages[message]||message.split('; ').map(part=>{const m=part.match(/^([\w.\[\]]+): (.*)$/);if(!m)return part;const detail=m[2].replace('must not be null','обязательное поле').replace('must not be blank','обязательное поле');return `${names[m[1]]||m[1]}: ${detail}`}).join('; ')}
+export function errorText(e:unknown){if(axios.isAxiosError(e)){const d=e.response?.data;const status=e.response?.status||0;const detail=status>=400&&status<500&&typeof d?.message==='string'?translateError(d.message):'';return `${detail||errors[status]||'Не удалось выполнить запрос'}${d?.requestId?' (ID запроса: '+d.requestId+')':''}`}return e instanceof Error?e.message:'Неизвестная ошибка'}
+export const fmt=(v:unknown)=>v==null?'—':typeof v==='boolean'?(v?'Да':'Нет'):Array.isArray(v)?v.map(fmt).join(', '):typeof v==='object'?JSON.stringify(v):String(v);
+export const date=(v?:string)=>formatDate(v);
+export const statusLabels:Record<string,string>={ACTIVE:'Активен',ARCHIVED:'Архивный',INACTIVE:'Неактивен',DELETED:'Удалён',WITHDRAWN:'Прекращена',SUBMITTED:'Сдано',GRADED:'Проверено',NOT_SUBMITTED:'Не сдано',OVERDUE:'Просрочено',IN_PROGRESS:'В процессе',EXPIRED:'Время истекло',ONLINE:'Онлайн',OFFLINE:'Очно',SINGLE_CHOICE:'Один ответ',MULTIPLE_CHOICE:'Несколько ответов',STUDENT:'Студент',TEACHER:'Преподаватель',ADMIN:'Администратор',ASSIGNMENT:'Задание',QUIZ:'Тест',UP:'Доступен',DOWN:'Недоступен',CONNECTED:'Подключена',DISCONNECTED:'Не подключена',UNKNOWN:'Неизвестно',OUT_OF_SERVICE:'Не обслуживается',SUCCESS:'Успешно',CLIENT_ERROR:'Ошибка клиента',SERVER_ERROR:'Ошибка сервера',REDIRECTION:'Перенаправление',INFORMATIONAL:'Информационный ответ',COUNT:'Количество',TOTAL_TIME:'Общее время',MAX:'Максимум',VALUE:'Значение',TOTAL:'Всего'};
+export const label=(v:any)=>Array.isArray(v)?v.map(label).join(', '):typeof v==='string'&&Object.hasOwn(statusLabels,v)?statusLabels[v]:fmt(v);
+export const safeUrl=(v?:string)=>{try{const u=new URL(v||'');return ['https:','http:'].includes(u.protocol)&&u.hostname&&!u.username&&!u.password?u.href:undefined}catch{return undefined}};
+export const modulePath=(c:number|string,m?:number|string)=>`/api/courses/${c}/modules${m==null?'':'/'+m}`;
+export const lessonPath=(c:number|string,m:number|string,l?:number|string)=>`${modulePath(c,m)}/lessons${l==null?'':'/'+l}`;

@@ -1,0 +1,3 @@
+import {test,expect} from '@playwright/test';
+test('public catalog and login form (stubbed catalog)',async({page})=>{await page.route('**/api/**',r=>r.fulfill({json:{content:[],page:0,size:12,totalElements:0,totalPages:0,first:true,last:true}}));await page.goto('/');await expect(page.getByText('Начните учиться сегодня')).toBeVisible();await page.getByRole('link',{name:'Войти',exact:true}).click();await expect(page.getByRole('heading',{name:'Вход в систему'})).toBeVisible();await expect(page.getByLabel('Email')).toBeVisible();});
+test('anonymous admin route redirects',async({page})=>{await page.goto('/admin/monitoring');await expect(page).toHaveURL(/\/login/);});

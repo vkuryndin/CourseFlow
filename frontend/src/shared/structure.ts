@@ -1,0 +1,3 @@
+import {all,Data,modulePath,lessonPath,optional} from './api';
+export type Lesson=Data&{sessions:Data[];assignments:Data[]};export type Module=Data&{lessons:Lesson[];quiz:Data|null};
+export async function structure(courseId:string|number):Promise<Module[]>{const modules=await all(modulePath(courseId));const result:Module[]=[];for(const m of modules){const lessons=await all(lessonPath(courseId,m.id));const expanded:Lesson[]=[];for(const l of lessons){const [sessions,assignments]=await Promise.all([all(`/api/lessons/${l.id}/sessions`),all(`/api/lessons/${l.id}/assignments`)]);expanded.push({...l,sessions,assignments})}const quiz=await optional(`/api/modules/${m.id}/quiz`);result.push({...m,lessons:expanded,quiz})}return result}

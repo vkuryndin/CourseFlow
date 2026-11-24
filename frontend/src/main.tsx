@@ -1,0 +1,11 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {BrowserRouter} from 'react-router-dom';
+import {CssBaseline,ThemeProvider,createTheme} from '@mui/material';
+import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+import {AuthProvider} from './app/auth';
+import App from './app/App';
+import './style.css';
+const theme=createTheme({palette:{mode:'light',primary:{main:'#4F46E5'},background:{default:'#F8FAFC',paper:'#FFFFFF'},text:{primary:'#0F172A',secondary:'#64748B'},success:{main:'#16A34A'},warning:{main:'#D97706'},error:{main:'#DC2626'}},typography:{fontFamily:'Inter, system-ui, -apple-system, Segoe UI, sans-serif',h4:{fontWeight:700,fontSize:'1.75rem'},h5:{fontWeight:700},h6:{fontWeight:650},button:{textTransform:'none',fontWeight:600}},shape:{borderRadius:10},components:{MuiPaper:{defaultProps:{elevation:0},styleOverrides:{root:{border:'1px solid #E2E8F0'}}},MuiButton:{defaultProps:{disableElevation:true}},MuiTableCell:{styleOverrides:{head:{fontWeight:700,backgroundColor:'#F1F5F9'},root:{borderBottom:'1px solid #E2E8F0'}}}}});
+const query=new QueryClient({defaultOptions:{queries:{staleTime:15000,retry:false,refetchOnWindowFocus:true},mutations:{retry:false}}});
+createRoot(document.getElementById('root')!).render(<ThemeProvider theme={theme}><CssBaseline/><QueryClientProvider client={query}><BrowserRouter><AuthProvider><App/></AuthProvider></BrowserRouter></QueryClientProvider></ThemeProvider>);

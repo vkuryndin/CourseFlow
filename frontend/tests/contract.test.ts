@@ -1,0 +1,5 @@
+import {describe,it,expect} from 'vitest';
+import {buildPayload} from '../src/shared/forms';
+import {safeUrl} from '../src/shared/api';
+import {custom,delta} from '../src/modules/monitoring';
+describe('CourseFlow contract',()=>{it('keeps optimistic lock version 0',()=>expect(buildPayload('UpdateModuleRequest',{title:'Test',description:'',version:0})).toEqual({title:'Test',description:null,version:0}));it('converts date to ISO',()=>expect(buildPayload('ExtendAssignmentDeadlineRequest',{dueAt:'01.12.2026 10:00',version:0}).dueAt).toMatch(/Z$/));it('rejects invalid question',()=>expect(()=>buildPayload('CreateQuestionRequest',{text:'Q',position:0,type:'SINGLE_CHOICE',options:[{text:'a',correct:true},{text:'b',correct:true}]})).toThrow());it('rejects dangerous URL',()=>expect(safeUrl('javascript:alert(1)')).toBeUndefined());it('registers all 7 custom metrics',()=>expect(Object.keys(custom)).toHaveLength(7));it('handles counter resets',()=>{expect(delta(15,10)).toBe(5);expect(delta(2,15)).toBeNull();expect(delta(undefined,1)).toBeNull()})});

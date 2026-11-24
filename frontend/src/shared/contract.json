@@ -1,0 +1,5514 @@
+{
+  "schemas": {
+    "UpdateUserRequest": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 0
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "minLength": 0
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "displayName",
+        "email",
+        "version"
+      ]
+    },
+    "UserResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "INACTIVE",
+            "DELETED"
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "ADMIN"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "systemAdmin": {
+          "type": "boolean"
+        }
+      }
+    },
+    "UpdateUserRolesRequest": {
+      "type": "object",
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "ADMIN"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "roles",
+        "version"
+      ]
+    },
+    "UpdateProfileRequest": {
+      "type": "object",
+      "properties": {
+        "bio": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 0
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 2048,
+          "minLength": 0
+        }
+      }
+    },
+    "ProfileResponse": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "bio": {
+          "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "TagRequest": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 0
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "TagResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "UpdateQuizRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "timeLimit": {
+          "type": "integer",
+          "format": "int32",
+          "maximum": 240,
+          "minimum": 1
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "format": "int32",
+          "maximum": 10,
+          "minimum": 1
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "maxAttempts",
+        "timeLimit",
+        "title",
+        "version"
+      ]
+    },
+    "QuizResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "moduleId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "timeLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "CreateQuestionRequest": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 5000,
+          "minLength": 0
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "SINGLE_CHOICE",
+            "MULTIPLE_CHOICE"
+          ]
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/OptionRequest"
+          },
+          "maxItems": 10,
+          "minItems": 2
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Required on PUT; omit on POST",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "options",
+        "position",
+        "text",
+        "type"
+      ]
+    },
+    "OptionRequest": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 0
+        },
+        "correct": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "correct",
+        "text"
+      ]
+    },
+    "ManagementOptionResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "text": {
+          "type": "string"
+        },
+        "correct": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ManagementResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "SINGLE_CHOICE",
+            "MULTIPLE_CHOICE"
+          ]
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ManagementOptionResponse"
+          }
+        }
+      }
+    },
+    "CreateLessonSessionRequest": {
+      "type": "object",
+      "properties": {
+        "startsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "ONLINE",
+            "OFFLINE"
+          ]
+        },
+        "meetingUrl": {
+          "type": "string",
+          "maxLength": 2048,
+          "minLength": 0
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Required on PUT; omit on POST",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "endsAt",
+        "format",
+        "startsAt"
+      ]
+    },
+    "LessonSessionResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "lessonId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "ONLINE",
+            "OFFLINE"
+          ]
+        },
+        "meetingUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateAssignmentRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 20000,
+          "minLength": 0
+        },
+        "dueAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Required on PUT; omit on POST",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "description",
+        "dueAt",
+        "maxScore",
+        "title"
+      ]
+    },
+    "AssignmentResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "lessonId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "dueAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "UpdateCourseRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 5000,
+          "minLength": 0
+        },
+        "categoryId": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "teacherId": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "duration": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "categoryId",
+        "description",
+        "duration",
+        "startDate",
+        "teacherId",
+        "title",
+        "version"
+      ]
+    },
+    "CourseResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "categoryId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "teacherId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "duration": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "ReassignCourseTeacherRequest": {
+      "type": "object",
+      "properties": {
+        "teacherId": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "teacherId",
+        "version"
+      ]
+    },
+    "CourseReviewRequest": {
+      "type": "object",
+      "properties": {
+        "rating": {
+          "type": "integer",
+          "format": "int32",
+          "maximum": 5,
+          "minimum": 1
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 0
+        }
+      },
+      "required": [
+        "rating"
+      ]
+    },
+    "CourseReviewResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentName": {
+          "type": "string"
+        },
+        "rating": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "UpdateModuleRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 0
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "title",
+        "version"
+      ]
+    },
+    "ModuleResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "UpdateLessonRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 20000,
+          "minLength": 0
+        },
+        "videoUrl": {
+          "type": "string",
+          "maxLength": 2048,
+          "minLength": 0
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "content",
+        "title",
+        "version"
+      ]
+    },
+    "LessonResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "moduleId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "videoUrl": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "CategoryCreateRequest": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 0
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 0
+        }
+      },
+      "required": [
+        "description",
+        "name"
+      ]
+    },
+    "CategoryResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "GradeSubmissionRequest": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0
+        },
+        "feedback": {
+          "type": "string",
+          "maxLength": 5000,
+          "minLength": 0
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "score",
+        "version"
+      ]
+    },
+    "SubmissionResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "assignmentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "content": {
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "SUBMITTED",
+            "GRADED"
+          ]
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "feedback": {
+          "type": "string"
+        }
+      }
+    },
+    "AdminCreateUserRequest": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 0
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "minLength": 0
+        },
+        "password": {
+          "type": "string",
+          "maxLength": 72,
+          "minLength": 8
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "ADMIN"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "passwordChangeRequired": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require password change on first login; defaults to true for administrator-created accounts"
+        }
+      },
+      "required": [
+        "displayName",
+        "email",
+        "password",
+        "roles"
+      ]
+    },
+    "QuizAttemptResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "quizId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "attemptNumber": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "IN_PROGRESS",
+            "SUBMITTED",
+            "EXPIRED"
+          ]
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "takenAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "AnswerRequest": {
+      "type": "object",
+      "properties": {
+        "questionId": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "optionIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "maxItems": 10,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "optionIds",
+        "questionId"
+      ]
+    },
+    "SubmitQuizRequest": {
+      "type": "object",
+      "properties": {
+        "answers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/AnswerRequest"
+          },
+          "maxItems": 200,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "answers"
+      ]
+    },
+    "CreateQuizRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "timeLimit": {
+          "type": "integer",
+          "format": "int32",
+          "maximum": 240,
+          "minimum": 1
+        }
+      },
+      "required": [
+        "timeLimit",
+        "title"
+      ]
+    },
+    "CreateCourseRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 5000,
+          "minLength": 0
+        },
+        "categoryId": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "teacherId": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "duration": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "categoryId",
+        "description",
+        "duration",
+        "startDate",
+        "teacherId",
+        "title"
+      ]
+    },
+    "CreateModuleRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 0
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "position",
+        "title"
+      ]
+    },
+    "CreateLessonRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 0
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 20000,
+          "minLength": 0
+        },
+        "videoUrl": {
+          "type": "string",
+          "maxLength": 2048,
+          "minLength": 0
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "content",
+        "position",
+        "title"
+      ]
+    },
+    "EnrollmentResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "enrolledAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "WITHDRAWN"
+          ]
+        }
+      }
+    },
+    "ResetPasswordRequest": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 0
+        },
+        "newPassword": {
+          "type": "string",
+          "maxLength": 72,
+          "minLength": 8
+        }
+      },
+      "required": [
+        "newPassword",
+        "token"
+      ]
+    },
+    "RegistrationRequest": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 0
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "minLength": 0
+        },
+        "password": {
+          "type": "string",
+          "maxLength": 72,
+          "minLength": 8
+        }
+      },
+      "required": [
+        "displayName",
+        "email",
+        "password"
+      ]
+    },
+    "RegistrationResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "ADMIN"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "LoginRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "minLength": 0
+        },
+        "password": {
+          "type": "string",
+          "maxLength": 72,
+          "minLength": 0
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ]
+    },
+    "LoginResponse": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "tokenType": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "userId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "ADMIN"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "passwordChangeRequired": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ForgotPasswordRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "minLength": 0
+        }
+      },
+      "required": [
+        "email"
+      ]
+    },
+    "ChangePasswordRequest": {
+      "type": "object",
+      "properties": {
+        "currentPassword": {
+          "type": "string",
+          "maxLength": 72,
+          "minLength": 0
+        },
+        "newPassword": {
+          "type": "string",
+          "maxLength": 72,
+          "minLength": 8
+        }
+      },
+      "required": [
+        "currentPassword",
+        "newPassword"
+      ]
+    },
+    "CreateSubmissionRequest": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "maxLength": 20000,
+          "minLength": 0
+        }
+      },
+      "required": [
+        "content"
+      ]
+    },
+    "RescheduleLessonSessionRequest": {
+      "type": "object",
+      "properties": {
+        "startsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "endsAt",
+        "startsAt",
+        "version"
+      ]
+    },
+    "ExtendAssignmentDeadlineRequest": {
+      "type": "object",
+      "properties": {
+        "dueAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "dueAt",
+        "version"
+      ]
+    },
+    "ChangeModulePositionRequest": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "position",
+        "version"
+      ]
+    },
+    "ChangeLessonPositionRequest": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "position",
+        "version"
+      ]
+    },
+    "PageResponseUserResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "MySubmissionResponse": {
+      "type": "object",
+      "properties": {
+        "submissionId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "assignmentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "assignmentTitle": {
+          "type": "string"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "SUBMITTED",
+            "GRADED"
+          ]
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "feedback": {
+          "type": "string"
+        }
+      }
+    },
+    "PageResponseMySubmissionResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/MySubmissionResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "MyQuizAttemptResponse": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "quizId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "quizTitle": {
+          "type": "string"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "attemptNumber": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "takenAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "PageResponseMyQuizAttemptResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/MyQuizAttemptResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AssignmentProgress": {
+      "type": "object",
+      "properties": {
+        "assignmentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "dueAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CourseProgressResponse": {
+      "type": "object",
+      "properties": {
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "courseStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "ARCHIVED"
+          ]
+        },
+        "enrollmentStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "WITHDRAWN"
+          ]
+        },
+        "totalAssessments": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "completedAssessments": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "progressPercent": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "performancePercent": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "assignments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/AssignmentProgress"
+          }
+        },
+        "quizzes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/QuizProgress"
+          }
+        },
+        "upcomingDeadlines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/AssignmentProgress"
+          }
+        },
+        "detailsIncluded": {
+          "type": "boolean"
+        },
+        "detailPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "detailSize": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalAssignments": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalQuizzes": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalUpcomingDeadlines": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "PageResponseCourseProgressResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CourseProgressResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "QuizProgress": {
+      "type": "object",
+      "properties": {
+        "quizId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "bestScore": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "attemptsUsed": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "EnrollmentListItemResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentName": {
+          "type": "string"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "courseStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "ARCHIVED"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "WITHDRAWN"
+          ]
+        },
+        "enrolledAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "PageResponseEnrollmentListItemResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/EnrollmentListItemResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "MyAssignmentResponse": {
+      "type": "object",
+      "properties": {
+        "assignmentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "lessonId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "lessonTitle": {
+          "type": "string"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "dueAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "submissionId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "status": {
+          "type": "string"
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "PageResponseMyAssignmentResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/MyAssignmentResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PublicTeacherResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "displayName": {
+          "type": "string"
+        }
+      }
+    },
+    "PageResponseTagResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/TagResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "SystemStatusResponse": {
+      "type": "object",
+      "properties": {
+        "application": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "database": {
+          "type": "string"
+        }
+      }
+    },
+    "OptionResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "QuestionResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "SINGLE_CHOICE",
+            "MULTIPLE_CHOICE"
+          ]
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/OptionResponse"
+          }
+        }
+      }
+    },
+    "PageResponseQuizAttemptResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/QuizAttemptResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "QuizAttemptDetailResponse": {
+      "type": "object",
+      "properties": {
+        "attempt": {
+          "$ref": "#/components/schemas/QuizAttemptResponse"
+        },
+        "selectedAnswers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/SelectedAnswer"
+          }
+        }
+      }
+    },
+    "SelectedAnswer": {
+      "type": "object",
+      "properties": {
+        "questionId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "questionText": {
+          "type": "string"
+        },
+        "optionId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "optionText": {
+          "type": "string"
+        }
+      }
+    },
+    "PageResponseLessonSessionResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/LessonSessionResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PageResponseAssignmentResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/AssignmentResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CourseSummary": {
+      "type": "object",
+      "properties": {
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "ARCHIVED"
+          ]
+        },
+        "activeEnrollmentCount": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "PendingSubmission": {
+      "type": "object",
+      "properties": {
+        "submissionId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "assignmentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "lessonId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "assignmentTitle": {
+          "type": "string"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentName": {
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "RecentQuizResult": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "quizId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "quizTitle": {
+          "type": "string"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentName": {
+          "type": "string"
+        },
+        "attemptNumber": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "TeacherDashboardResponse": {
+      "type": "object",
+      "properties": {
+        "totalCourseCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "activeCourseCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "archivedCourseCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "activeStudentCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "pendingSubmissionCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CourseSummary"
+          }
+        },
+        "pendingSubmissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PendingSubmission"
+          }
+        },
+        "upcomingSessions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/UpcomingSession"
+          }
+        },
+        "recentQuizResults": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/RecentQuizResult"
+          }
+        }
+      }
+    },
+    "UpcomingSession": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "lessonId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "lessonTitle": {
+          "type": "string"
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "format": {
+          "type": "string"
+        },
+        "meetingUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "CourseProgressSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "courseStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "ARCHIVED"
+          ]
+        },
+        "enrollmentStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "WITHDRAWN"
+          ]
+        },
+        "totalAssessments": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "completedAssessments": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "progressPercent": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "performancePercent": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalAssignments": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalQuizzes": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalUpcomingDeadlines": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "PageResponseCourseProgressSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CourseProgressSummaryResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "StudentDashboardResponse": {
+      "type": "object",
+      "properties": {
+        "activeCourseCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courses": {
+          "$ref": "#/components/schemas/PageResponseCourseProgressSummaryResponse"
+        },
+        "upcomingSessions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/UpcomingSession"
+          }
+        },
+        "upcomingDeadlines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/UpcomingDeadline"
+          }
+        }
+      }
+    },
+    "UpcomingDeadline": {
+      "type": "object",
+      "properties": {
+        "assignmentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseTitle": {
+          "type": "string"
+        },
+        "lessonId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "assignmentTitle": {
+          "type": "string"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "dueAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "AdminDashboardResponse": {
+      "type": "object",
+      "properties": {
+        "users": {
+          "$ref": "#/components/schemas/UserStatistics"
+        },
+        "roles": {
+          "$ref": "#/components/schemas/RoleStatistics"
+        },
+        "courses": {
+          "$ref": "#/components/schemas/CourseStatistics"
+        },
+        "enrollments": {
+          "$ref": "#/components/schemas/EnrollmentStatistics"
+        }
+      }
+    },
+    "CourseStatistics": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "active": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "archived": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "EnrollmentStatistics": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "active": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "withdrawn": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "activeOnActiveCourses": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "RoleStatistics": {
+      "type": "object",
+      "properties": {
+        "students": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "teachers": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "admins": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "UserStatistics": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "active": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "inactive": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "deleted": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "PageResponseCourseResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CourseResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PageResponsePublicCourseReviewResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PublicCourseReviewResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PublicCourseReviewResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentName": {
+          "type": "string"
+        },
+        "rating": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CourseRatingResponse": {
+      "type": "object",
+      "properties": {
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "reviewCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "averageRating": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "PageResponseModuleResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ModuleResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "LessonSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "moduleId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "PageResponseLessonSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/LessonSummaryResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Cell": {
+      "type": "object",
+      "properties": {
+        "assessmentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "ASSIGNMENT",
+            "QUIZ"
+          ]
+        },
+        "status": {
+          "type": "string"
+        },
+        "score": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "attemptsUsed": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "Column": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "ASSIGNMENT",
+            "QUIZ"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "moduleId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "moduleTitle": {
+          "type": "string"
+        },
+        "maxScore": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "GradebookResponse": {
+      "type": "object",
+      "properties": {
+        "courseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Column"
+          }
+        },
+        "students": {
+          "$ref": "#/components/schemas/PageResponseStudentRow"
+        },
+        "columnPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "columnSize": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalColumns": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalColumnPages": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "PageResponseStudentRow": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/StudentRow"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "StudentRow": {
+      "type": "object",
+      "properties": {
+        "studentId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "studentName": {
+          "type": "string"
+        },
+        "studentStatus": {
+          "type": "string"
+        },
+        "enrollmentStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "WITHDRAWN"
+          ]
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Cell"
+          }
+        }
+      }
+    },
+    "PageResponseCategoryResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CategoryResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PageResponseSubmissionResponse": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/SubmissionResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "size": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalElements": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "first": {
+          "type": "boolean"
+        },
+        "last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ApiErrorResponse": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "error": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "requestId": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "operations": {
+    "GET /api/users/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/users/{id}": {
+      "request": "UpdateUserRequest",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/users/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/users/{id}/roles": {
+      "request": "UpdateUserRolesRequest",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/users/me/profile": {
+      "request": "",
+      "params": []
+    },
+    "PUT /api/users/me/profile": {
+      "request": "UpdateProfileRequest",
+      "params": []
+    },
+    "GET /api/tags/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/tags/{id}": {
+      "request": "TagRequest",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/tags/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/quizzes/{quizId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/quizzes/{quizId}": {
+      "request": "UpdateQuizRequest",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/quizzes/{quizId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/quizzes/{quizId}/questions/{questionId}": {
+      "request": "CreateQuestionRequest",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "questionId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/quizzes/{quizId}/questions/{questionId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "questionId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/lessons/{lessonId}/sessions/{sessionId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "sessionId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/lessons/{lessonId}/sessions/{sessionId}": {
+      "request": "CreateLessonSessionRequest",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "sessionId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/lessons/{lessonId}/sessions/{sessionId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "sessionId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/lessons/{lessonId}/assignments/{assignmentId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/lessons/{lessonId}/assignments/{assignmentId}": {
+      "request": "CreateAssignmentRequest",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/lessons/{lessonId}/assignments/{assignmentId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/courses/{id}": {
+      "request": "UpdateCourseRequest",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/courses/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/courses/{courseId}/teacher": {
+      "request": "ReassignCourseTeacherRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/reviews/me": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/courses/{courseId}/reviews/me": {
+      "request": "CourseReviewRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/courses/{courseId}/reviews/me": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/modules/{moduleId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/courses/{courseId}/modules/{moduleId}": {
+      "request": "UpdateModuleRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/courses/{courseId}/modules/{moduleId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}": {
+      "request": "UpdateLessonRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/categories/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/categories/{id}": {
+      "request": "CategoryCreateRequest",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/categories/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PUT /api/assignments/{assignmentId}/submissions/{submissionId}/grade": {
+      "request": "GradeSubmissionRequest",
+      "params": [
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "submissionId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/users": {
+      "request": "",
+      "params": [
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0,
+            "minimum": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "required": false
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": ""
+          },
+          "required": false
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE",
+              "DELETED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "role",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "ADMIN"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "id"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "asc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/users": {
+      "request": "AdminCreateUserRequest",
+      "params": []
+    },
+    "POST /api/users/{id}/password-reset": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "POST /api/users/{id}/deactivate": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "POST /api/users/{id}/activate": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/tags": {
+      "request": "",
+      "params": [
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": ""
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "id"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "asc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/tags": {
+      "request": "TagRequest",
+      "params": []
+    },
+    "GET /api/quizzes/{quizId}/questions": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "POST /api/quizzes/{quizId}/questions": {
+      "request": "CreateQuestionRequest",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/quizzes/{quizId}/attempts": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "studentId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "SUBMITTED",
+              "EXPIRED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "takenAt"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "desc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/quizzes/{quizId}/attempts": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "POST /api/quizzes/{quizId}/attempts/{attemptId}/submit": {
+      "request": "SubmitQuizRequest",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "attemptId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/modules/{moduleId}/quiz": {
+      "request": "",
+      "params": [
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "POST /api/modules/{moduleId}/quiz": {
+      "request": "CreateQuizRequest",
+      "params": [
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/lessons/{lessonId}/sessions": {
+      "request": "",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/lessons/{lessonId}/sessions": {
+      "request": "CreateLessonSessionRequest",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/lessons/{lessonId}/assignments": {
+      "request": "",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "id"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "asc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/lessons/{lessonId}/assignments": {
+      "request": "CreateAssignmentRequest",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses": {
+      "request": "",
+      "params": [
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0,
+            "minimum": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "required": false
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": ""
+          },
+          "required": false
+        },
+        {
+          "name": "categoryId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "teacherId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "id"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "asc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/courses": {
+      "request": "CreateCourseRequest",
+      "params": []
+    },
+    "POST /api/courses/{id}/archive": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "POST /api/courses/{courseId}/tags/{tagId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "tagId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/courses/{courseId}/tags/{tagId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "tagId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/reviews": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "createdAt"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "desc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/courses/{courseId}/reviews": {
+      "request": "CourseReviewRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/modules": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/courses/{courseId}/modules": {
+      "request": "CreateModuleRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/modules/{moduleId}/lessons": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/courses/{courseId}/modules/{moduleId}/lessons": {
+      "request": "CreateLessonRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/enrollments": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "WITHDRAWN"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "enrolledAt"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "desc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/courses/{courseId}/enrollments": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/categories": {
+      "request": "",
+      "params": [
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0,
+            "minimum": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "required": false
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          },
+          "required": false
+        },
+        {
+          "name": "search",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "name"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "asc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/categories": {
+      "request": "CategoryCreateRequest",
+      "params": []
+    },
+    "POST /api/auth/reset-password": {
+      "request": "ResetPasswordRequest",
+      "params": []
+    },
+    "POST /api/auth/register": {
+      "request": "RegistrationRequest",
+      "params": []
+    },
+    "POST /api/auth/logout": {
+      "request": "",
+      "params": []
+    },
+    "POST /api/auth/login": {
+      "request": "LoginRequest",
+      "params": []
+    },
+    "POST /api/auth/forgot-password": {
+      "request": "ForgotPasswordRequest",
+      "params": []
+    },
+    "POST /api/auth/change-password": {
+      "request": "ChangePasswordRequest",
+      "params": []
+    },
+    "GET /api/assignments/{assignmentId}/submissions": {
+      "request": "",
+      "params": [
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "SUBMITTED",
+              "GRADED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "submittedAt"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "desc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "POST /api/assignments/{assignmentId}/submissions": {
+      "request": "CreateSubmissionRequest",
+      "params": [
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PATCH /api/lessons/{lessonId}/sessions/{sessionId}/time": {
+      "request": "RescheduleLessonSessionRequest",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "sessionId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PATCH /api/lessons/{lessonId}/assignments/{assignmentId}/deadline": {
+      "request": "ExtendAssignmentDeadlineRequest",
+      "params": [
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PATCH /api/courses/{courseId}/modules/{moduleId}/position": {
+      "request": "ChangeModulePositionRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "PATCH /api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/position": {
+      "request": "ChangeLessonPositionRequest",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "moduleId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "lessonId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/users/me": {
+      "request": "",
+      "params": []
+    },
+    "GET /api/users/me/submissions": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "SUBMITTED",
+              "GRADED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/users/me/quiz-attempts": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "SUBMITTED",
+              "EXPIRED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/users/me/progress": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "enrollmentStatus",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "WITHDRAWN"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "courseTitle"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "asc"
+          },
+          "required": false
+        },
+        {
+          "name": "includeDetails",
+          "in": "query",
+          "schema": {
+            "type": "boolean"
+          },
+          "required": false
+        },
+        {
+          "name": "detailPage",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "detailSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 50
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/users/me/enrollments": {
+      "request": "",
+      "params": [
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "WITHDRAWN"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "enrolledAt"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "desc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/users/me/assignments": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "NOT_SUBMITTED",
+              "OVERDUE",
+              "SUBMITTED",
+              "GRADED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/teachers/{id}": {
+      "request": "",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/system/status": {
+      "request": "",
+      "params": []
+    },
+    "GET /api/quizzes/{quizId}/questions/manage": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/quizzes/{quizId}/attempts/{attemptId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "attemptId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/quizzes/{quizId}/attempts/{attemptId}/result": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "attemptId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/quizzes/{quizId}/attempts/{attemptId}/manage": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "attemptId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/quizzes/{quizId}/attempts/me": {
+      "request": "",
+      "params": [
+        {
+          "name": "quizId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "SUBMITTED",
+              "EXPIRED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "attemptNumber"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "desc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/dashboard/teacher": {
+      "request": "",
+      "params": []
+    },
+    "GET /api/dashboard/student": {
+      "request": "",
+      "params": []
+    },
+    "GET /api/dashboard/admin": {
+      "request": "",
+      "params": []
+    },
+    "GET /api/courses/{courseId}/tags": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/reviews/rating": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/gradebook": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          },
+          "required": false
+        },
+        {
+          "name": "enrollmentStatus",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "WITHDRAWN"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "reviewStatus",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "NOT_SUBMITTED",
+              "OVERDUE",
+              "SUBMITTED",
+              "GRADED"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "moduleId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": false
+        },
+        {
+          "name": "type",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ASSIGNMENT",
+              "QUIZ"
+            ]
+          },
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20
+          },
+          "required": false
+        },
+        {
+          "name": "columnPage",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "required": false
+        },
+        {
+          "name": "columnSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "default": 50
+          },
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "studentName"
+          },
+          "required": false
+        },
+        {
+          "name": "direction",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "default": "asc"
+          },
+          "required": false
+        }
+      ]
+    },
+    "GET /api/courses/{courseId}/enrollments/me": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/courses/{courseId}/enrollments/me": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "GET /api/assignments/{assignmentId}/submissions/me": {
+      "request": "",
+      "params": [
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    },
+    "DELETE /api/courses/{courseId}/enrollments/students/{studentId}": {
+      "request": "",
+      "params": [
+        {
+          "name": "courseId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        },
+        {
+          "name": "studentId",
+          "in": "path",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "required": true
+        }
+      ]
+    }
+  }
+}
