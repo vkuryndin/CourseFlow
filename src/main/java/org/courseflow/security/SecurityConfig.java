@@ -47,6 +47,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/gradebook"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/courses/*/reviews"
                         ).hasRole("STUDENT")

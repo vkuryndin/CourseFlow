@@ -4236,3 +4236,194 @@ Content-Type: application/json
 
 ### 28. Verify final course rating — 200
 GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
+
+
+
+
+### =========================================================
+### STAGE 5.5 — COURSE GRADEBOOK
+### =========================================================
+
+### 1. TEACHER reads own course gradebook — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 2. ADMIN reads course gradebook — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook
+Authorization: Bearer {{admin_token}}
+
+
+### 3. Only assignments — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=ASSIGNMENT
+Authorization: Bearer {{enrollment_teacher_token}}
+
+> {%
+    client.test("Assignment columns only", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.columns.length > 0);
+        client.assert(
+            response.body.columns.every(
+                column => column.type === "ASSIGNMENT"
+            )
+        );
+    });
+%}
+
+
+### 4. Only quizzes — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=QUIZ
+Authorization: Bearer {{enrollment_teacher_token}}
+
+> {%
+    client.test("Quiz columns only", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.columns.length > 0);
+        client.assert(
+            response.body.columns.every(
+                column => column.type === "QUIZ"
+            )
+        );
+    });
+%}
+
+
+### 5. Filter by module — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?moduleId={{module_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 6. Filter ACTIVE students — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 7. Filter WITHDRAWN students — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 8. Students with graded assignments — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=GRADED
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 9. Students with assignments awaiting review — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=SUBMITTED
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 10. Students with unsubmitted assignments — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=NOT_SUBMITTED
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 11. Search nonexistent student — empty page, 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?q=NonexistentStudent999999
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 12. Sort students by name — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=studentName&direction=asc
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 13. Sort students by ID descending — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=studentId&direction=desc
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 14. First page with one student — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=0&size=1
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 15. Second page — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=1&size=1
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### =========================================================
+### VALIDATION
+### =========================================================
+
+### 16. Invalid page — expected 400
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=-1
+Authorization: Bearer {{admin_token}}
+
+
+### 17. Invalid page size — expected 400
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?size=101
+Authorization: Bearer {{admin_token}}
+
+
+### 18. Unknown sort field — expected 400
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=unknown
+Authorization: Bearer {{admin_token}}
+
+
+### 19. Invalid sort direction — expected 400
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?direction=unknown
+Authorization: Bearer {{admin_token}}
+
+
+### 20. Unknown module — expected 404
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?moduleId=999999
+Authorization: Bearer {{admin_token}}
+
+
+### 21. Unknown course — expected 404
+GET http://localhost:8080/api/courses/999999/gradebook
+Authorization: Bearer {{admin_token}}
+
+
+### 22. Invalid combination of filters — 400
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=QUIZ&reviewStatus=GRADED
+Authorization: Bearer {{admin_token}}
+
+
+### =========================================================
+### SECURITY
+### =========================================================
+
+### 23. STUDENT cannot view gradebook — 403
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 24. Guest cannot view gradebook — 401
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook
+
+
+### 25. Teacher cannot view another teacher's course — 403
+GET http://localhost:8080/api/courses/3/gradebook
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### =========================================================
+### PRESERVE EDUCATIONAL HISTORY
+### =========================================================
+
+### 26. Withdraw student — expected 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 27. Withdrawn student remains in gradebook — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 28. Student no longer in ACTIVE list — 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 29. Restore enrollment — expected 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 30. Verify final gradebook — expected 200
+GET http://localhost:8080/api/courses/{{course_id}}/gradebook
+Authorization: Bearer {{enrollment_teacher_token}}
