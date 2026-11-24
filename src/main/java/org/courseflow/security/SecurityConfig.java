@@ -48,6 +48,11 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 HttpMethod.GET,
+                                "/api/users/me/progress"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
                                 "/api/courses/*/gradebook"
                         ).hasAnyRole("ADMIN", "TEACHER")
 

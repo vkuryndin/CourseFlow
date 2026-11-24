@@ -4427,3 +4427,280 @@ Authorization: Bearer {{enrollment_student_token}}
 ### 30. Verify final gradebook — expected 200
 GET http://localhost:8080/api/courses/{{course_id}}/gradebook
 Authorization: Bearer {{enrollment_teacher_token}}
+
+
+
+### =========================================================
+### STAGE 5.6 — STUDENT LEARNING PROGRESS
+### =========================================================
+
+### 1. Student reads progress for all courses — 200
+GET http://localhost:8080/api/users/me/progress
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 2. Student reads progress for specific course — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Course progress calculated", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.content.length === 1);
+
+        let progress = response.body.content[0];
+
+        client.assert(progress.totalAssessments === 4);
+        client.assert(progress.completedAssessments === 2);
+        client.assert(progress.progressPercent === 50);
+        client.assert(progress.performancePercent === 95);
+    });
+%}
+
+
+### 3. Verify assignment results — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Assignment results are correct", function () {
+
+        client.assert(response.status === 200);
+
+        let progress = response.body.content[0];
+
+        let graded = progress.assignments.find(
+            a => String(a.assignmentId) ===
+                String(client.global.get("assignment_id"))
+        );
+
+        client.assert(graded != null);
+        client.assert(graded.status === "GRADED");
+        client.assert(graded.score === 90);
+
+        client.assert(progress.assignments.some(
+            a => a.status === "NOT_SUBMITTED"
+        ));
+    });
+%}
+
+
+### 4. Verify Quiz best result — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Best Quiz result is correct", function () {
+
+        client.assert(response.status === 200);
+
+        let progress = response.body.content[0];
+
+        let quiz = progress.quizzes.find(
+            q => String(q.quizId) ===
+                String(client.global.get("quiz_id"))
+        );
+
+        client.assert(quiz != null);
+        client.assert(quiz.status === "COMPLETED");
+        client.assert(quiz.bestScore === 100);
+        client.assert(quiz.attemptsUsed === 2);
+        client.assert(quiz.maxAttempts === 2);
+    });
+%}
+
+
+### 5. Verify expired Quiz attempts — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Expired Quiz does not count as completed",
+        function () {
+
+            client.assert(response.status === 200);
+
+            let progress = response.body.content[0];
+
+            let quiz = progress.quizzes.find(
+                q => String(q.quizId) ===
+                    String(client.global.get("quiz_attempt_test_id"))
+            );
+
+            client.assert(quiz != null);
+            client.assert(quiz.status === "NOT_COMPLETED");
+            client.assert(quiz.bestScore === null);
+            client.assert(quiz.attemptsUsed === 2);
+        });
+%}
+
+
+### 6. Verify upcoming deadlines — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Upcoming deadlines contain unsubmitted work",
+        function () {
+
+            client.assert(response.status === 200);
+
+            let progress = response.body.content[0];
+
+            client.assert(progress.upcomingDeadlines.length === 1);
+
+            client.assert(progress.upcomingDeadlines.every(
+                a => a.status === "NOT_SUBMITTED"
+            ));
+        });
+%}
+
+
+### 7. Filter active enrollments — 200
+GET http://localhost:8080/api/users/me/progress?enrollmentStatus=ACTIVE
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 8. Filter withdrawn enrollments — 200
+GET http://localhost:8080/api/users/me/progress?enrollmentStatus=WITHDRAWN
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 9. Sort courses by title — 200
+GET http://localhost:8080/api/users/me/progress?sortBy=courseTitle&direction=asc
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 10. Sort courses by ID descending — 200
+GET http://localhost:8080/api/users/me/progress?sortBy=courseId&direction=desc
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 11. First page — 200
+GET http://localhost:8080/api/users/me/progress?page=0&size=1
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 12. Second page — 200
+GET http://localhost:8080/api/users/me/progress?page=1&size=1
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 13. Unknown course — empty page, 200
+GET http://localhost:8080/api/users/me/progress?courseId=999999
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Unknown course returns empty page", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.content.length === 0);
+        client.assert(response.body.totalElements === 0);
+    });
+%}
+
+
+### =========================================================
+### VALIDATION AND SECURITY
+### =========================================================
+
+### 14. Invalid courseId — 400
+GET http://localhost:8080/api/users/me/progress?courseId=0
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 15. Invalid page — 400
+GET http://localhost:8080/api/users/me/progress?page=-1
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 16. Invalid page size — 400
+GET http://localhost:8080/api/users/me/progress?size=101
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 17. Unknown sort field — 400
+GET http://localhost:8080/api/users/me/progress?sortBy=unknown
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 18. Invalid direction — 400
+GET http://localhost:8080/api/users/me/progress?direction=unknown
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 19. Invalid enrollment status — 400
+GET http://localhost:8080/api/users/me/progress?enrollmentStatus=UNKNOWN
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 20. Guest cannot read progress — 401
+GET http://localhost:8080/api/users/me/progress
+
+
+### 21. ADMIN without STUDENT role cannot read progress — 403
+GET http://localhost:8080/api/users/me/progress
+Authorization: Bearer {{admin_token}}
+
+
+### =========================================================
+### PRESERVE PROGRESS AFTER WITHDRAWAL
+### =========================================================
+
+### 22. Withdraw student — 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 23. Withdrawn student retains educational history — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Progress preserved after withdrawal", function () {
+
+        client.assert(response.status === 200);
+
+        let progress = response.body.content[0];
+
+        client.assert(progress.enrollmentStatus === "WITHDRAWN");
+        client.assert(progress.progressPercent === 50);
+        client.assert(progress.performancePercent === 95);
+        client.assert(progress.upcomingDeadlines.length === 0);
+    });
+%}
+
+
+### 24. Withdrawn course excluded from active filter — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}&enrollmentStatus=ACTIVE
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Withdrawn course is not active", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.content.length === 0);
+    });
+%}
+
+
+### 25. Restore enrollment — 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 26. Verify final progress — 200
+GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Final progress is correct", function () {
+
+        client.assert(response.status === 200);
+
+        let progress = response.body.content[0];
+
+        client.assert(progress.enrollmentStatus === "ACTIVE");
+        client.assert(progress.progressPercent === 50);
+        client.assert(progress.performancePercent === 95);
+        client.assert(progress.upcomingDeadlines.length === 1);
+    });
+%}
