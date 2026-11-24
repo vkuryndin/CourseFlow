@@ -76,9 +76,9 @@ public class SubmissionService {
         // Read only the ID before locking, not an Assignment entity.
         Long courseId = findCourseId(assignmentId);
 
-        // Same course lock as Assignment update/delete.
+        // Shared course lock conflicts with Assignment update/delete.
         Course course = courseRepository
-                .findByIdForUpdate(courseId)
+                .findByIdForShare(courseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Course not found: " + courseId
@@ -305,7 +305,7 @@ public class SubmissionService {
         );
 
         Submission submission = submissionRepository
-                .findById(submissionId)
+                .findForGrading(submissionId, assignmentId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Submission not found: " + submissionId
@@ -349,7 +349,7 @@ public class SubmissionService {
 
         Course course = (
                 forGrading
-                        ? courseRepository.findByIdForUpdate(courseId)
+                        ? courseRepository.findByIdForShare(courseId)
                         : courseRepository.findById(courseId)
         ).orElseThrow(() ->
                 new ResourceNotFoundException(

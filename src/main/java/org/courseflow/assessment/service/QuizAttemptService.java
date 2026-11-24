@@ -2,6 +2,9 @@
 package org.courseflow.assessment.service;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import org.courseflow.identity.entity.UserRole;
+import org.courseflow.identity.entity.UserStatus;
 
 import org.courseflow.assessment.dto.QuizAttemptResponse;
 import org.courseflow.assessment.entity.Quiz;
@@ -89,7 +92,8 @@ public class QuizAttemptService {
             Long quizId,
             Long studentId
     ) {
-        Course course = lockCourseForQuiz(quizId);
+        Course course = lockCourseForQuizShared(quizId);
+        User student = lockActiveStudent(studentId);
 
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() ->
@@ -121,10 +125,9 @@ public class QuizAttemptService {
             );
         }
 
-        Instant now = Instant.now();
-
         Optional<QuizSubmission> latest =
                 findLatestAttempt(quizId, studentId);
+        Instant now = Instant.now();
 
         int usedAttempts = 0;
 
@@ -151,13 +154,6 @@ public class QuizAttemptService {
             return new StartResult(null, false);
         }
 
-        User student = userRepository.findById(studentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Student not found: " + studentId
-                        )
-                );
-
         QuizSubmission attempt = new QuizSubmission(
                 quiz,
                 student,
@@ -181,7 +177,7 @@ public class QuizAttemptService {
             Long attemptId,
             Long studentId
     ) {
-        lockCourseForQuiz(quizId);
+        lockCourseForQuizShared(quizId);
 
         QuizSubmission attempt = findOwnedAttempt(
                 quizId,
@@ -202,7 +198,7 @@ public class QuizAttemptService {
     }
 
 
-    private Course lockCourseForQuiz(Long quizId) {
+    private Course lockCourseForQuizShared(Long quizId) {
         Long courseId = entityManager.createQuery(
                         """
                         SELECT q.module.course.id
@@ -221,13 +217,18 @@ public class QuizAttemptService {
                         )
                 );
 
-        return courseRepository
-                .findByIdForUpdate(courseId)
+        Course course = courseRepository
+                .findByIdForShare(courseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Course not found: " + courseId
                         )
                 );
+        // The Quiz could have been deleted before we acquired the course lock.
+        if (!quizRepository.existsById(quizId)) {
+            throw new ResourceNotFoundException("Quiz not found: " + quizId);
+        }
+        return course;
     }
 
     private void requireActiveEnrollment(
@@ -252,26 +253,20 @@ public class QuizAttemptService {
         }
     }
 
-    private Optional<QuizSubmission> findLatestAttempt(
-            Long quizId,
-            Long studentId
-    ) {
-        return entityManager.createQuery(
-                        """
-                        SELECT s
-                        FROM QuizSubmission s
-                        WHERE s.quiz.id = :quizId
-                          AND s.student.id = :studentId
-                        ORDER BY s.attemptNumber DESC
-                        """,
-                        QuizSubmission.class
-                )
-                .setParameter("quizId", quizId)
-                .setParameter("studentId", studentId)
-                .setMaxResults(1)
-                .getResultList()
-                .stream()
-                .findFirst();
+    private User lockActiveStudent(Long studentId) {
+        User student = userRepository.findByIdForUpdate(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Student not found: " + studentId));
+        if (student.getStatus() != UserStatus.ACTIVE
+                || !student.getRoles().contains(UserRole.STUDENT)) {
+            throw new AccessDeniedException("Active STUDENT is required");
+        }
+        return student;
+    }
+
+    private Optional<QuizSubmission> findLatestAttempt(Long quizId, Long studentId) {
+        return quizSubmissionRepository
+                .findFirstByQuiz_IdAndStudent_IdOrderByAttemptNumberDesc(quizId, studentId);
     }
 
     private boolean hasQuestions(Long quizId) {
@@ -297,7 +292,8 @@ public class QuizAttemptService {
             Long studentId,
             SubmitQuizRequest request
     ) {
-        Course course = lockCourseForQuiz(quizId);
+        Course course = lockCourseForQuizShared(quizId);
+        lockActiveStudent(studentId);
 
         QuizSubmission attempt = findOwnedAttempt(
                 quizId,
@@ -502,30 +498,10 @@ public class QuizAttemptService {
         return selectedAnswers;
     }
 
-    private QuizSubmission findOwnedAttempt(
-            Long quizId,
-            Long attemptId,
-            Long studentId
-    ) {
-        QuizSubmission attempt = quizSubmissionRepository
-                .findById(attemptId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Quiz attempt not found"
-                        )
-                );
-
-        if (!attempt.getQuiz().getId().equals(quizId)
-                || !attempt.getStudent().getId().equals(studentId)) {
-
-            throw new ResourceNotFoundException(
-                    "Quiz attempt not found"
-            );
-        }
-
-        return attempt;
+    private QuizSubmission findOwnedAttempt(Long quizId, Long attemptId, Long studentId) {
+        return quizSubmissionRepository.findOwnedForUpdate(attemptId, quizId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz attempt not found"));
     }
-
 
     @Transactional
     public PageResponse<QuizAttemptResponse> getMyAttempts(
@@ -537,7 +513,7 @@ public class QuizAttemptService {
             String sortBy,
             String direction
     ) {
-        lockCourseForQuiz(quizId);
+        lockCourseForQuizShared(quizId);
 
         return findAttemptPage(
                 quizId,
@@ -585,7 +561,7 @@ public class QuizAttemptService {
             Long attemptId,
             Long studentId
     ) {
-        lockCourseForQuiz(quizId);
+        lockCourseForQuizShared(quizId);
 
         QuizSubmission attempt = findOwnedAttempt(
                 quizId,
@@ -612,7 +588,7 @@ public class QuizAttemptService {
         );
 
         QuizSubmission attempt = quizSubmissionRepository
-                .findById(attemptId)
+                .findForUpdate(attemptId, quizId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Quiz attempt not found"
@@ -636,7 +612,7 @@ public class QuizAttemptService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = lockCourseForQuiz(quizId);
+        Course course = lockCourseForQuizShared(quizId);
 
         if (!isAdmin &&
                 !course.getTeacher().getId()
@@ -762,50 +738,28 @@ public class QuizAttemptService {
         );
     }
 
-    private void refreshExpiredAttempts(
-            Long quizId,
-            Long studentId
-    ) {
-        Instant now = Instant.now();
-
+    private void refreshExpiredAttempts(Long quizId, Long studentId) {
+        // Atomic conditional update: after waiting for a concurrent submit,
+        // PostgreSQL rechecks the predicate and does not overwrite SUBMITTED.
         String jpql = """
-            SELECT s
-            FROM QuizSubmission s
+            UPDATE QuizSubmission s
+            SET s.status = :expired, s.finishedAt = s.expiresAt
             WHERE s.quiz.id = :quizId
-              AND s.status = :status
+              AND s.status = :inProgress
               AND s.expiresAt <= :now
             """;
-
         if (studentId != null) {
             jpql += " AND s.student.id = :studentId";
         }
-
-        TypedQuery<QuizSubmission> query =
-                entityManager.createQuery(
-                                jpql,
-                                QuizSubmission.class
-                        )
-                        .setParameter("quizId", quizId)
-                        .setParameter(
-                                "status",
-                                QuizSubmissionStatus.IN_PROGRESS
-                        )
-                        .setParameter("now", now);
-
+        Query query = entityManager.createQuery(jpql)
+                .setParameter("expired", QuizSubmissionStatus.EXPIRED)
+                .setParameter("inProgress", QuizSubmissionStatus.IN_PROGRESS)
+                .setParameter("quizId", quizId)
+                .setParameter("now", Instant.now());
         if (studentId != null) {
             query.setParameter("studentId", studentId);
         }
-
-        List<QuizSubmission> expired =
-                query.getResultList();
-
-        for (QuizSubmission attempt : expired) {
-            attempt.expire(now);
-        }
-
-        if (!expired.isEmpty()) {
-            entityManager.flush();
-        }
+        query.executeUpdate();
     }
 
     private QuizAttemptDetailResponse buildAttemptDetail(

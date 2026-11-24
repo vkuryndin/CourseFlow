@@ -14,6 +14,7 @@ import org.courseflow.learning.entity.SubmissionStatus;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.Instant;
 import java.util.List;
@@ -39,7 +40,7 @@ public class TeacherDashboardService {
     ) {
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public TeacherDashboardResponse getDashboard(
             Long teacherId
     ) {

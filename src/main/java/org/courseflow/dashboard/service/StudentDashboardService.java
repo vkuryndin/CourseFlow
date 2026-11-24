@@ -16,6 +16,7 @@ import org.courseflow.learning.service.ProgressService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +38,7 @@ public class StudentDashboardService {
         this.progressService = progressService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public StudentDashboardResponse getDashboard(
             Long studentId
     ) {

@@ -8,6 +8,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface SubmissionRepository
         extends JpaRepository<Submission, Long> {
@@ -44,4 +48,9 @@ public interface SubmissionRepository
             Long studentId,
             Long courseId
     );
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Submission s where s.id = :id and s.assignment.id = :assignmentId")
+    Optional<Submission> findForGrading(@Param("id") Long id,
+                                       @Param("assignmentId") Long assignmentId);
+
 }

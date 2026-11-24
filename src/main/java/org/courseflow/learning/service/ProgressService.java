@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,7 +38,7 @@ public class ProgressService {
         this.entityManager = entityManager;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<CourseProgressResponse> getMyProgress(
             Long studentId,
             Long courseId,

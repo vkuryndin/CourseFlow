@@ -165,6 +165,21 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler({
+            org.springframework.dao.ConcurrencyFailureException.class,
+            jakarta.persistence.OptimisticLockException.class,
+            jakarta.persistence.PessimisticLockException.class,
+            jakarta.persistence.LockTimeoutException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleConcurrentConflict(
+            Exception ex, HttpServletRequest request
+    ) {
+        log.warn("Concurrent operation conflict for {}: {}",
+                request.getRequestURI(), ex.getClass().getSimpleName());
+        return buildResponse(HttpStatus.CONFLICT,
+                "Concurrent operation conflict; reload and retry if appropriate", request);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataConflict(
             DataIntegrityViolationException ex,

@@ -11,6 +11,8 @@ import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 
 import org.courseflow.identity.entity.User;
+import org.courseflow.identity.entity.UserRole;
+import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
 
 import org.courseflow.learning.entity.EnrollmentStatus;
@@ -28,6 +30,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.util.Locale;
 import java.util.Set;
@@ -140,7 +143,7 @@ public class CourseReviewService {
         courseReviewRepository.flush();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public CourseReviewResponse getMyReview(
             Long courseId,
             Long studentId
@@ -152,7 +155,7 @@ public class CourseReviewService {
         );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<CourseReviewResponse> findByCourse(
             Long courseId,
             int page,
@@ -212,7 +215,7 @@ public class CourseReviewService {
         return PageResponse.from(result);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public CourseRatingResponse getRating(Long courseId) {
         requireCourseExists(courseId);
 
@@ -236,12 +239,21 @@ public class CourseReviewService {
             Long studentId
     ) {
         Course course = courseRepository
-                .findByIdForUpdate(courseId)
+                .findByIdForShare(courseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Course not found: " + courseId
                         )
                 );
+
+        // Serialize review changes and enrollment changes of the same student.
+        User student = userRepository.findByIdForUpdate(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Student not found: " + studentId));
+        if (student.getStatus() != UserStatus.ACTIVE
+                || !student.getRoles().contains(UserRole.STUDENT)) {
+            throw new AccessDeniedException("Active STUDENT is required");
+        }
 
         if (course.getTeacher().getId().equals(studentId)) {
             throw new AccessDeniedException(

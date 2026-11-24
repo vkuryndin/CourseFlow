@@ -61,7 +61,7 @@ public class EnrollmentService {
             Long studentId
     ) {
         Course course = courseRepository
-                .findByIdForUpdate(courseId)
+                .findByIdForShare(courseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Course not found: " + courseId
@@ -139,12 +139,18 @@ public class EnrollmentService {
             Long courseId,
             Long studentId
     ) {
-        courseRepository.findByIdForUpdate(courseId)
+        courseRepository.findByIdForShare(courseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Course not found: " + courseId
                         )
                 );
+
+        // Same course -> student lock order as enroll and assessment writes.
+        // ADMIN may withdraw an inactive student; do not require ACTIVE here.
+        userRepository.findByIdForUpdate(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Student not found: " + studentId));
 
         Enrollment enrollment = enrollmentRepository
                 .findByStudent_IdAndCourse_Id(

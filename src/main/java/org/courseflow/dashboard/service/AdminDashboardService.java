@@ -15,6 +15,7 @@ import org.courseflow.learning.entity.EnrollmentStatus;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.util.List;
 
@@ -29,7 +30,7 @@ public class AdminDashboardService {
         this.entityManager = entityManager;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public AdminDashboardResponse getDashboard() {
 
         return new AdminDashboardResponse(

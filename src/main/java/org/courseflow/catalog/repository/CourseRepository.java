@@ -40,4 +40,9 @@ public interface CourseRepository
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Course c where c.id = :id")
     Optional<Course> findByIdForUpdate(@Param("id") Long id);
+    // Shared lock: independent learning transactions may proceed concurrently.
+    // Structural changes and archiving retain PESSIMISTIC_WRITE.
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select c from Course c where c.id = :id")
+    Optional<Course> findByIdForShare(@Param("id") Long id);
 }

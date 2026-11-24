@@ -22,12 +22,12 @@ public interface TagRepository
             Pageable pageable
     );
 
-    boolean existsByNameIgnoreCase(String name);
+    @Query("select (count(t) > 0) from Tag t where lower(t.name) = lower(:name)")
+    boolean existsByNameIgnoreCase(@Param("name") String name);
 
-    boolean existsByNameIgnoreCaseAndIdNot(
-            String name,
-            Long id
-    );
+    @Query("select (count(t) > 0) from Tag t where lower(t.name) = lower(:name) and t.id <> :id")
+    boolean existsByNameIgnoreCaseAndIdNot(@Param("name") String name,
+                                           @Param("id") Long id);
 
     @Query("""
         select count(c)
