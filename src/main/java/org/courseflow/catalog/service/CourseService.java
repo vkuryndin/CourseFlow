@@ -3,6 +3,7 @@ package org.courseflow.catalog.service;
 import org.courseflow.common.exception.EditVersion;
 import java.time.Clock;
 import org.courseflow.common.api.Pagination;
+import org.courseflow.common.api.SearchPatterns;
 import org.courseflow.content.repository.LessonSessionRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.courseflow.catalog.dto.CourseResponse;
@@ -236,10 +237,7 @@ public class CourseService {
                             new ArrayList<>();
 
                     if (!search.isEmpty()) {
-                        String pattern = "%" + search
-                                .replace("\\", "\\\\")
-                                .replace("%", "\\%")
-                                .replace("_", "\\_") + "%";
+                        String pattern = SearchPatterns.containsLiteral(search);
 
                         Predicate titleMatches = builder.like(
                                 builder.lower(root.get("title")),
@@ -485,7 +483,7 @@ public class CourseService {
                 courseId, currentUserId, isAdmin
         );
 
-        Tag tag = tagRepository.findById(tagId)
+        Tag tag = tagRepository.findByIdForShare(tagId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Tag not found: " + tagId
@@ -507,7 +505,7 @@ public class CourseService {
                 courseId, currentUserId, isAdmin
         );
 
-        Tag tag = tagRepository.findById(tagId)
+        Tag tag = tagRepository.findByIdForShare(tagId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Tag not found: " + tagId

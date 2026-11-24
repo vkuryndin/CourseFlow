@@ -22,6 +22,8 @@ import java.util.List;
 
 @Service
 public class TeacherDashboardService {
+    public record CourseCountRow(CourseStatus status, Long count) {}
+
 
     private final Clock clock;
 
@@ -69,14 +71,14 @@ public class TeacherDashboardService {
 
     private CourseCounts countCourses(Long teacherId) {
 
-        List<Object[]> rows = entityManager.createQuery(
+        List<CourseCountRow> rows = entityManager.createQuery(
                         """
                         SELECT c.status, COUNT(c)
                         FROM Course c
                         WHERE c.teacher.id = :teacherId
                         GROUP BY c.status
                         """,
-                        Object[].class
+                        CourseCountRow.class
                 )
                 .setParameter("teacherId", teacherId)
                 .getResultList();
@@ -84,10 +86,10 @@ public class TeacherDashboardService {
         long active = 0;
         long archived = 0;
 
-        for (Object[] row : rows) {
+        for (CourseCountRow row : rows) {
 
-            CourseStatus status = (CourseStatus) row[0];
-            long count = (Long) row[1];
+            CourseStatus status = row.status();
+            long count = row.count();
 
             if (status == CourseStatus.ACTIVE) {
                 active = count;
@@ -232,28 +234,15 @@ public class TeacherDashboardService {
             Long teacherId,
             Instant now
     ) {
-        List<Object[]> rows = entityManager.createQuery(
-                        """
-                        SELECT s.id,
-                               c.id,
-                               c.title,
-                               l.id,
-                               l.title,
-                               s.startsAt,
-                               s.endsAt,
-                               s.format,
-                               s.meetingUrl
-                        FROM LessonSession s
-                        JOIN s.lesson l
-                        JOIN l.module m
-                        JOIN m.course c
+        List<UpcomingSessionRow> rows = entityManager.createQuery(
+                        UpcomingSessionRow.SELECT + """
                         WHERE c.teacher.id = :teacherId
                           AND c.status = :courseStatus
                           AND s.startsAt >= :now
                         ORDER BY s.startsAt ASC,
                                  s.id ASC
                         """,
-                        Object[].class
+                        UpcomingSessionRow.class
                 )
                 .setParameter("teacherId", teacherId)
                 .setParameter("now", now)
@@ -266,15 +255,15 @@ public class TeacherDashboardService {
 
         return rows.stream()
                 .map(row -> new UpcomingSession(
-                        (Long) row[0],
-                        (Long) row[1],
-                        (String) row[2],
-                        (Long) row[3],
-                        (String) row[4],
-                        (Instant) row[5],
-                        (Instant) row[6],
-                        row[7].toString(),
-                        (String) row[8]
+                        row.sessionId(),
+                        row.courseId(),
+                        row.courseTitle(),
+                        row.lessonId(),
+                        row.lessonTitle(),
+                        row.startsAt(),
+                        row.endsAt(),
+                        row.format().toString(),
+                        row.meetingUrl()
                 ))
                 .toList();
     }

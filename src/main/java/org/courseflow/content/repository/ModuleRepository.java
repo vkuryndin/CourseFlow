@@ -12,12 +12,9 @@ import org.springframework.data.repository.query.Param;
 public interface ModuleRepository
         extends JpaRepository<Module, Long> {
 
-    Page<Module> findAllByCourse_Id(
-            Long courseId,
-            Pageable pageable
-    );
-
     boolean existsByCourse_Id(Long courseId);
+
+    boolean existsByIdAndCourse_Id(Long id, Long courseId);
 
     Page<Module> findByCourse_Id(
             Long courseId,

@@ -5,6 +5,8 @@ import org.courseflow.catalog.entity.Tag;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +16,14 @@ public interface TagRepository
         extends JpaRepository<Tag, Long> {
 
     Optional<Tag> findByName(String name);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from Tag t where t.id = :id")
+    Optional<Tag> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select t from Tag t where t.id = :id")
+    Optional<Tag> findByIdForShare(@Param("id") Long id);
 
     boolean existsByName(String name);
 

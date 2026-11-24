@@ -18,13 +18,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class ProgressService {
+    public record CourseRow(Long courseId, String title, CourseStatus courseStatus,
+                            EnrollmentStatus enrollmentStatus) {}
+    public record AssignmentRow(Long courseId, Long assignmentId, String title, Integer maxScore,
+                                Integer score, org.courseflow.learning.entity.SubmissionStatus status, Instant dueAt) {}
+    public record QuizRow(Long courseId, Long quizId, String title, Integer bestScore,
+                          Long attemptsUsed, Integer maxAttempts, Long activeAttempts) {}
+
 
     private final Clock clock;
 
@@ -101,7 +107,7 @@ public class ProgressService {
             parameters.put("courseStatus", courseStatus);
         }
 
-        TypedQuery<Object[]> courseQuery =
+        TypedQuery<CourseRow> courseQuery =
                 entityManager.createQuery(
                         """
                         SELECT c.id,
@@ -111,7 +117,7 @@ public class ProgressService {
                         """
                                 + where
                                 + orderBy,
-                        Object[].class
+                        CourseRow.class
                 );
 
         TypedQuery<Long> countQuery =
@@ -125,7 +131,7 @@ public class ProgressService {
             countQuery.setParameter(name, value);
         });
 
-        List<Object[]> courses = courseQuery
+        List<CourseRow> courses = courseQuery
                 .setFirstResult(page * size)
                 .setMaxResults(size)
                 .getResultList();
@@ -133,7 +139,7 @@ public class ProgressService {
         long total = countQuery.getSingleResult();
 
         List<Long> courseIds = courses.stream()
-                .map(row -> (Long) row[0])
+                .map(row -> row.courseId())
                 .toList();
 
         Instant now = clock.instant();
@@ -147,15 +153,15 @@ public class ProgressService {
         List<CourseProgressResponse> result =
                 new ArrayList<>();
 
-        for (Object[] row : courses) {
+        for (CourseRow row : courses) {
 
-            Long id = (Long) row[0];
+            Long id = row.courseId();
 
             result.add(buildProgress(
                     id,
-                    (String) row[1],
-                    (CourseStatus) row[2],
-                    (EnrollmentStatus) row[3],
+                    row.title(),
+                    row.courseStatus(),
+                    row.enrollmentStatus(),
                     assignments.getOrDefault(
                             id,
                             List.of()
@@ -190,7 +196,7 @@ public class ProgressService {
             return result;
         }
 
-        List<Object[]> rows = entityManager.createQuery(
+        List<AssignmentRow> rows = entityManager.createQuery(
                         """
                         SELECT a.lesson.module.course.id,
                                a.id,
@@ -209,28 +215,26 @@ public class ProgressService {
                                  a.dueAt,
                                  a.id
                         """,
-                        Object[].class
+                        AssignmentRow.class
                 )
                 .setParameter("studentId", studentId)
                 .setParameter("courseIds", courseIds)
                 .getResultList();
 
-        for (Object[] row : rows) {
+        for (AssignmentRow row : rows) {
 
-            Long courseId = (Long) row[0];
+            Long courseId = row.courseId();
 
-            String status = row[5] == null
-                    ? (((Instant) row[6]).isAfter(now) ? "NOT_SUBMITTED" : "OVERDUE")
-                    : row[5].toString();
+            String status = AssessmentStatuses.assignment(row.status(), row.dueAt(), now);
 
             AssignmentProgress assignment =
                     new AssignmentProgress(
-                            (Long) row[1],
-                            (String) row[2],
-                            (Integer) row[3],
-                            (Integer) row[4],
+                            row.assignmentId(),
+                            row.title(),
+                            row.maxScore(),
+                            row.score(),
                             status,
-                            (Instant) row[6]
+                            row.dueAt()
                     );
 
             result.computeIfAbsent(
@@ -255,7 +259,7 @@ public class ProgressService {
             return result;
         }
 
-        List<Object[]> rows = entityManager.createQuery(
+        List<QuizRow> rows = entityManager.createQuery(
                         """
                         SELECT q.module.course.id,
                                q.id,
@@ -263,7 +267,8 @@ public class ProgressService {
                                MAX(s.score),
                                COUNT(s.id),
                                q.maxAttempts,
-                               SUM(CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.IN_PROGRESS AND s.expiresAt > :now THEN 1 ELSE 0 END)
+                               """ + AssessmentStatuses.ACTIVE_ATTEMPT_COUNT + """
+
                         FROM Quiz q
                         LEFT JOIN QuizSubmission s
                             ON s.quiz.id = q.id
@@ -277,35 +282,27 @@ public class ProgressService {
                         ORDER BY q.module.course.id,
                                  q.id
                         """,
-                        Object[].class
+                        QuizRow.class
                 )
                 .setParameter("studentId", studentId)
                 .setParameter("courseIds", courseIds)
                 .setParameter("now", now)
                 .getResultList();
 
-        for (Object[] row : rows) {
+        for (QuizRow row : rows) {
 
-            Long courseId = (Long) row[0];
-            Integer bestScore = (Integer) row[3];
-            Long attemptsUsed = (Long) row[4];
+            Long courseId = row.courseId();
+            Integer bestScore = row.bestScore();
+            Long attemptsUsed = row.attemptsUsed();
 
-            String status;
-
-            if (bestScore != null) {
-                status = "COMPLETED";
-            } else if (attemptsUsed == 0) {
-                status = "NOT_STARTED";
-            } else {
-                status = ((Number) row[6]).longValue() > 0 ? "IN_PROGRESS" : "EXPIRED";
-            }
+            String status = AssessmentStatuses.quiz(bestScore, attemptsUsed, row.activeAttempts());
 
             QuizProgress quiz = new QuizProgress(
-                    (Long) row[1],
-                    (String) row[2],
+                    row.quizId(),
+                    row.title(),
                     bestScore,
                     attemptsUsed,
-                    (Integer) row[5],
+                    row.maxAttempts(),
                     status
             );
 
@@ -386,6 +383,7 @@ public class ProgressService {
                 && enrollmentStatus
                 == EnrollmentStatus.ACTIVE) {
 
+            // loadAssignments orders each course by dueAt and assignment id.
             upcomingDeadlines = assignments.stream()
                     .filter(assignment ->
                             "NOT_SUBMITTED".equals(
@@ -394,13 +392,6 @@ public class ProgressService {
                     )
                     .filter(assignment ->
                             assignment.dueAt().isAfter(now)
-                    )
-                    .sorted(
-                            Comparator.comparing(
-                                    AssignmentProgress::dueAt
-                            ).thenComparing(
-                                    AssignmentProgress::assignmentId
-                            )
                     )
                     .toList();
         }

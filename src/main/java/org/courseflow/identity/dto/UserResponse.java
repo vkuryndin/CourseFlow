@@ -24,7 +24,7 @@ public record UserResponse(
                 user.getDisplayName(),
                 user.getEmail(),
                 user.getStatus(),
-                Set.copyOf(user.getRoles()),
+                user.getRoles(),
                 user.isSystemAdmin()
         );
     }

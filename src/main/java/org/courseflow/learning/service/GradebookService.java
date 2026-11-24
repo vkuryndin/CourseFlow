@@ -1,9 +1,11 @@
 package org.courseflow.learning.service;
 
 import java.time.Clock;
+import java.time.Instant;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
+import org.courseflow.content.repository.ModuleRepository;
 import jakarta.persistence.TypedQuery;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.repository.CourseRepository;
@@ -27,19 +29,29 @@ import java.util.Map;
 
 @Service
 public class GradebookService {
+    public record StudentProjection(Long studentId, String name, org.courseflow.identity.entity.UserStatus status,
+                                    EnrollmentStatus enrollmentStatus) {}
+    public record AssignmentColumn(Long id, String title, Long moduleId, String moduleTitle, Integer maxScore) {}
+    public record QuizColumn(Long id, String title, Long moduleId, String moduleTitle) {}
+    public record AssignmentResult(Long studentId, Long assignmentId, SubmissionStatus status, Integer score) {}
+    public record QuizResult(Long studentId, Long quizId, Long attemptsUsed, Integer bestScore, Long activeAttempts) {}
+
 
     private final Clock clock;
 
     private final CourseRepository courseRepository;
+    private final ModuleRepository moduleRepository;
     private final EntityManager entityManager;
 
     public GradebookService(
             CourseRepository courseRepository,
+            ModuleRepository moduleRepository,
             EntityManager entityManager,
             Clock clock
     ) {
         this.clock = clock;
         this.courseRepository = courseRepository;
+        this.moduleRepository = moduleRepository;
         this.entityManager = entityManager;
     }
 
@@ -127,7 +139,7 @@ public class GradebookService {
                 moduleId
         );
 
-        TypedQuery<Object[]> studentQuery =
+        TypedQuery<StudentProjection> studentQuery =
                 entityManager.createQuery(
                         """
                         SELECT u.id,
@@ -137,7 +149,7 @@ public class GradebookService {
                         """
                                 + where
                                 + orderBy,
-                        Object[].class
+                        StudentProjection.class
                 );
 
         TypedQuery<Long> countQuery =
@@ -151,7 +163,7 @@ public class GradebookService {
             countQuery.setParameter(name, value);
         });
 
-        List<Object[]> studentRows = studentQuery
+        List<StudentProjection> studentRows = studentQuery
                 .setFirstResult(page * size)
                 .setMaxResults(size)
                 .getResultList();
@@ -166,37 +178,30 @@ public class GradebookService {
 
         List<Long> studentIds = studentRows
                 .stream()
-                .map(row -> (Long) row[0])
+                .map(StudentProjection::studentId)
                 .toList();
 
-        Map<CellKey, Cell> cells = loadResults(
-                studentIds,
-                columns
-        );
+        Map<CellKey, Cell> cells = loadResults(studentIds, columns, clock.instant());
 
         List<StudentRow> result = new ArrayList<>();
 
-        for (Object[] row : studentRows) {
+        for (StudentProjection row : studentRows) {
 
-            Long studentId = (Long) row[0];
+            Long studentId = row.studentId();
 
             List<Cell> studentResults = columns
                     .stream()
-                    .map(column -> cells.getOrDefault(
-                            new CellKey(
-                                    studentId,
-                                    column.id(),
-                                    column.type()
-                            ),
-                            emptyCell(column)
-                    ))
+                    .map(column -> {
+                        Cell cell = cells.get(new CellKey(studentId, column.id(), column.type()));
+                        return cell == null ? emptyCell(column) : cell;
+                    })
                     .toList();
 
             result.add(new StudentRow(
                     studentId,
-                    (String) row[1],
-                    row[2].toString(),
-                    (EnrollmentStatus) row[3],
+                    row.name(),
+                    row.status().name(),
+                    row.enrollmentStatus(),
                     studentResults
             ));
         }
@@ -237,20 +242,7 @@ public class GradebookService {
             Long courseId,
             Long moduleId
     ) {
-        Long count = entityManager.createQuery(
-                        """
-                        SELECT COUNT(m)
-                        FROM Module m
-                        WHERE m.id = :moduleId
-                          AND m.course.id = :courseId
-                        """,
-                        Long.class
-                )
-                .setParameter("moduleId", moduleId)
-                .setParameter("courseId", courseId)
-                .getSingleResult();
-
-        if (count == 0) {
+        if (!moduleRepository.existsByIdAndCourse_Id(moduleId, courseId)) {
             throw new ResourceNotFoundException(
                     "Module not found in course: " + moduleId
             );
@@ -374,25 +366,25 @@ public class GradebookService {
                               a.id
                     """;
 
-            TypedQuery<Object[]> query =
+            TypedQuery<AssignmentColumn> query =
                     entityManager.createQuery(
                             jpql,
-                            Object[].class
+                            AssignmentColumn.class
                     ).setParameter("courseId", courseId);
 
             if (moduleId != null) {
                 query.setParameter("moduleId", moduleId);
             }
 
-            for (Object[] row : query.getResultList()) {
+            for (AssignmentColumn row : query.getResultList()) {
 
                 columns.add(new Column(
-                        (Long) row[0],
+                        row.id(),
                         AssessmentType.ASSIGNMENT,
-                        (String) row[1],
-                        (Long) row[2],
-                        (String) row[3],
-                        (Integer) row[4]
+                        row.title(),
+                        row.moduleId(),
+                        row.moduleTitle(),
+                        row.maxScore()
                 ));
             }
         }
@@ -419,24 +411,24 @@ public class GradebookService {
                               q.id
                     """;
 
-            TypedQuery<Object[]> query =
+            TypedQuery<QuizColumn> query =
                     entityManager.createQuery(
                             jpql,
-                            Object[].class
+                            QuizColumn.class
                     ).setParameter("courseId", courseId);
 
             if (moduleId != null) {
                 query.setParameter("moduleId", moduleId);
             }
 
-            for (Object[] row : query.getResultList()) {
+            for (QuizColumn row : query.getResultList()) {
 
                 columns.add(new Column(
-                        (Long) row[0],
+                        row.id(),
                         AssessmentType.QUIZ,
-                        (String) row[1],
-                        (Long) row[2],
-                        (String) row[3],
+                        row.title(),
+                        row.moduleId(),
+                        row.moduleTitle(),
                         100
                 ));
             }
@@ -447,7 +439,8 @@ public class GradebookService {
 
     private Map<CellKey, Cell> loadResults(
             List<Long> studentIds,
-            List<Column> columns
+            List<Column> columns,
+            Instant now
     ) {
         Map<CellKey, Cell> cells = new HashMap<>();
 
@@ -473,7 +466,7 @@ public class GradebookService {
 
         if (!assignmentIds.isEmpty()) {
 
-            List<Object[]> rows = entityManager.createQuery(
+            List<AssignmentResult> rows = entityManager.createQuery(
                             """
                             SELECT s.student.id,
                                    s.assignment.id,
@@ -483,16 +476,16 @@ public class GradebookService {
                             WHERE s.student.id IN :studentIds
                               AND s.assignment.id IN :assignmentIds
                             """,
-                            Object[].class
+                            AssignmentResult.class
                     )
                     .setParameter("studentIds", studentIds)
                     .setParameter("assignmentIds", assignmentIds)
                     .getResultList();
 
-            for (Object[] row : rows) {
+            for (AssignmentResult row : rows) {
 
-                Long studentId = (Long) row[0];
-                Long assignmentId = (Long) row[1];
+                Long studentId = row.studentId();
+                Long assignmentId = row.assignmentId();
 
                 cells.put(
                         new CellKey(
@@ -503,8 +496,8 @@ public class GradebookService {
                         new Cell(
                                 assignmentId,
                                 AssessmentType.ASSIGNMENT,
-                                row[2].toString(),
-                                (Integer) row[3],
+                                row.status().toString(),
+                                row.score(),
                                 null
                         )
                 );
@@ -513,35 +506,34 @@ public class GradebookService {
 
         if (!quizIds.isEmpty()) {
 
-            List<Object[]> rows = entityManager.createQuery(
+            List<QuizResult> rows = entityManager.createQuery(
                             """
                             SELECT s.student.id,
                                    s.quiz.id,
                                    COUNT(s),
                                    MAX(s.score),
-                                   SUM(CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.IN_PROGRESS AND s.expiresAt > :now THEN 1 ELSE 0 END)
+                                   """ + AssessmentStatuses.ACTIVE_ATTEMPT_COUNT + """
+
                             FROM QuizSubmission s
                             WHERE s.student.id IN :studentIds
                               AND s.quiz.id IN :quizIds
                             GROUP BY s.student.id, s.quiz.id
                             """,
-                            Object[].class
+                            QuizResult.class
                     )
                     .setParameter("studentIds", studentIds)
                     .setParameter("quizIds", quizIds)
-                    .setParameter("now", clock.instant())
+                    .setParameter("now", now)
                     .getResultList();
 
-            for (Object[] row : rows) {
+            for (QuizResult row : rows) {
 
-                Long studentId = (Long) row[0];
-                Long quizId = (Long) row[1];
-                Long attemptsUsed = (Long) row[2];
-                Integer bestScore = (Integer) row[3];
+                Long studentId = row.studentId();
+                Long quizId = row.quizId();
+                Long attemptsUsed = row.attemptsUsed();
+                Integer bestScore = row.bestScore();
 
-                String status = bestScore == null
-                        ? (((Number) row[4]).longValue() > 0 ? "IN_PROGRESS" : "EXPIRED")
-                        : "COMPLETED";
+                String status = AssessmentStatuses.quiz(bestScore, attemptsUsed, row.activeAttempts());
 
                 cells.put(
                         new CellKey(

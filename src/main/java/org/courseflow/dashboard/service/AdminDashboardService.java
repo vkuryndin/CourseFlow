@@ -21,6 +21,11 @@ import java.util.List;
 
 @Service
 public class AdminDashboardService {
+    public record UserCount(UserStatus status, Long count) {}
+    public record RoleCount(UserRole role, Long count) {}
+    public record CourseCount(CourseStatus status, Long count) {}
+    public record EnrollmentCount(EnrollmentStatus status, Long count) {}
+
 
     private final EntityManager entityManager;
 
@@ -43,31 +48,22 @@ public class AdminDashboardService {
 
     private UserStatistics getUserStatistics() {
 
-        List<Object[]> rows = entityManager.createQuery(
+        List<UserCount> rows = entityManager.createQuery(
                         """
                         SELECT u.status,
                                COUNT(u)
                         FROM User u
                         GROUP BY u.status
                         """,
-                        Object[].class
+                        UserCount.class
                 )
                 .getResultList();
 
-        long active = countFor(
-                rows,
-                UserStatus.ACTIVE
-        );
+        long active = countFor(rows, UserStatus.ACTIVE, UserCount::status, UserCount::count);
 
-        long inactive = countFor(
-                rows,
-                UserStatus.INACTIVE
-        );
+        long inactive = countFor(rows, UserStatus.INACTIVE, UserCount::status, UserCount::count);
 
-        long deleted = countFor(
-                rows,
-                UserStatus.DELETED
-        );
+        long deleted = countFor(rows, UserStatus.DELETED, UserCount::status, UserCount::count);
 
         return new UserStatistics(
                 active + inactive + deleted,
@@ -79,7 +75,7 @@ public class AdminDashboardService {
 
     private RoleStatistics getRoleStatistics() {
 
-        List<Object[]> rows = entityManager.createQuery(
+        List<RoleCount> rows = entityManager.createQuery(
                         """
                         SELECT r,
                                COUNT(DISTINCT u.id)
@@ -88,7 +84,7 @@ public class AdminDashboardService {
                         WHERE u.status = :status
                         GROUP BY r
                         """,
-                        Object[].class
+                        RoleCount.class
                 )
                 .setParameter(
                         "status",
@@ -97,34 +93,28 @@ public class AdminDashboardService {
                 .getResultList();
 
         return new RoleStatistics(
-                countFor(rows, UserRole.STUDENT),
-                countFor(rows, UserRole.TEACHER),
-                countFor(rows, UserRole.ADMIN)
+                countFor(rows, UserRole.STUDENT, RoleCount::role, RoleCount::count),
+                countFor(rows, UserRole.TEACHER, RoleCount::role, RoleCount::count),
+                countFor(rows, UserRole.ADMIN, RoleCount::role, RoleCount::count)
         );
     }
 
     private CourseStatistics getCourseStatistics() {
 
-        List<Object[]> rows = entityManager.createQuery(
+        List<CourseCount> rows = entityManager.createQuery(
                         """
                         SELECT c.status,
                                COUNT(c)
                         FROM Course c
                         GROUP BY c.status
                         """,
-                        Object[].class
+                        CourseCount.class
                 )
                 .getResultList();
 
-        long active = countFor(
-                rows,
-                CourseStatus.ACTIVE
-        );
+        long active = countFor(rows, CourseStatus.ACTIVE, CourseCount::status, CourseCount::count);
 
-        long archived = countFor(
-                rows,
-                CourseStatus.ARCHIVED
-        );
+        long archived = countFor(rows, CourseStatus.ARCHIVED, CourseCount::status, CourseCount::count);
 
         return new CourseStatistics(
                 active + archived,
@@ -136,26 +126,20 @@ public class AdminDashboardService {
     private EnrollmentStatistics
     getEnrollmentStatistics() {
 
-        List<Object[]> rows = entityManager.createQuery(
+        List<EnrollmentCount> rows = entityManager.createQuery(
                         """
                         SELECT e.status,
                                COUNT(e)
                         FROM Enrollment e
                         GROUP BY e.status
                         """,
-                        Object[].class
+                        EnrollmentCount.class
                 )
                 .getResultList();
 
-        long active = countFor(
-                rows,
-                EnrollmentStatus.ACTIVE
-        );
+        long active = countFor(rows, EnrollmentStatus.ACTIVE, EnrollmentCount::status, EnrollmentCount::count);
 
-        long withdrawn = countFor(
-                rows,
-                EnrollmentStatus.WITHDRAWN
-        );
+        long withdrawn = countFor(rows, EnrollmentStatus.WITHDRAWN, EnrollmentCount::status, EnrollmentCount::count);
 
         long activeOnActiveCourses =
                 entityManager.createQuery(
@@ -185,14 +169,9 @@ public class AdminDashboardService {
         );
     }
 
-    private long countFor(
-            List<Object[]> rows,
-            Enum<?> status
-    ) {
-        return rows.stream()
-                .filter(row -> status.equals(row[0]))
-                .mapToLong(row -> (Long) row[1])
-                .findFirst()
-                .orElse(0L);
+    private <T, E extends Enum<E>> long countFor(List<T> rows, E status,
+            java.util.function.Function<T, E> key, java.util.function.ToLongFunction<T> count) {
+        return rows.stream().filter(row -> status.equals(key.apply(row)))
+                .mapToLong(count).findFirst().orElse(0L);
     }
 }

@@ -17,6 +17,16 @@ public record QuizAttemptResponse(
         Instant expiresAt,
         Instant finishedAt
 ) {
+    public static QuizAttemptResponse at(QuizSubmission attempt, Instant now) {
+        QuizAttemptResponse stored = from(attempt);
+        if (stored.status() == QuizSubmissionStatus.IN_PROGRESS && !now.isBefore(stored.expiresAt())) {
+            return new QuizAttemptResponse(stored.id(), stored.quizId(), stored.studentId(),
+                    stored.attemptNumber(), QuizSubmissionStatus.EXPIRED, stored.score(),
+                    stored.takenAt(), stored.expiresAt(), stored.expiresAt());
+        }
+        return stored;
+    }
+
     public static QuizAttemptResponse from(
             QuizSubmission attempt
     ) {

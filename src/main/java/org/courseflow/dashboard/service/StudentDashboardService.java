@@ -85,21 +85,8 @@ public class StudentDashboardService {
             Long studentId,
             Instant now
     ) {
-        List<Object[]> rows = entityManager.createQuery(
-                        """
-                        SELECT s.id,
-                               c.id,
-                               c.title,
-                               l.id,
-                               l.title,
-                               s.startsAt,
-                               s.endsAt,
-                               s.format,
-                               s.meetingUrl
-                        FROM LessonSession s
-                        JOIN s.lesson l
-                        JOIN l.module m
-                        JOIN m.course c
+        List<UpcomingSessionRow> rows = entityManager.createQuery(
+                        UpcomingSessionRow.SELECT + """
                         WHERE c.status = :courseStatus
                           AND s.startsAt >= :now
                           AND EXISTS (
@@ -112,7 +99,7 @@ public class StudentDashboardService {
                         ORDER BY s.startsAt ASC,
                                  s.id ASC
                         """,
-                        Object[].class
+                        UpcomingSessionRow.class
                 )
                 .setParameter("studentId", studentId)
                 .setParameter("now", now)
@@ -129,15 +116,15 @@ public class StudentDashboardService {
 
         return rows.stream()
                 .map(row -> new UpcomingSession(
-                        (Long) row[0],
-                        (Long) row[1],
-                        (String) row[2],
-                        (Long) row[3],
-                        (String) row[4],
-                        (Instant) row[5],
-                        (Instant) row[6],
-                        row[7].toString(),
-                        (String) row[8]
+                        row.sessionId(),
+                        row.courseId(),
+                        row.courseTitle(),
+                        row.lessonId(),
+                        row.lessonTitle(),
+                        row.startsAt(),
+                        row.endsAt(),
+                        row.format().toString(),
+                        row.meetingUrl()
                 ))
                 .toList();
     }

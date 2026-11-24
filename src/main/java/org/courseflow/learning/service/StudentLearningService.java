@@ -98,7 +98,7 @@ public class StudentLearningService {
     }
 
     // Expiration in this read-only view is calculated at a single instant.
-    // Existing attempt endpoints still persist EXPIRED atomically when required.
+    // Attempt mutation endpoints and the scheduled cleanup persist EXPIRED when required.
     public PageResponse<MyQuizAttemptResponse> getQuizAttempts(
             Long studentId, Long courseId, QuizSubmissionStatus status, int page, int size) {
         validate(courseId, page, size);

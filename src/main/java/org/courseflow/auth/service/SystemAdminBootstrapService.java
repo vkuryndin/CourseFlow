@@ -1,6 +1,7 @@
 package org.courseflow.auth.service;
 
 import java.time.Clock;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
@@ -18,6 +20,7 @@ import java.util.Set;
 public class SystemAdminBootstrapService {
 
     private final Clock clock;
+    private final JdbcTemplate jdbcTemplate;
 
     private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
@@ -33,16 +36,20 @@ public class SystemAdminBootstrapService {
             UserRepository userRepository,
             UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
-            Clock clock
+            Clock clock,
+            JdbcTemplate jdbcTemplate
     ) {
         this.clock = clock;
+        this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void initialize() {
+        // Same database-wide lock as the invariant initializer. Released at commit.
+        jdbcTemplate.execute("SELECT pg_advisory_xact_lock(62130001)");
         if (userRepository.existsBySystemAdminTrue()) {
             return;
         }

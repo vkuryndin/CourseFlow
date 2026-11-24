@@ -1,6 +1,7 @@
 package org.courseflow.catalog.service;
 
 import org.courseflow.common.api.Pagination;
+import org.courseflow.common.exception.EditVersion;
 import org.courseflow.catalog.dto.TagRequest;
 import org.courseflow.catalog.dto.TagResponse;
 import org.courseflow.catalog.entity.Tag;
@@ -108,7 +109,8 @@ public class TagService {
             Long id,
             TagRequest request
     ) {
-        Tag tag = findTag(id);
+        Tag tag = lockTag(id);
+        EditVersion.require(request.version(), tag.getVersion());
 
         String name = request.name().trim();
 
@@ -129,7 +131,7 @@ public class TagService {
 
     @Transactional
     public void delete(Long id) {
-        Tag tag = findTag(id);
+        Tag tag = lockTag(id);
 
         if (tagRepository.countCoursesByTagId(id) > 0) {
             throw new BusinessConflictException(
@@ -146,6 +148,11 @@ public class TagService {
                             + "related records exist"
             );
         }
+    }
+
+    private Tag lockTag(Long id) {
+        return tagRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + id));
     }
 
     private Tag findTag(Long id) {

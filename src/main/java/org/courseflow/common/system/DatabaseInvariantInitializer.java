@@ -25,6 +25,8 @@ public class DatabaseInvariantInitializer implements ApplicationRunner, Ordered 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        // Serialize this initializer across instances (after Hibernate schema setup).
+        jdbcTemplate.execute("SELECT pg_advisory_xact_lock(62130001)");
         // Fail startup if legacy duplicates exist; never delete data automatically.
         jdbcTemplate.execute("""
                 CREATE UNIQUE INDEX IF NOT EXISTS ux_tags_lower_name
@@ -45,6 +47,7 @@ public class DatabaseInvariantInitializer implements ApplicationRunner, Ordered 
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_submissions_assignment_status ON submissions (assignment_id, status)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_submissions_student_date ON submissions (student_id, submitted_at)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_quiz_status ON quiz_submissions (quiz_id, status, expires_at)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_expiring ON quiz_submissions (expires_at, id) WHERE status = 'IN_PROGRESS'");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_student_date ON quiz_submissions (student_id, taken_at)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_auth_sessions_account_revoked ON auth_sessions (user_account_id, revoked)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_auth_sessions_expires ON auth_sessions (expires_at)");
@@ -54,6 +57,9 @@ public class DatabaseInvariantInitializer implements ApplicationRunner, Ordered 
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_user_roles_role ON user_roles (role, user_id)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_answer_options_question ON answer_options (question_id)");
 
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_cf_modules_course_position ON modules (course_id, position)");
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_cf_lessons_module_position ON lessons (module_id, position)");
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_cf_categories_lower_name ON categories (lower(name))");
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_cf_questions_quiz_position ON questions (quiz_id, position)");
         // PostgreSQL requires a unique target for the composite foreign key.
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_cf_answer_options_id_question ON answer_options (id, question_id)");

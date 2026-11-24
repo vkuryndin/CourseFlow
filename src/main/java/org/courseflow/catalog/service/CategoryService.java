@@ -1,6 +1,7 @@
 package org.courseflow.catalog.service;
 
 import org.courseflow.common.api.Pagination;
+import org.courseflow.common.exception.EditVersion;
 import org.courseflow.catalog.dto.CategoryCreateRequest;
 import org.courseflow.catalog.dto.CategoryResponse;
 import org.courseflow.catalog.entity.Category;
@@ -33,8 +34,9 @@ public class CategoryService {
     @Transactional
     public CategoryResponse update(Long id, CategoryCreateRequest request) {
         Category category = lockCategory(id);
+        EditVersion.require(request.version(), category.getVersion());
         String name = request.name().trim();
-        if (categoryRepository.existsByNameAndIdNot(name, id)) {
+        if (categoryRepository.existsByNameIgnoreCaseAndIdNot(name, id)) {
             throw new BusinessConflictException("Category already exists: " + name);
         }
         category.update(name, request.description().trim());
@@ -61,7 +63,7 @@ public class CategoryService {
     public CategoryResponse create(CategoryCreateRequest request) {
         String name = request.name().trim();
 
-        if (categoryRepository.existsByName(name)) {
+        if (categoryRepository.existsByNameIgnoreCase(name)) {
             throw new BusinessConflictException(
                     "Category already exists: " + name
             );

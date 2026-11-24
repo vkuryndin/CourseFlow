@@ -1,6 +1,7 @@
 package org.courseflow.identity.service;
 
 import org.courseflow.common.api.Pagination;
+import org.courseflow.common.api.SearchPatterns;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.courseflow.common.api.PageResponse;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -48,7 +50,7 @@ public class UserService {
         return UserResponse.from(user);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<UserResponse> findAll(
             int page,
             int size,
@@ -83,11 +85,13 @@ public class UserService {
         Specification<User> specification =
                 buildSpecification(q, status, role);
 
-        Page<UserResponse> result = userRepository
-                .findAll(specification, pageable)
-                .map(UserResponse::from);
-
-        return PageResponse.from(result);
+        Page<User> users = userRepository.findAll(specification, pageable);
+        if (users.hasContent()) {
+            // Fetch all roles for the current page in one query, in the same persistence context.
+            // Do not fetch-join the collection in the paginated query.
+            userRepository.findWithRolesByIds(users.getContent().stream().map(User::getId).toList());
+        }
+        return PageResponse.from(users.map(UserResponse::from));
     }
 
     @Transactional(readOnly = true)
@@ -110,13 +114,7 @@ public class UserService {
                 String search = q.trim()
                         .toLowerCase(Locale.ROOT);
 
-                // Treat % and _ as ordinary search characters.
-                search = search
-                        .replace("\\", "\\\\")
-                        .replace("%", "\\%")
-                        .replace("_", "\\_");
-
-                String pattern = "%" + search + "%";
+                String pattern = SearchPatterns.containsLiteral(search);
 
                 Predicate byName = cb.like(
                         cb.lower(root.get("displayName")),

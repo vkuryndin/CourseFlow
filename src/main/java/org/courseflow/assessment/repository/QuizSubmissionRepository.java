@@ -1,6 +1,8 @@
 package org.courseflow.assessment.repository;
 
 import org.courseflow.assessment.entity.QuizSubmission;
+import org.courseflow.assessment.entity.QuizSubmissionStatus;
+import java.time.Instant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,6 +28,13 @@ public interface QuizSubmissionRepository
     );
 
     boolean existsByQuiz_Id(Long quizId);
+
+    boolean existsByQuiz_IdAndStudent_IdAndStatusAndExpiresAtAfter(
+            Long quizId, Long studentId, QuizSubmissionStatus status, Instant now);
+    Optional<QuizSubmission> findByIdAndQuiz_IdAndStudent_Id(Long id, Long quizId, Long studentId);
+
+    Optional<QuizSubmission> findByIdAndQuiz_Id(Long id, Long quizId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from QuizSubmission s where s.id = :id and s.quiz.id = :quizId and s.student.id = :studentId")
     Optional<QuizSubmission> findOwnedForUpdate(@Param("id") Long id,

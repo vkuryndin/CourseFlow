@@ -5,7 +5,7 @@ import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.assessment.repository.QuestionRepository;
 import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
+import org.springframework.transaction.annotation.Isolation;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.assessment.dto.QuizAttemptResponse;
@@ -158,30 +158,22 @@ public class QuizAttemptService {
         );
     }
 
-    @Transactional
-    public QuizAttemptResponse getMyAttempt(
-            Long quizId,
-            Long attemptId,
-            Long studentId
-    ) {
-        lockCourseForQuizShared(quizId);
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public QuizAttemptResponse getMyAttempt(Long quizId, Long attemptId, Long studentId) {
+        findCourseForQuizRead(quizId);
+        return QuizAttemptResponse.at(findOwnedAttemptRead(quizId, attemptId, studentId), clock.instant());
+    }
 
-        QuizSubmission attempt = findOwnedAttempt(
-                quizId,
-                attemptId,
-                studentId
-        );
+    private Course findCourseForQuizRead(Long quizId) {
+        Long courseId = quizRepository.findCourseIdByQuizId(quizId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found: " + quizId));
+        return courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + courseId));
+    }
 
-        Instant now = clock.instant();
-
-        if (attempt.getStatus()
-                == QuizSubmissionStatus.IN_PROGRESS
-                && !attempt.isActive(now)) {
-
-            attempt.expire(now);
-        }
-
-        return QuizAttemptResponse.from(attempt);
+    private QuizSubmission findOwnedAttemptRead(Long quizId, Long attemptId, Long studentId) {
+        return quizSubmissionRepository.findByIdAndQuiz_IdAndStudent_Id(attemptId, quizId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz attempt not found"));
     }
 
     private Course lockCourseForQuizShared(Long quizId) {
@@ -337,7 +329,7 @@ public class QuizAttemptService {
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz attempt not found"));
     }
 
-    @Transactional
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<QuizAttemptResponse> getMyAttempts(
             Long quizId,
             Long studentId,
@@ -347,7 +339,7 @@ public class QuizAttemptService {
             String sortBy,
             String direction
     ) {
-        lockCourseForQuizShared(quizId);
+        findCourseForQuizRead(quizId);
 
         return findAttemptPage(
                 quizId,
@@ -360,7 +352,7 @@ public class QuizAttemptService {
         );
     }
 
-    @Transactional
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PageResponse<QuizAttemptResponse> getQuizResults(
             Long quizId,
             Long currentUserId,
@@ -389,26 +381,24 @@ public class QuizAttemptService {
         );
     }
 
-    @Transactional
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public QuizAttemptDetailResponse getMyResult(
             Long quizId,
             Long attemptId,
             Long studentId
     ) {
-        lockCourseForQuizShared(quizId);
+        findCourseForQuizRead(quizId);
 
-        QuizSubmission attempt = findOwnedAttempt(
+        QuizSubmission attempt = findOwnedAttemptRead(
                 quizId,
                 attemptId,
                 studentId
         );
 
-        attempt.expire(clock.instant());
-
-        return buildAttemptDetail(attempt);
+        return buildAttemptDetail(attempt, clock.instant());
     }
 
-    @Transactional
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public QuizAttemptDetailResponse getResultForManagement(
             Long quizId,
             Long attemptId,
@@ -422,7 +412,7 @@ public class QuizAttemptService {
         );
 
         QuizSubmission attempt = quizSubmissionRepository
-                .findForUpdate(attemptId, quizId)
+                .findByIdAndQuiz_Id(attemptId, quizId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Quiz attempt not found"
@@ -435,9 +425,7 @@ public class QuizAttemptService {
             );
         }
 
-        attempt.expire(clock.instant());
-
-        return buildAttemptDetail(attempt);
+        return buildAttemptDetail(attempt, clock.instant());
     }
 
     private void requireResultsAccess(
@@ -445,7 +433,7 @@ public class QuizAttemptService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = lockCourseForQuizShared(quizId);
+        Course course = findCourseForQuizRead(quizId);
 
         CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
                 "Only course teacher or ADMIN can view Quiz results");
@@ -468,24 +456,30 @@ public class QuizAttemptService {
             );
         }
 
+        Instant now = clock.instant();
+        String effectiveStatus = """
+                CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.SUBMITTED THEN 'SUBMITTED'
+                     WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.EXPIRED
+                          OR s.expiresAt <= :now THEN 'EXPIRED'
+                     ELSE 'IN_PROGRESS' END
+                """;
+        String effectiveFinishedAt = """
+                CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.IN_PROGRESS
+                          AND s.expiresAt <= :now THEN s.expiresAt ELSE s.finishedAt END
+                """;
         String sortField = switch (sortBy) {
             case "id" -> "s.id";
             case "attemptNumber" -> "s.attemptNumber";
             case "takenAt" -> "s.takenAt";
-            case "finishedAt" -> "s.finishedAt";
+            case "finishedAt" -> effectiveFinishedAt;
             case "score" -> "s.score";
-            case "status" -> "s.status";
+            case "status" -> effectiveStatus;
             default -> throw new BadRequestException(
                     "Unsupported sort field: " + sortBy
             );
         };
 
         String normalizedDirection = Pagination.direction(direction);
-
-        refreshExpiredAttempts(
-                quizId,
-                studentId
-        );
 
         String where = """
             FROM QuizSubmission s
@@ -497,7 +491,7 @@ public class QuizAttemptService {
         }
 
         if (status != null) {
-            where += " AND s.status = :status";
+            where += " AND (" + effectiveStatus + ") = :status";
         }
 
         String orderBy = " ORDER BY "
@@ -527,8 +521,13 @@ public class QuizAttemptService {
         }
 
         if (status != null) {
-            dataQuery.setParameter("status", status);
-            countQuery.setParameter("status", status);
+            dataQuery.setParameter("status", status.name());
+            countQuery.setParameter("status", status.name());
+            countQuery.setParameter("now", now);
+        }
+
+        if (status != null || sortBy.equals("status") || sortBy.equals("finishedAt")) {
+            dataQuery.setParameter("now", now);
         }
 
         List<QuizAttemptResponse> items = dataQuery
@@ -536,7 +535,7 @@ public class QuizAttemptService {
                 .setMaxResults(size)
                 .getResultList()
                 .stream()
-                .map(QuizAttemptResponse::from)
+                .map(attempt -> QuizAttemptResponse.at(attempt, now))
                 .toList();
 
         long total = countQuery.getSingleResult();
@@ -550,34 +549,10 @@ public class QuizAttemptService {
         );
     }
 
-    private void refreshExpiredAttempts(Long quizId, Long studentId) {
-        // Atomic conditional update: after waiting for a concurrent submit,
-        // PostgreSQL rechecks the predicate and does not overwrite SUBMITTED.
-        String jpql = """
-            UPDATE QuizSubmission s
-            SET s.status = :expired, s.finishedAt = s.expiresAt
-            WHERE s.quiz.id = :quizId
-              AND s.status = :inProgress
-              AND s.expiresAt <= :now
-            """;
-        if (studentId != null) {
-            jpql += " AND s.student.id = :studentId";
-        }
-        Query query = entityManager.createQuery(jpql)
-                .setParameter("expired", QuizSubmissionStatus.EXPIRED)
-                .setParameter("inProgress", QuizSubmissionStatus.IN_PROGRESS)
-                .setParameter("quizId", quizId)
-                .setParameter("now", clock.instant());
-        if (studentId != null) {
-            query.setParameter("studentId", studentId);
-        }
-        query.executeUpdate();
-    }
-
     private QuizAttemptDetailResponse buildAttemptDetail(
-            QuizSubmission attempt
+            QuizSubmission attempt, Instant now
     ) {
-        List<Object[]> rows = entityManager.createQuery(
+        List<QuizAttemptDetailResponse.SelectedAnswer> answers = entityManager.createQuery(
                         """
                         SELECT
                             q.id,
@@ -590,7 +565,7 @@ public class QuizAttemptService {
                         WHERE s.quizSubmission.id = :attemptId
                         ORDER BY q.position ASC, a.id ASC
                         """,
-                        Object[].class
+                        QuizAttemptDetailResponse.SelectedAnswer.class
                 )
                 .setParameter(
                         "attemptId",
@@ -598,20 +573,8 @@ public class QuizAttemptService {
                 )
                 .getResultList();
 
-        List<QuizAttemptDetailResponse.SelectedAnswer> answers =
-                rows.stream()
-                        .map(row ->
-                                new QuizAttemptDetailResponse.SelectedAnswer(
-                                        (Long) row[0],
-                                        (String) row[1],
-                                        (Long) row[2],
-                                        (String) row[3]
-                                )
-                        )
-                        .toList();
-
         return new QuizAttemptDetailResponse(
-                QuizAttemptResponse.from(attempt),
+                QuizAttemptResponse.at(attempt, now),
                 answers
         );
     }

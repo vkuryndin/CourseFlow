@@ -4,6 +4,7 @@ import org.courseflow.common.exception.EditVersion;
 import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.assessment.repository.QuestionRepository;
+import org.courseflow.assessment.repository.QuizSubmissionRepository;
 import org.courseflow.security.CurrentUser;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.springframework.transaction.annotation.Isolation;
@@ -32,11 +33,12 @@ public class QuestionService {
     private final QuizRepository quizRepository;
     private final ContentAccessService contentAccessService;
     private final QuestionRepository questionRepository;
+    private final QuizSubmissionRepository quizSubmissionRepository;
     private final EntityManager entityManager;
 
     public QuestionService(QuizService quizService, QuizRepository quizRepository,
                            ContentAccessService contentAccessService, QuestionRepository questionRepository,
-                           EntityManager entityManager,
+                           QuizSubmissionRepository quizSubmissionRepository, EntityManager entityManager,
             Clock clock
     ) {
         this.clock = clock;
@@ -44,6 +46,7 @@ public class QuestionService {
         this.quizRepository = quizRepository;
         this.contentAccessService = contentAccessService;
         this.questionRepository = questionRepository;
+        this.quizSubmissionRepository = quizSubmissionRepository;
         this.entityManager = entityManager;
     }
 
@@ -127,17 +130,9 @@ public class QuestionService {
         if (!admin && !owner) {
             CourseAccessPolicy.requireActive(course,
                 "Quiz is in an archived course");
-            long activeAttempts = entityManager.createQuery("""
-                    SELECT COUNT(s) FROM QuizSubmission s
-                    WHERE s.quiz.id = :quizId AND s.student.id = :studentId
-                      AND s.status = :status AND s.expiresAt > :now
-                    """, Long.class)
-                    .setParameter("quizId", quizId)
-                    .setParameter("studentId", currentUserId)
-                    .setParameter("status", QuizSubmissionStatus.IN_PROGRESS)
-                    .setParameter("now", clock.instant())
-                    .getSingleResult();
-            if (activeAttempts == 0) {
+            boolean activeAttempt = quizSubmissionRepository.existsByQuiz_IdAndStudent_IdAndStatusAndExpiresAtAfter(
+                    quizId, currentUserId, QuizSubmissionStatus.IN_PROGRESS, clock.instant());
+            if (!activeAttempt) {
                 throw new BusinessConflictException("Start an active Quiz attempt before reading questions");
             }
         }

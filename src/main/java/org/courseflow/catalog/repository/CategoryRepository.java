@@ -17,9 +17,11 @@ public interface CategoryRepository
 
     Optional<Category> findByName(String name);
 
-    boolean existsByName(String name);
+    @Query("select (count(c) > 0) from Category c where lower(c.name) = lower(:name)")
+    boolean existsByNameIgnoreCase(@Param("name") String name);
 
-    boolean existsByNameAndIdNot(String name, Long id);
+    @Query("select (count(c) > 0) from Category c where lower(c.name) = lower(:name) and c.id <> :id")
+    boolean existsByNameIgnoreCaseAndIdNot(@Param("name") String name, @Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Category c where c.id = :id")
