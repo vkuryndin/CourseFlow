@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.courseflow.auth.dto.ForgotPasswordRequest;
 import org.courseflow.auth.dto.ResetPasswordRequest;
 import org.courseflow.auth.service.PasswordResetService;
+import org.courseflow.auth.service.PasswordResetDispatcher;
 import org.courseflow.auth.service.AuthRateLimiter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,13 +22,16 @@ public class PasswordResetController {
 
     private final PasswordResetService passwordResetService;
     private final AuthRateLimiter authRateLimiter;
+    private final PasswordResetDispatcher passwordResetDispatcher;
 
     public PasswordResetController(
             PasswordResetService passwordResetService,
-            AuthRateLimiter authRateLimiter
+            AuthRateLimiter authRateLimiter,
+            PasswordResetDispatcher passwordResetDispatcher
     ) {
         this.passwordResetService = passwordResetService;
         this.authRateLimiter = authRateLimiter;
+        this.passwordResetDispatcher = passwordResetDispatcher;
     }
 
     @PostMapping("/forgot-password")
@@ -37,7 +41,7 @@ public class PasswordResetController {
             HttpServletRequest servletRequest
     ) {
         authRateLimiter.checkForgotPassword(servletRequest.getRemoteAddr());
-        passwordResetService.requestReset(request.email());
+        passwordResetDispatcher.enqueue(request.email());
         return ResponseEntity.accepted().build();
     }
 
