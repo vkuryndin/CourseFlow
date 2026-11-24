@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: ${courseflow.test.jdbc-url}
+    username: ${courseflow.test.db-username}
+    password: ${courseflow.test.db-password}
+    hikari:
+      connection-timeout: 5000
+      maximum-pool-size: 10
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 32
+
+  mail:
+    host: localhost
+    port: 2525
+    username: test@example.invalid
+    password: test
+    test-connection: false
+
+courseflow:
+  password-reset-url: http://localhost:5173/reset-password
+
+JWT_SECRET_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+
+COURSEFLOW_ADMIN_EMAIL: admin@example.invalid
+COURSEFLOW_ADMIN_PASSWORD: CourseFlowTest123!

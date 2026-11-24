@@ -1,0 +1,22 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="CourseFlow Integration Tests" type="JUnit" factoryName="JUnit">
+    <module name="CourseFlow.test" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="ALTERNATIVE_JRE_PATH" value="17" />
+    <option name="PACKAGE_NAME" value="org.courseflow.integration" />
+    <option name="MAIN_CLASS_NAME" value="" />
+    <option name="METHOD_NAME" value="" />
+    <option name="TEST_OBJECT" value="package" />
+    <envs>
+      <env name="DOCKER_HOST" value="tcp://127.0.0.1:23750" />
+      <env name="SSH_HOST" value="192.168.179.129" />
+      <env name="SSH_PASSWORD" value="Gefsbizd19!" />
+      <env name="SSH_USER" value="vladimir-kuryndin" />
+      <env name="TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE" value="/var/run/docker.sock" />
+      <env name="TESTCONTAINERS_HOST_OVERRIDE" value="192.168.179.129" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
