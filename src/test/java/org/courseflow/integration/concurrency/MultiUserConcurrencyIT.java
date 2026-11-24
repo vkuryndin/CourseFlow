@@ -226,7 +226,12 @@ class MultiUserConcurrencyIT extends AdvancedHttpTest {
         long attempt = id(responses.get(1).body());
         assertEquals(status == 200 ? 40L : 20L, jdbc.queryForObject(
                 "SELECT CAST(EXTRACT(EPOCH FROM (expires_at-taken_at))/60 AS bigint) FROM quiz_submissions WHERE id = ?", Long.class, attempt));
-        expect(api("PUT", path, teacher.token(), Map.of("title", "Forbidden edit", "timeLimit", 20, "maxAttempts", 2, "version", version)), 409);
+        Object before = expect(api("GET", path, teacher.token(), null), 200);
+        Object conflict = expect(api("PUT", path, teacher.token(), Map.of("title", "Forbidden edit",
+                "timeLimit", 20, "maxAttempts", 2, "version", number(before, "version"))), 409);
+        assertEquals("BUSINESS_CONFLICT", field(conflict, "code"));
+        assertEquals("Cannot modify or delete Quiz after student attempts", field(conflict, "message"));
+        assertEquals(before, expect(api("GET", path, teacher.token(), null), 200));
     }
 
     @Test
@@ -240,7 +245,10 @@ class MultiUserConcurrencyIT extends AdvancedHttpTest {
         String path = attemptPath(q) + "/" + attempt;
         var responses = ConcurrentCalls.pair(() -> api("POST", path + "/submit", student.token(), answers(q, true)),
                 () -> api("GET", path, other.token(), null));
-        statuses(responses, 200, 404);
+        Object completed = expect(responses.get(0), 200);
+        assertEquals(attempt, id(completed));
+        assertEquals(100L, number(completed, "score"));
+        expect(responses.get(1), 404);
         expect(api("GET", path + "/result", other.token(), null), 404);
     }
 
@@ -252,7 +260,8 @@ class MultiUserConcurrencyIT extends AdvancedHttpTest {
         String path = "/api/courses/" + course + "/enrollments";
         var responses = ConcurrentCalls.pair(() -> api("DELETE", path + "/me", student.token(), null),
                 () -> api("POST", path, other.token(), null));
-        statuses(responses, 204, 201);
+        expect(responses.get(0), 204);
+        assertEquals(other.id(), number(expect(responses.get(1), 201), "studentId"));
         assertEquals("WITHDRAWN", jdbc.queryForObject("SELECT status FROM enrollments WHERE course_id = ? AND student_id = ?", String.class, course, student.id()));
         assertEquals("ACTIVE", jdbc.queryForObject("SELECT status FROM enrollments WHERE course_id = ? AND student_id = ?", String.class, course, other.id()));
     }
@@ -265,9 +274,16 @@ class MultiUserConcurrencyIT extends AdvancedHttpTest {
         String path = "/api/assignments/" + assignment + "/submissions";
         Object submission = expect(api("POST", path, student.token(), Map.of("content", "Answer")), 201);
         String grade = path + "/" + id(submission) + "/grade";
-        var body = Map.of("version", number(submission, "version"), "score", 70);
-        statuses(ConcurrentCalls.pair(() -> api("PUT", grade, teacher.token(), body),
-                () -> api("PUT", grade, students.get(1).token(), body)), 200, 403);
+        long version = number(submission, "version");
+        var responses = ConcurrentCalls.pair(
+                () -> api("PUT", grade, teacher.token(), Map.of("version", version, "score", 70, "feedback", "Teacher")),
+                () -> api("PUT", grade, students.get(1).token(), Map.of("version", version, "score", 12, "feedback", "Forbidden")));
+        Object graded = expect(responses.get(0), 200);
+        assertEquals(70L, number(graded, "score"));
+        assertEquals("Teacher", field(graded, "feedback"));
+        expect(responses.get(1), 403);
+        assertEquals(version + 1, jdbc.queryForObject("SELECT version FROM submissions WHERE id = ?", Long.class, id(submission)));
+        assertEquals("Teacher", jdbc.queryForObject("SELECT feedback FROM submissions WHERE id = ?", String.class, id(submission)));
         assertEquals(70, jdbc.queryForObject("SELECT score FROM submissions WHERE id = ?", Integer.class, id(submission)));
     }
 

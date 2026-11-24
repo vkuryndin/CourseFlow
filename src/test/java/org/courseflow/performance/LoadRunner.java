@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToIntFunction;
+import java.util.function.Consumer;
 
 /** Closed-loop HTTP load: one synchronous request at a time per virtual user. */
 final class LoadRunner {
@@ -23,7 +24,7 @@ final class LoadRunner {
         void execute(int user, Probe probe) throws Exception;
     }
 
-    record Sample(String operation, long nanos, int expected, int status, String exception) {
+    record Sample(int user, String operation, long nanos, int expected, int status, String exception) {
         boolean successful() {
             return exception.isEmpty() && status == expected;
         }
@@ -33,29 +34,39 @@ final class LoadRunner {
 
     static final class Probe {
         private final Queue<Sample> samples;
+        private final int user;
 
-        private Probe(Queue<Sample> samples) {
+        private Probe(Queue<Sample> samples, int user) {
             this.samples = samples;
+            this.user = user;
         }
 
         <T> T request(String operation, int expected, Callable<T> action,
-                      ToIntFunction<T> statusCode) throws InterruptedException {
+                      ToIntFunction<T> statusCode, Consumer<T> validate) throws InterruptedException {
             long started = System.nanoTime();
+            long elapsed = -1;
             int status = 0;
             String exception = "";
             try {
                 T response = action.call();
                 status = statusCode.applyAsInt(response);
+                elapsed = System.nanoTime() - started;
+                if (status == expected) {
+                    validate.accept(response);
+                }
                 return response;
             } catch (InterruptedException interrupted) {
                 exception = interrupted.getClass().getSimpleName();
                 Thread.currentThread().interrupt();
                 throw interrupted;
+            } catch (AssertionError invalid) {
+                exception = "INVALID_RESPONSE";
+                return null;
             } catch (Exception failure) {
                 exception = failure.getClass().getSimpleName();
                 return null;
             } finally {
-                samples.add(new Sample(operation, System.nanoTime() - started,
+                samples.add(new Sample(user, operation, elapsed < 0 ? System.nanoTime() - started : elapsed,
                         expected, status, exception));
             }
         }
@@ -95,7 +106,7 @@ final class LoadRunner {
                         throw new IllegalStateException("Load start timed out");
                     }
                     // CountDownLatch publishes the shared start time to every worker.
-                    Probe probe = new Probe(samples);
+                    Probe probe = new Probe(samples, user);
                     do {
                         work.execute(user, probe);
                         long remaining = durationNanos - (System.nanoTime() - started[0]);

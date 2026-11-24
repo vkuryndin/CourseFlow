@@ -2041,6 +2041,10 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
                 "Authorization", "Bearer {{teacher_token}}");
         verify(eq(response.status(), 200), plus("Expected 200, got ", response.status()));
         verify(eq(field(response.body(), "length"), 2), "response.body.length === 2");
+        verify(truth(every(response.body(), q -> eq(field(field(q, "options"), "length"), 3))), "Each question has three options");
+        verify(truth(some(response.body(), q -> eq(str(field(q, "id")), get("question1_id")))), "First question is present");
+        verify(truth(some(response.body(), q -> eq(str(field(q, "id")), get("question2_id")))), "Second question is present");
+        verify(truth(every(response.body(), q -> eq(field(filter(field(q, "options"), o -> eq(field(o, "correct"), true)), "length"), eq(str(field(q, "id")), get("question1_id")) ? 1 : 2))), "Correct option counts match question type");
         verify(truth(every(response.body(), q -> truth(every(field(q, "options"), o -> eq(typeOf(field(o, "correct")), "boolean"))))), "response.body.every(q => q.options.every(o => typeof o.correct === \"boolean\"))");
     }
 
@@ -2073,6 +2077,9 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
                 "Authorization", "Bearer {{student_token}}");
         verify(eq(response.status(), 200), plus("Expected 200, got ", response.status()));
         verify(eq(field(response.body(), "length"), 2), "response.body.length === 2");
+        verify(truth(every(response.body(), q -> eq(field(field(q, "options"), "length"), 3))), "Each question has three options");
+        verify(truth(some(response.body(), q -> eq(str(field(q, "id")), get("question1_id")))), "First question is present");
+        verify(truth(some(response.body(), q -> eq(str(field(q, "id")), get("question2_id")))), "Second question is present");
         verify(truth(every(response.body(), q -> truth(every(field(q, "options"), o -> !truth(has(o, "correct")))))), "response.body.every(q => q.options.every(o => !Object.prototype.hasOwnProperty.call(o, \"correct\")))");
     }
 
@@ -3438,6 +3445,11 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
         verify(eq(response.status(), 200), "response.status === 200");
         verify(eq(field(field(response.body(), "content"), "length"), 2), "response.body.content.length === 2");
         verify(truth(every(field(response.body(), "content"), x -> eq(field(x, "status"), "SUBMITTED"))), "response.body.content.every(x => x.status === \"SUBMITTED\")");
+        var excluded = request("GET", "/api/quizzes/{{quiz_id}}/attempts/me?status=IN_PROGRESS&page=0&size=10", null,
+                "Authorization", "Bearer {{student_token}}");
+        verify(eq(excluded.status(), 200), "IN_PROGRESS filter accepted");
+        verify(eq(field(field(excluded.body(), "content"), "length"), 0), "Completed attempts excluded by IN_PROGRESS filter");
+        verify(eq(field(excluded.body(), "totalElements"), 0), "Filtered total is zero");
     }
 
     private void case301() throws Exception {
@@ -3711,6 +3723,7 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
         verify((eq(field(b, "columnPage"), 1) && eq(field(b, "totalColumns"), 3)), "b.columnPage === 1 && b.totalColumns === 3");
         verify((eq(field(field(b, "columns"), "length"), 1) && eq(field(field(field(b, "columns"), 0), "type"), "ASSIGNMENT")), "b.columns.length === 1 && b.columns[0].type === \"ASSIGNMENT\"");
         verify(!eq(str(field(field(field(b, "columns"), 0), "id")), get("cf615_first_column")), "String(b.columns[0].id) !== client.global.get(\"cf615_first_column\")");
+        verify(truth(some(field(field(b, "students"), "content"), x -> eq(str(field(x, "studentId")), get("student_id")))), "Known student must remain in gradebook");
         verify(truth(every(field(field(b, "students"), "content"), x -> (eq(field(field(x, "results"), "length"), 1) && eq(field(field(field(x, "results"), 0), "assessmentId"), field(field(field(b, "columns"), 0), "id"))))), "b.students.content.every(x => x.results.length === 1 && x.results[0].assessmentId === b.columns[0].id)");
     }
 
@@ -3729,6 +3742,7 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
                 "Authorization", "Bearer {{teacher_token}}");
         verify(eq(response.status(), 200), plus("Expected 200, got ", response.status()));
         verify((eq(field(response.body(), "totalColumns"), 3) && eq(field(field(response.body(), "columns"), "length"), 0)), "response.body.totalColumns === 3 && response.body.columns.length === 0");
+        verify(truth(some(field(field(response.body(), "students"), "content"), x -> eq(str(field(x, "studentId")), get("student_id")))), "Known student must remain in gradebook");
         verify(truth(every(field(field(response.body(), "students"), "content"), x -> eq(field(field(x, "results"), "length"), 0))), "response.body.students.content.every(x => x.results.length === 0)");
     }
 
