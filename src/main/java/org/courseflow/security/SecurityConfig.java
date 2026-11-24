@@ -47,6 +47,32 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/courses/*/reviews"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/reviews/me"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/courses/*/reviews/me"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/courses/*/reviews/me"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/courses/*/reviews",
+                                "/api/courses/*/reviews/rating"
+                        ).permitAll()
+
+                        .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/quizzes/*/attempts",
                                 "/api/quizzes/*/attempts/*/manage"

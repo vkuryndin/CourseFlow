@@ -3984,3 +3984,255 @@ Authorization: Bearer {{enrollment_student_token}}
 ### 27. Restore enrollment — 200
 POST http://localhost:8080/api/courses/{{course_id}}/enrollments
 Authorization: Bearer {{enrollment_student_token}}
+
+
+
+### =========================================================
+### STAGE 5.4 — COURSE REVIEWS AND RATING
+### =========================================================
+
+### 1. Guest reads empty course rating — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
+
+
+### 2. Student has no review yet — 404
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 3. Student creates review — 201
+POST http://localhost:8080/api/courses/{{course_id}}/reviews
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "Excellent course with useful lessons and assignments."
+}
+
+> {%
+    client.test("Review created", function () {
+        client.assert(response.status === 201);
+        client.assert(response.body.rating === 5);
+    });
+
+    client.global.set("course_review_id", response.body.id);
+%}
+
+
+### 4. Student reads own review — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 5. Guest reads public reviews — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews
+
+
+### 6. Guest reads course rating — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
+
+> {%
+    client.test("Initial course rating", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.reviewCount === 1);
+        client.assert(response.body.averageRating === 5);
+    });
+%}
+
+
+### 7. Duplicate review — 409
+POST http://localhost:8080/api/courses/{{course_id}}/reviews
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 4,
+  "comment": "Second review must not be created."
+}
+
+
+### 8. Student updates own review — 200
+PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 4,
+  "comment": "Good course, but more practical examples would be useful."
+}
+
+> {%
+    client.test("Review updated", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.rating === 4);
+        client.assert(
+            String(response.body.id) ===
+            String(client.global.get("course_review_id"))
+        );
+    });
+%}
+
+
+### 9. Course rating is recalculated — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
+
+> {%
+    client.test("Updated course rating", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.reviewCount === 1);
+        client.assert(response.body.averageRating === 4);
+    });
+%}
+
+
+### 10. Invalid rating above maximum — 400
+PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 6,
+  "comment": "Invalid rating."
+}
+
+
+### 11. Invalid rating below minimum — 400
+PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 0
+}
+
+
+### 12. Guest cannot create review — 401
+POST http://localhost:8080/api/courses/{{course_id}}/reviews
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "Unauthorized review."
+}
+
+
+### 13. Teacher cannot review own course — 403
+POST http://localhost:8080/api/courses/{{course_id}}/reviews
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "Teacher cannot review own course."
+}
+
+
+### 14. ADMIN without STUDENT role cannot review — 403
+POST http://localhost:8080/api/courses/{{course_id}}/reviews
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "rating": 5
+}
+
+
+### 15. Sort reviews by rating — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews?page=0&size=10&sortBy=rating&direction=desc
+
+
+### 16. Invalid sort field — 400
+GET http://localhost:8080/api/courses/{{course_id}}/reviews?sortBy=unknown
+
+
+### 17. Invalid pagination — 400
+GET http://localhost:8080/api/courses/{{course_id}}/reviews?page=-1
+
+
+### 18. Unknown course — 404
+GET http://localhost:8080/api/courses/999999/reviews/rating
+
+
+### =========================================================
+### ENROLLMENT ACCESS
+### =========================================================
+
+### 19. Withdraw student — 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 20. Withdrawn student cannot update review — 403
+PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 3
+}
+
+
+### 21. Withdrawn student can read own review — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 22. Restore enrollment — 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### DELETE REVIEW
+### =========================================================
+
+### 23. Student deletes own review — 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 24. Deleted review no longer exists — 404
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 25. Course has no rating after deletion — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
+
+> {%
+    client.test("Empty course rating", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.reviewCount === 0);
+        client.assert(response.body.averageRating == null);
+    });
+%}
+
+
+### 26. Recreate review without comment — 201
+POST http://localhost:8080/api/courses/{{course_id}}/reviews
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 5
+}
+
+> {%
+    client.global.set("course_review_id", response.body.id);
+%}
+
+
+### 27. Update final review — 200
+PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "Excellent course. Recommended for Java beginners."
+}
+
+
+### 28. Verify final course rating — 200
+GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
