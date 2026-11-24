@@ -2584,3 +2584,131 @@ Authorization: Bearer {{enrollment_student_token}}
 ### 15. Previously submitted work still exists — 200
 GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
 Authorization: Bearer {{enrollment_student_token}}
+
+
+
+### =========================================================
+### STAGE 5.2.4 — SUBMISSION GRADING
+### =========================================================
+
+### 1. TEACHER lists all submissions — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 2. TEACHER filters SUBMITTED works — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?status=SUBMITTED&page=0&size=10
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 3. ADMIN lists submissions — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{admin_token}}
+
+
+### 4. STUDENT cannot list all submissions — 403
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 5. TEACHER grades submission — 200
+PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "score": 85,
+  "feedback": "Good explanation of JDK, JRE and JVM. Add more practical examples."
+}
+
+> {%
+    client.test("Submission graded", function () {
+        client.assert(response.status === 200, "Expected 200");
+        client.assert(response.body.status === "GRADED");
+        client.assert(response.body.score === 85);
+    });
+%}
+
+
+### 6. STUDENT sees own grade — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 7. TEACHER filters GRADED submissions — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?status=GRADED
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 8. Score above maxScore — 400
+PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "score": 101,
+  "feedback": "Invalid score."
+}
+
+
+### 9. Negative score — 400
+PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "score": -1,
+  "feedback": "Negative scores are forbidden."
+}
+
+
+### 10. STUDENT cannot grade own submission — 403
+PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "score": 100,
+  "feedback": "Trying to grade my own work."
+}
+
+
+### 11. TEACHER corrects previous grade — 200
+PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "score": 90,
+  "feedback": "Grade corrected after additional review."
+}
+
+
+### 12. STUDENT sees corrected grade — 200
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 13. Nonexistent submission — 404
+PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/999999/grade
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "score": 50,
+  "feedback": "Submission does not exist."
+}
+
+
+### 14. Invalid pagination — 400
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?page=-1
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 15. Unknown sort field — 400
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?sortBy=unknown
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 16. Guest cannot list submissions — 401
+GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions

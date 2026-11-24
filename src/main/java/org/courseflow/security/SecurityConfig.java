@@ -288,6 +288,16 @@ public class SecurityConfig {
                                 "/api/assignments/*/submissions/me"
                         ).hasRole("STUDENT")
 
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/assignments/*/submissions"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/assignments/*/submissions/*/grade"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
                         .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().denyAll()
