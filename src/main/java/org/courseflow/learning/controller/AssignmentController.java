@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.learning.dto.AssignmentResponse;
 import org.courseflow.learning.dto.CreateAssignmentRequest;
+import org.courseflow.learning.dto.ExtendAssignmentDeadlineRequest;
 import org.courseflow.learning.service.AssignmentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -105,6 +106,22 @@ public class AssignmentController {
                 CurrentUser.id(jwt),
                 isAdmin
         );
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "Extend an assignment deadline",
+            description = "The course teacher or ADMIN may extend the deadline even after submissions. " +
+                    "The new deadline must be in the future and later than the existing deadline. " +
+                    "Existing submissions and grades are unchanged. An expired deadline may be reopened.")
+    @PatchMapping("/{assignmentId}/deadline")
+    public AssignmentResponse extendDeadline(
+            @PathVariable Long lessonId,
+            @PathVariable Long assignmentId,
+            @Valid @RequestBody ExtendAssignmentDeadlineRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
+    ) {
+        return assignmentService.extendDeadline(lessonId, assignmentId, request,
+                CurrentUser.id(jwt), CurrentUser.isAdmin(authentication));
     }
 
     @DeleteMapping("/{assignmentId}")

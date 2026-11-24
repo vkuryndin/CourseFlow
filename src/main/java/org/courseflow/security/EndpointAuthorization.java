@@ -152,6 +152,7 @@ final class EndpointAuthorization {
         auth.requestMatchers(HttpMethod.GET, "/api/courses/*/enrollments").hasAnyRole("ADMIN", "TEACHER");
         auth.requestMatchers(HttpMethod.POST, "/api/lessons/*/assignments").hasAnyRole("ADMIN", "TEACHER");
         auth.requestMatchers(HttpMethod.PUT, "/api/lessons/*/assignments/*").hasAnyRole("ADMIN", "TEACHER");
+        auth.requestMatchers(HttpMethod.PATCH, "/api/lessons/*/assignments/*/deadline").hasAnyRole("ADMIN", "TEACHER");
         auth.requestMatchers(HttpMethod.DELETE, "/api/lessons/*/assignments/*").hasAnyRole("ADMIN", "TEACHER");
         auth.requestMatchers(HttpMethod.GET, "/api/lessons/*/assignments", "/api/lessons/*/assignments/*").authenticated();
         auth.requestMatchers(HttpMethod.POST, "/api/assignments/*/submissions").hasRole("STUDENT");

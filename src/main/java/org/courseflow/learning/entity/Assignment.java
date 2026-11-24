@@ -86,6 +86,14 @@ public class Assignment {
         return List.copyOf(submissions);
     }
 
+    /** Only extend the deadline; leave the assignment definition and submissions intact. */
+    public void extendDeadline(Instant newDueAt) {
+        if (newDueAt == null || !newDueAt.isAfter(dueAt)) {
+            throw new IllegalArgumentException("New deadline must be later than the current deadline");
+        }
+        this.dueAt = newDueAt;
+    }
+
     public void updateDetails(
             String title,
             String description,

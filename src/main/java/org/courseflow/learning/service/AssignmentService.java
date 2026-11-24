@@ -16,6 +16,7 @@ import org.courseflow.content.repository.LessonRepository;
 import org.courseflow.content.service.ContentAccessService;
 import org.courseflow.learning.dto.AssignmentResponse;
 import org.courseflow.learning.dto.CreateAssignmentRequest;
+import org.courseflow.learning.dto.ExtendAssignmentDeadlineRequest;
 import org.courseflow.learning.entity.Assignment;
 import org.courseflow.learning.repository.AssignmentRepository;
 import org.springframework.data.domain.Page;
@@ -177,12 +178,13 @@ public class AssignmentService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Assignment assignment = findEditableAssignment(
+        Assignment assignment = findManagedAssignment(
                 lessonId,
                 assignmentId,
                 currentUserId,
                 isAdmin
         );
+        requireNoSubmissions(assignmentId);
 
         requireFutureDeadline(request);
 
@@ -199,6 +201,28 @@ public class AssignmentService {
         return AssignmentResponse.from(assignment);
     }
 
+    /** Extend the common deadline without changing existing submissions or grades. */
+    @Transactional
+    public AssignmentResponse extendDeadline(
+            Long lessonId,
+            Long assignmentId,
+            ExtendAssignmentDeadlineRequest request,
+            Long currentUserId,
+            boolean isAdmin
+    ) {
+        Assignment assignment = findManagedAssignment(lessonId, assignmentId, currentUserId, isAdmin);
+        EditVersion.require(request.version(), assignment.getVersion());
+        if (request.dueAt() == null || !request.dueAt().isAfter(clock.instant())) {
+            throw new BadRequestException("Assignment deadline must be in the future");
+        }
+        if (!request.dueAt().isAfter(assignment.getDueAt())) {
+            throw new BadRequestException("New deadline must be later than the current deadline");
+        }
+        assignment.extendDeadline(request.dueAt());
+        assignmentRepository.flush();
+        return AssignmentResponse.from(assignment);
+    }
+
     @Transactional
     public void delete(
             Long lessonId,
@@ -206,12 +230,13 @@ public class AssignmentService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Assignment assignment = findEditableAssignment(
+        Assignment assignment = findManagedAssignment(
                 lessonId,
                 assignmentId,
                 currentUserId,
                 isAdmin
         );
+        requireNoSubmissions(assignmentId);
 
         try {
             assignmentRepository.delete(assignment);
@@ -223,7 +248,7 @@ public class AssignmentService {
         }
     }
 
-    private Assignment findEditableAssignment(
+    private Assignment findManagedAssignment(
             Long lessonId,
             Long assignmentId,
             Long currentUserId,
@@ -268,13 +293,15 @@ public class AssignmentService {
             );
         }
 
+        return assignment;
+    }
+
+    private void requireNoSubmissions(Long assignmentId) {
         if (hasSubmissions(assignmentId)) {
             throw new BusinessConflictException(
                     "Assignment already has student submissions"
             );
         }
-
-        return assignment;
     }
 
     private void requireFutureDeadline(CreateAssignmentRequest request) {
