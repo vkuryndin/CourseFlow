@@ -131,7 +131,11 @@ class ExistingDatabaseStartupIT extends AdvancedHttpTest {
         HttpResponse<String> response = client.send(request.method(method, body).build(),
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(expectedStatus, response.statusCode(), method + " " + path);
-        assertTrue(response.headers().firstValue("Content-Type").orElse("").contains("/json"));
+        String contentType = response.headers().firstValue("Content-Type").orElse("");
+        String mediaType = contentType.split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
+        assertTrue(mediaType.equals("application/json")
+                        || (mediaType.startsWith("application/") && mediaType.endsWith("+json")),
+                () -> method + " " + path + " returned unexpected Content-Type: " + contentType);
         return parse(response.body());
     }
 }

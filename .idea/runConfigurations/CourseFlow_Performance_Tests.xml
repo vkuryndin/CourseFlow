@@ -4,9 +4,9 @@
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="ALTERNATIVE_JRE_PATH" value="17" />
     <option name="PACKAGE_NAME" value="org.courseflow.performance" />
-    <option name="MAIN_CLASS_NAME" value="org.courseflow.performance.PerformanceIT" />
+    <option name="MAIN_CLASS_NAME" value="" />
     <option name="METHOD_NAME" value="" />
-    <option name="TEST_OBJECT" value="class" />
+    <option name="TEST_OBJECT" value="package" />
     <option name="VM_PARAMETERS" value="-ea -Dcourseflow.performance=true" />
     <envs>
       <env name="DOCKER_HOST" value="tcp://127.0.0.1:23750" />
