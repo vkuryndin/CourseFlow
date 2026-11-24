@@ -26,7 +26,11 @@ public record CreateQuestionRequest(
 
         @NotNull
         @Size(min = 2, max = 10)
-        List<@NotNull @Valid OptionRequest> options
+        List<@NotNull @Valid OptionRequest> options,
+
+        @io.swagger.v3.oas.annotations.media.Schema(description = "Required on PUT; omit on POST")
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
     public record OptionRequest(

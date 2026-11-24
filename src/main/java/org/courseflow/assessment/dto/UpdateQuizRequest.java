@@ -21,7 +21,11 @@ public record UpdateQuizRequest(
         @NotNull
         @Min(1)
         @Max(10)
-        Integer maxAttempts
+        Integer maxAttempts,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

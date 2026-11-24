@@ -19,7 +19,11 @@ public record CreateLessonSessionRequest(
         LessonSessionFormat format,
 
         @Size(max = 2048)
-        String meetingUrl
+        String meetingUrl,
+
+        @io.swagger.v3.oas.annotations.media.Schema(description = "Required on PUT; omit on POST")
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

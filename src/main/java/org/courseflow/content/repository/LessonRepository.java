@@ -18,6 +18,13 @@ public interface LessonRepository
             Pageable pageable
     );
 
+    @Query(value = """
+            select new org.courseflow.content.dto.LessonSummaryResponse(l.id, l.version, l.module.id, l.title, l.position)
+            from Lesson l where l.module.id = :moduleId
+            """, countQuery = "select count(l) from Lesson l where l.module.id = :moduleId")
+    Page<org.courseflow.content.dto.LessonSummaryResponse> findSummariesByModuleId(
+            @Param("moduleId") Long moduleId, Pageable pageable);
+
     boolean existsByModule_Id(Long moduleId);
 
     Page<Lesson> findByModule_Id(

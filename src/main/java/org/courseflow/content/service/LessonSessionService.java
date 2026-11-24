@@ -1,5 +1,6 @@
 package org.courseflow.content.service;
 
+import org.courseflow.common.exception.EditVersion;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.identity.repository.UserRepository;
@@ -197,6 +198,8 @@ public class LessonSessionService {
 
         String meetingUrl = validateMeetingUrl(request);
 
+        EditVersion.require(request.version(), session.getVersion());
+
         session.updateDetails(
                 request.startsAt(),
                 request.endsAt(),
@@ -204,6 +207,7 @@ public class LessonSessionService {
                 meetingUrl
         );
 
+        sessionRepository.flush();
         return LessonSessionResponse.from(session);
     }
 
@@ -228,11 +232,14 @@ public class LessonSessionService {
                 request.endsAt()
         );
 
+        EditVersion.require(request.version(), session.getVersion());
+
         session.changeTime(
                 request.startsAt(),
                 request.endsAt()
         );
 
+        sessionRepository.flush();
         return LessonSessionResponse.from(session);
     }
 

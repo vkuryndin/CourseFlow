@@ -9,6 +9,7 @@ import java.util.Set;
 
 public record UserResponse(
         Long id,
+        long version,
         String displayName,
         String email,
         UserStatus status,
@@ -19,6 +20,7 @@ public record UserResponse(
     public static UserResponse from(User user) {
         return new UserResponse(
                 user.getId(),
+                user.getVersion(),
                 user.getDisplayName(),
                 user.getEmail(),
                 user.getStatus(),

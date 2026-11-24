@@ -7,6 +7,7 @@ import java.time.Instant;
 
 public record AssignmentResponse(
         Long id,
+        long version,
         Long lessonId,
         String title,
         String description,
@@ -18,6 +19,7 @@ public record AssignmentResponse(
     ) {
         return new AssignmentResponse(
                 assignment.getId(),
+                assignment.getVersion(),
                 assignment.getLesson().getId(),
                 assignment.getTitle(),
                 assignment.getDescription(),

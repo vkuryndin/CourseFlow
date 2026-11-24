@@ -1,5 +1,7 @@
 package org.courseflow.learning.service;
 
+import org.courseflow.common.exception.EditVersion;
+import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
@@ -22,7 +24,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.Instant;
 import java.util.Optional;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
@@ -35,6 +36,8 @@ import java.util.List;
 
 @Service
 public class SubmissionService {
+
+    private final Clock clock;
 
     private final SubmissionRepository submissionRepository;
     private final AssignmentRepository assignmentRepository;
@@ -49,8 +52,10 @@ public class SubmissionService {
             EnrollmentRepository enrollmentRepository,
             CourseRepository courseRepository,
             UserRepository userRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            Clock clock
     ) {
+        this.clock = clock;
         this.submissionRepository = submissionRepository;
         this.assignmentRepository = assignmentRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -108,7 +113,7 @@ public class SubmissionService {
             );
         }
 
-        if (!Instant.now().isBefore(assignment.getDueAt())) {
+        if (!clock.instant().isBefore(assignment.getDueAt())) {
             throw new BusinessConflictException(
                     "Assignment submission deadline has passed"
             );
@@ -123,7 +128,8 @@ public class SubmissionService {
         Submission submission = new Submission(
                 assignment,
                 student,
-                content.trim()
+                content.trim(),
+                clock.instant()
         );
 
         try {
@@ -304,9 +310,12 @@ public class SubmissionService {
                 ? null
                 : request.feedback().trim();
 
+        EditVersion.require(request.version(), submission.getVersion());
+
         submission.grade(score, feedback);
 
         // Hibernate Dirty Checking saves the changes.
+        submissionRepository.flush();
         return SubmissionResponse.from(submission);
     }
 

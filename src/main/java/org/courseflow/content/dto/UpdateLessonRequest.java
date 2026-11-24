@@ -15,6 +15,10 @@ public record UpdateLessonRequest(
         String content,
 
         @Size(max = 2048)
-        String videoUrl
+        String videoUrl,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 ) {
 }

@@ -23,14 +23,19 @@ public class UserAccount {
     private boolean passwordChangeRequired = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
     protected UserAccount() {
     }
 
-    public UserAccount(User user, String passwordHash) {
+    public UserAccount(User user, String passwordHash, Instant now) {
+        this.createdAt = now;
         this.user = user;
         this.passwordHash = passwordHash;
+    }
+
+    public void requirePasswordChange() {
+        this.passwordChangeRequired = true;
     }
 
     public Long getId() {

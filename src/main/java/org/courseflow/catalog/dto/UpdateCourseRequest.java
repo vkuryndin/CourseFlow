@@ -32,7 +32,11 @@ public record UpdateCourseRequest(
         Integer duration,
 
         @NotNull
-        LocalDate startDate
+        LocalDate startDate,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

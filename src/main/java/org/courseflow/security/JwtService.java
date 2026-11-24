@@ -38,6 +38,7 @@ public class JwtService {
                 .issuedAt(session.getCreatedAt())
                 .expiresAt(session.getExpiresAt())
                 .claim("roles", roles)
+                .claim("passwordChangeRequired", session.getUserAccount().isPasswordChangeRequired())
                 .build();
 
         JwsHeader header = JwsHeader

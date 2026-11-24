@@ -7,6 +7,7 @@ import java.time.LocalDate;
 
 public record CourseResponse(
         Long id,
+        long version,
         String title,
         String description,
         Long categoryId,
@@ -19,6 +20,7 @@ public record CourseResponse(
     public static CourseResponse from(Course course) {
         return new CourseResponse(
                 course.getId(),
+                course.getVersion(),
                 course.getTitle(),
                 course.getDescription(),
                 course.getCategory().getId(),

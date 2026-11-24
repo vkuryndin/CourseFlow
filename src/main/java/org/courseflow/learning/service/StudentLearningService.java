@@ -1,5 +1,6 @@
 package org.courseflow.learning.service;
 
+import java.time.Clock;
 import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -17,13 +18,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
 @Service
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class StudentLearningService {
+
+    private final Clock clock;
     private static final String ASSIGNMENT_STATUS = """
             CASE WHEN s.status = org.courseflow.learning.entity.SubmissionStatus.GRADED THEN 'GRADED'
                  WHEN s.id IS NOT NULL THEN 'SUBMITTED'
@@ -40,7 +42,8 @@ public class StudentLearningService {
 
     private final EntityManager entityManager;
 
-    public StudentLearningService(EntityManager entityManager) {
+    public StudentLearningService(EntityManager entityManager, Clock clock) {
+        this.clock = clock;
         this.entityManager = entityManager;
     }
 
@@ -49,7 +52,7 @@ public class StudentLearningService {
             Long studentId, Long courseId, MyAssignmentResponse.Status status, int page, int size) {
         validate(courseId, page, size);
         Map<String, Object> params = parameters(studentId, courseId);
-        params.put("now", Instant.now());
+        params.put("now", clock.instant());
         params.put("courseStatus", CourseStatus.ACTIVE);
         params.put("enrollmentStatus", EnrollmentStatus.ACTIVE);
         String from = """
@@ -100,7 +103,7 @@ public class StudentLearningService {
             Long studentId, Long courseId, QuizSubmissionStatus status, int page, int size) {
         validate(courseId, page, size);
         Map<String, Object> params = parameters(studentId, courseId);
-        params.put("now", Instant.now());
+        params.put("now", clock.instant());
         String from = """
                 FROM QuizSubmission s JOIN s.quiz q JOIN q.module m JOIN m.course c
                 WHERE s.student.id = :studentId

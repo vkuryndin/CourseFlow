@@ -11,7 +11,11 @@ public record RescheduleLessonSessionRequest(
         Instant startsAt,
 
         @NotNull
-        Instant endsAt
+        Instant endsAt,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

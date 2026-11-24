@@ -1,5 +1,6 @@
 package org.courseflow.learning.service;
 
+import java.time.Clock;
 import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -25,11 +26,15 @@ import java.util.Map;
 @Service
 public class ProgressService {
 
+    private final Clock clock;
+
     private final EntityManager entityManager;
 
     public ProgressService(
-            EntityManager entityManager
+            EntityManager entityManager,
+            Clock clock
     ) {
+        this.clock = clock;
         this.entityManager = entityManager;
     }
 
@@ -131,7 +136,7 @@ public class ProgressService {
                 .map(row -> (Long) row[0])
                 .toList();
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         Map<Long, List<AssignmentProgress>> assignments =
                 loadAssignments(studentId, courseIds, now);

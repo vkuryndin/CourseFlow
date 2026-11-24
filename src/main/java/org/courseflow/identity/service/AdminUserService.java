@@ -1,5 +1,7 @@
 package org.courseflow.identity.service;
 
+import org.courseflow.common.exception.EditVersion;
+import java.time.Clock;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
@@ -31,6 +33,8 @@ import java.util.Set;
 @Service
 public class AdminUserService {
 
+    private final Clock clock;
+
     private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
     private final AuthSessionRepository authSessionRepository;
@@ -48,8 +52,10 @@ public class AdminUserService {
             ProfileRepository profileRepository,
             EnrollmentRepository enrollmentRepository,
             CourseRepository courseRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            Clock clock
     ) {
+        this.clock = clock;
         this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
@@ -80,16 +86,21 @@ public class AdminUserService {
         User user = new User(
                 request.displayName().trim(),
                 email,
-                request.roles()
+                request.roles(),
+                clock.instant()
         );
 
         User savedUser = userRepository.saveAndFlush(user);
 
         UserAccount account = new UserAccount(
                 savedUser,
-                passwordEncoder.encode(request.password())
+                passwordEncoder.encode(request.password()),
+                clock.instant()
         );
 
+        if (!Boolean.FALSE.equals(request.passwordChangeRequired())) {
+            account.requirePasswordChange();
+        }
         userAccountRepository.saveAndFlush(account);
 
         return UserResponse.from(savedUser);
@@ -114,6 +125,7 @@ public class AdminUserService {
                 Set.copyOf(request.roles());
 
         if (user.getRoles().equals(requestedRoles)) {
+            EditVersion.require(request.version(), user.getVersion());
             return UserResponse.from(user);
         }
 
@@ -151,9 +163,11 @@ public class AdminUserService {
             );
         }
 
+        EditVersion.require(request.version(), user.getVersion());
         user.changeRoles(requestedRoles);
         revokeSessions(userId);
 
+        userRepository.flush();
         return UserResponse.from(user);
     }
 
@@ -184,6 +198,8 @@ public class AdminUserService {
             );
         }
 
+        EditVersion.require(request.version(), user.getVersion());
+
         user.updateDetails(newName, newEmail);
 
         if (emailChanged) {
@@ -191,6 +207,7 @@ public class AdminUserService {
             revokeSessions(userId);
         }
 
+        userRepository.flush();
         return UserResponse.from(user);
     }
 
@@ -221,6 +238,7 @@ public class AdminUserService {
         invalidateResetTokens(userId);
         revokeSessions(userId);
 
+        userRepository.flush();
         return UserResponse.from(user);
     }
 
@@ -237,6 +255,7 @@ public class AdminUserService {
 
         user.activate();
 
+        userRepository.flush();
         return UserResponse.from(user);
     }
 
@@ -311,7 +330,7 @@ public class AdminUserService {
                 .ifPresent(Profile::anonymize);
 
         // Keep User ID for educational history.
-        user.markDeleted();
+        user.markDeleted(clock.instant());
     }
 
     private User findUserForUpdate(Long userId) {
@@ -353,7 +372,7 @@ public class AdminUserService {
     private void invalidateResetTokens(Long userId) {
         userAccountRepository.findByUser_Id(userId).ifPresent(account ->
                 passwordResetTokenRepository.invalidateUnusedTokensForAccount(
-                        account.getId(), java.time.Instant.now()
+                        account.getId(), clock.instant()
                 ));
     }
 

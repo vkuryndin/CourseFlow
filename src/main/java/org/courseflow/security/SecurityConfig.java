@@ -59,6 +59,18 @@ public class SecurityConfig {
                                 "/v3/api-docs", "/v3/api-docs.yaml", "/v3/api-docs/swagger-config",
                                 "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     }
+                    // A temporary-password JWT can only change its password or log out.
+                    auth.requestMatchers(request -> {
+                        var authentication = org.springframework.security.core.context.SecurityContextHolder
+                                .getContext().getAuthentication();
+                        if (!(authentication instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken token)
+                                || !Boolean.TRUE.equals(token.getToken().getClaimAsBoolean("passwordChangeRequired"))) {
+                            return false;
+                        }
+                        String path = request.getRequestURI().substring(request.getContextPath().length());
+                        return !("POST".equals(request.getMethod())
+                                && ("/api/auth/change-password".equals(path) || "/api/auth/logout".equals(path)));
+                    }).denyAll();
                     auth
 
                         .requestMatchers(HttpMethod.GET, "/api/users/me/profile").authenticated()

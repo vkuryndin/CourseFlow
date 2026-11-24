@@ -25,13 +25,15 @@ public interface AuthSessionRepository
             where s.id = :sessionId
               and u.id = :userId
               and u.status = :status
+              and a.passwordChangeRequired = :passwordChangeRequired
               and s.revoked = false
               and s.expiresAt > :now
             """)
     List<UserRole> findValidSessionRoles(@Param("sessionId") UUID sessionId,
                                          @Param("userId") Long userId,
                                          @Param("status") UserStatus status,
-                                         @Param("now") Instant now);
+                                         @Param("now") Instant now,
+                                         @Param("passwordChangeRequired") boolean passwordChangeRequired);
 
     @Modifying
     @Query("delete from AuthSession s where s.expiresAt < :cutoff")

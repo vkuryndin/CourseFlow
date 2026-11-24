@@ -19,7 +19,7 @@ public class AuthSession {
     private UserAccount userAccount;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
@@ -30,7 +30,8 @@ public class AuthSession {
     protected AuthSession() {
     }
 
-    public AuthSession(UserAccount userAccount, Instant expiresAt) {
+    public AuthSession(UserAccount userAccount, Instant expiresAt, Instant now) {
+        this.createdAt = now;
         this.userAccount = userAccount;
         this.expiresAt = expiresAt;
     }

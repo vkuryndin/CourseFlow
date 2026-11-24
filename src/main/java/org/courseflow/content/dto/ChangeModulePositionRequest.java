@@ -7,6 +7,10 @@ import jakarta.validation.constraints.NotNull;
 public record ChangeModulePositionRequest(
         @NotNull
         @Min(1)
-        Integer position
+        Integer position,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 ) {
 }

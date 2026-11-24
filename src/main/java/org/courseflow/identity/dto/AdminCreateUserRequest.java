@@ -26,7 +26,10 @@ public record AdminCreateUserRequest(
         String password,
 
         @NotEmpty
-        Set<@NotNull UserRole> roles
+        Set<@NotNull UserRole> roles,
+
+        @io.swagger.v3.oas.annotations.media.Schema(description = "Require password change on first login; defaults to true for administrator-created accounts", defaultValue = "true")
+        Boolean passwordChangeRequired
 
 ) {
 }

@@ -7,6 +7,10 @@ import jakarta.validation.constraints.Positive;
 public record ReassignCourseTeacherRequest(
         @NotNull
         @Positive
-        Long teacherId
+        Long teacherId,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 ) {
 }

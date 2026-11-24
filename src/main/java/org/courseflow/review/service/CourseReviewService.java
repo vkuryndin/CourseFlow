@@ -1,5 +1,6 @@
 package org.courseflow.review.service;
 
+import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.review.dto.PublicCourseReviewResponse;
@@ -31,6 +32,8 @@ import java.util.Set;
 @Service
 public class CourseReviewService {
 
+    private final Clock clock;
+
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of("id", "rating", "createdAt");
 
@@ -43,8 +46,10 @@ public class CourseReviewService {
             CourseReviewRepository courseReviewRepository,
             CourseRepository courseRepository,
             EnrollmentRepository enrollmentRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            Clock clock
     ) {
+        this.clock = clock;
         this.courseReviewRepository = courseReviewRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -84,7 +89,8 @@ public class CourseReviewService {
                 course,
                 student,
                 request.rating(),
-                normalizeComment(request.comment())
+                normalizeComment(request.comment()),
+                clock.instant()
         );
 
         CourseReview saved =

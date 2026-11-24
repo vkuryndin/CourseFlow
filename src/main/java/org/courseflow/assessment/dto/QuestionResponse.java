@@ -31,6 +31,7 @@ public record QuestionResponse(
 
     public record ManagementResponse(
             Long id,
+            long version,
             String text,
             QuestionType type,
             Integer position,
@@ -64,6 +65,7 @@ public record QuestionResponse(
     ) {
         return new ManagementResponse(
                 question.getId(),
+                question.getVersion(),
                 question.getText(),
                 question.getType(),
                 question.getPosition(),

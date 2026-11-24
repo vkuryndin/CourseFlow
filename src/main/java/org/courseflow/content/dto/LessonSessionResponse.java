@@ -8,6 +8,7 @@ import java.time.Instant;
 
 public record LessonSessionResponse(
         Long id,
+        long version,
         Long lessonId,
         Instant startsAt,
         Instant endsAt,
@@ -20,6 +21,7 @@ public record LessonSessionResponse(
     ) {
         return new LessonSessionResponse(
                 session.getId(),
+                session.getVersion(),
                 session.getLesson().getId(),
                 session.getStartsAt(),
                 session.getEndsAt(),

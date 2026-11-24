@@ -1,5 +1,6 @@
 package org.courseflow.content.service;
 
+import org.courseflow.common.exception.EditVersion;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.entity.Course;
@@ -138,11 +139,14 @@ public class ModuleService {
                 ? null
                 : request.description().trim();
 
+        EditVersion.require(request.version(), module.getVersion());
+
         module.updateDetails(
                 request.title().trim(),
                 description
         );
 
+        moduleRepository.flush();
         return ModuleResponse.from(module);
     }
 
@@ -157,6 +161,8 @@ public class ModuleService {
         findEditableCourse(courseId, currentUserId, isAdmin);
 
         Module module = findModule(courseId, moduleId);
+
+        EditVersion.require(request.version(), module.getVersion());
 
         int oldPosition = module.getPosition();
         int newPosition = request.position();

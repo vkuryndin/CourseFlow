@@ -28,7 +28,7 @@ public class Enrollment {
     private Course course;
 
     @Column(name = "enrolled_at", nullable = false, updatable = false)
-    private Instant enrolledAt = Instant.now();
+    private Instant enrolledAt;
 
     @Column(name = "ended_at")
     private Instant endedAt;
@@ -40,7 +40,8 @@ public class Enrollment {
     protected Enrollment() {
     }
 
-    public Enrollment(User student, Course course) {
+    private Enrollment(User student, Course course, Instant now) {
+        this.enrolledAt = now;
         this.student = student;
         this.course = course;
     }
@@ -86,10 +87,7 @@ public class Enrollment {
             Course course,
             Instant now
     ) {
-        Enrollment enrollment = new Enrollment(student, course);
-        enrollment.enrolledAt = now;
-
-        return enrollment;
+        return new Enrollment(student, course, now);
     }
 
 }

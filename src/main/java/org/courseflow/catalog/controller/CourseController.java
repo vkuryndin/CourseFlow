@@ -201,6 +201,7 @@ public class CourseController {
         CourseResponse response = courseService.reassignTeacher(
                 courseId,
                 request.teacherId(),
+                request.version(),
                 isAdmin
         );
         LOG.info("admin_action=reassign_teacher actor={} course={} teacher={}",

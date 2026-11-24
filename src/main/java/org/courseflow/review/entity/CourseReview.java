@@ -41,7 +41,7 @@ public class CourseReview {
     private String comment;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
     protected CourseReview() {
     }
@@ -50,8 +50,10 @@ public class CourseReview {
             Course course,
             User student,
             Integer rating,
-            String comment
+            String comment,
+            Instant now
     ) {
+        this.createdAt = now;
         this.course = course;
         this.student = student;
         update(rating, comment);

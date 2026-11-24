@@ -1,5 +1,6 @@
 package org.courseflow.auth.service;
 
+import java.time.Clock;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
@@ -16,6 +17,8 @@ import java.util.Set;
 @Service
 public class SystemAdminBootstrapService {
 
+    private final Clock clock;
+
     private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
@@ -29,8 +32,10 @@ public class SystemAdminBootstrapService {
     public SystemAdminBootstrapService(
             UserRepository userRepository,
             UserAccountRepository userAccountRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            Clock clock
     ) {
+        this.clock = clock;
         this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
@@ -70,7 +75,8 @@ public class SystemAdminBootstrapService {
         User admin = new User(
                 "System Administrator",
                 email,
-                Set.of(UserRole.ADMIN)
+                Set.of(UserRole.ADMIN),
+                clock.instant()
         );
 
         admin.markAsSystemAdmin();
@@ -78,7 +84,8 @@ public class SystemAdminBootstrapService {
 
         UserAccount account = new UserAccount(
                 admin,
-                passwordEncoder.encode(adminPassword)
+                passwordEncoder.encode(adminPassword),
+                clock.instant()
         );
 
         userAccountRepository.saveAndFlush(account);

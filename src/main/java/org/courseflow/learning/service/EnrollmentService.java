@@ -1,5 +1,6 @@
 package org.courseflow.learning.service;
 
+import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.entity.Course;
@@ -24,10 +25,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import java.util.Set;
-import java.time.Instant;
 
 @Service
 public class EnrollmentService {
+
+    private final Clock clock;
 
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
@@ -36,8 +38,10 @@ public class EnrollmentService {
     public EnrollmentService(
             EnrollmentRepository enrollmentRepository,
             CourseRepository courseRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            Clock clock
     ) {
+        this.clock = clock;
         this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
@@ -113,7 +117,7 @@ public class EnrollmentService {
                 Enrollment.createForStudent(
                         student,
                         course,
-                        Instant.now()
+                        clock.instant()
                 );
 
         Enrollment saved =
@@ -154,7 +158,7 @@ public class EnrollmentService {
                         )
                 );
 
-        enrollment.withdraw(Instant.now());
+        enrollment.withdraw(clock.instant());
     }
 
     @Transactional(readOnly = true)

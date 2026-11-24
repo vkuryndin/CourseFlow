@@ -1,5 +1,6 @@
 package org.courseflow.auth.service;
 
+import java.time.Clock;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.dto.LoginRequest;
 import org.courseflow.auth.dto.LoginResponse;
@@ -29,6 +30,8 @@ import java.util.UUID;
 @Service
 public class AuthService {
 
+    private final Clock clock;
+
     private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
     private final AuthSessionRepository authSessionRepository;
@@ -41,8 +44,10 @@ public class AuthService {
             UserAccountRepository userAccountRepository,
             AuthSessionRepository authSessionRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            Clock clock
     ) {
+        this.clock = clock;
         this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
@@ -73,7 +78,8 @@ public class AuthService {
         User user = new User(
                 request.displayName().trim(),
                 email,
-                Set.of(UserRole.STUDENT)
+                Set.of(UserRole.STUDENT),
+                clock.instant()
         );
 
         User savedUser = userRepository.saveAndFlush(user);
@@ -83,7 +89,8 @@ public class AuthService {
 
         UserAccount account = new UserAccount(
                 savedUser,
-                passwordHash
+                passwordHash,
+                clock.instant()
         );
 
         userAccountRepository.saveAndFlush(account);
@@ -137,12 +144,14 @@ public class AuthService {
             throw invalidCredentials();
         }
 
-        Instant expiresAt = Instant.now()
+        Instant now = clock.instant();
+        Instant expiresAt = now
                 .plus(1, ChronoUnit.HOURS);
 
         AuthSession session = new AuthSession(
                 account,
-                expiresAt
+                expiresAt,
+                now
         );
 
         AuthSession savedSession =

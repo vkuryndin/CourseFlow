@@ -1,5 +1,6 @@
 package org.courseflow.content.service;
 
+import org.courseflow.common.exception.EditVersion;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.springframework.security.core.Authentication;
@@ -12,6 +13,7 @@ import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.content.dto.CreateLessonRequest;
 import org.courseflow.content.dto.LessonResponse;
+import org.courseflow.content.dto.LessonSummaryResponse;
 import org.courseflow.content.entity.Lesson;
 import org.courseflow.content.entity.Module;
 import org.courseflow.content.repository.LessonRepository;
@@ -97,7 +99,7 @@ public class LessonService {
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    public PageResponse<LessonResponse> findByModule(
+    public PageResponse<LessonSummaryResponse> findByModule(
             Long courseId,
             Long moduleId,
             int page,
@@ -117,9 +119,8 @@ public class LessonService {
                         .and(Sort.by("id").ascending())
         );
 
-        Page<LessonResponse> result = lessonRepository
-                .findByModule_Id(moduleId, pageable)
-                .map(LessonResponse::from);
+        Page<LessonSummaryResponse> result = lessonRepository
+                .findSummariesByModuleId(moduleId, pageable);
 
         return PageResponse.from(result);
     }
@@ -175,12 +176,15 @@ public class LessonService {
 
         String videoUrl = HttpUrls.optional(request.videoUrl(), "videoUrl");
 
+        EditVersion.require(request.version(), lesson.getVersion());
+
         lesson.updateDetails(
                 request.title().trim(),
                 request.content().trim(),
                 videoUrl
         );
 
+        lessonRepository.flush();
         return LessonResponse.from(lesson);
     }
 
@@ -197,6 +201,8 @@ public class LessonService {
         findModule(courseId, moduleId);
 
         Lesson lesson = findLesson(moduleId, lessonId);
+
+        EditVersion.require(request.version(), lesson.getVersion());
 
         int oldPosition = lesson.getPosition();
         int newPosition = request.position();

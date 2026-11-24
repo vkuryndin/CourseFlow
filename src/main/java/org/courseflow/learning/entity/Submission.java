@@ -20,6 +20,14 @@ public class Submission {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long version;
+
+    public long getVersion() {
+        return version;
+    }
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
@@ -32,7 +40,7 @@ public class Submission {
     private String content;
 
     @Column(name = "submitted_at", nullable = false, updatable = false)
-    private Instant submittedAt = Instant.now();
+    private Instant submittedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -50,8 +58,10 @@ public class Submission {
     public Submission(
             Assignment assignment,
             User student,
-            String content
+            String content,
+            Instant now
     ) {
+        this.submittedAt = now;
         this.assignment = assignment;
         this.student = student;
         this.content = content;

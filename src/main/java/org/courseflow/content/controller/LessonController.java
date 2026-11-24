@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.content.dto.CreateLessonRequest;
 import org.courseflow.content.dto.LessonResponse;
+import org.courseflow.content.dto.LessonSummaryResponse;
 import org.courseflow.content.service.LessonService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -58,7 +59,7 @@ public class LessonController {
     }
 
     @GetMapping
-    public PageResponse<LessonResponse> findByModule(
+    public PageResponse<LessonSummaryResponse> findByModule(
             @PathVariable Long courseId,
             @PathVariable Long moduleId,
             @RequestParam(defaultValue = "0") int page,

@@ -1,6 +1,7 @@
 
 package org.courseflow.security;
 
+import java.time.Clock;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.courseflow.common.api.RequestIdFilter;
@@ -16,15 +17,17 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
-import java.time.Instant;
 
 @Component
 public class SecurityExceptionHandler
         implements AuthenticationEntryPoint, AccessDeniedHandler {
 
+    private final Clock clock;
+
     private final JsonMapper jsonMapper;
 
-    public SecurityExceptionHandler(JsonMapper jsonMapper) {
+    public SecurityExceptionHandler(JsonMapper jsonMapper, Clock clock) {
+        this.clock = clock;
         this.jsonMapper = jsonMapper;
     }
 
@@ -53,7 +56,7 @@ public class SecurityExceptionHandler
     ) throws IOException {
 
         ApiErrorResponse body = new ApiErrorResponse(
-                Instant.now(),
+                clock.instant(),
                 status.value(),
                 status.getReasonPhrase(),
                 status == HttpStatus.UNAUTHORIZED

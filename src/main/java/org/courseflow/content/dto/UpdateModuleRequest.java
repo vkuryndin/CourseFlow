@@ -10,6 +10,10 @@ public record UpdateModuleRequest(
         String title,
 
         @Size(max = 2000)
-        String description
+        String description,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 ) {
 }

@@ -1,8 +1,9 @@
 package org.courseflow.catalog.service;
 
+import org.courseflow.common.exception.EditVersion;
+import java.time.Clock;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.content.repository.LessonSessionRepository;
-import java.time.Instant;
 import jakarta.persistence.criteria.Predicate;
 import org.courseflow.catalog.dto.CourseResponse;
 import org.courseflow.catalog.dto.CreateCourseRequest;
@@ -41,6 +42,8 @@ import org.courseflow.catalog.repository.TagRepository;
 @Service
 public class CourseService {
 
+    private final Clock clock;
+
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of(
                     "id",
@@ -65,8 +68,10 @@ public class CourseService {
             EntityManager entityManager,
             TagRepository tagRepository,
             EnrollmentRepository enrollmentRepository,
-            LessonSessionRepository sessionRepository
+            LessonSessionRepository sessionRepository,
+            Clock clock
     ) {
+        this.clock = clock;
         this.courseRepository = courseRepository;
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
@@ -154,6 +159,8 @@ public class CourseService {
         ensureTeacherNotEnrolled(courseId, teacher.getId());
         ensureScheduleCompatible(course, teacher.getId());
 
+        EditVersion.require(request.version(), course.getVersion());
+
         course.updateDetails(
                 request.title().trim(),
                 request.description().trim(),
@@ -163,6 +170,7 @@ public class CourseService {
                 request.startDate()
         );
 
+        courseRepository.flush();
         return CourseResponse.from(course);
     }
 
@@ -320,7 +328,7 @@ public class CourseService {
     // The target teacher has already been locked by findActiveTeacher.
     private void ensureScheduleCompatible(Course course, Long teacherId) {
         if (course.getStatus() == CourseStatus.ACTIVE && !course.getTeacher().getId().equals(teacherId)
-                && sessionRepository.countReassignmentOverlaps(course.getId(), teacherId, Instant.now()) > 0) {
+                && sessionRepository.countReassignmentOverlaps(course.getId(), teacherId, clock.instant()) > 0) {
             throw new BusinessConflictException("New teacher has overlapping scheduled lessons");
         }
     }
@@ -379,6 +387,7 @@ public class CourseService {
         }
 
         // Hibernate Dirty Checking performs UPDATE.
+        courseRepository.flush();
         return CourseResponse.from(course);
     }
 
@@ -562,6 +571,7 @@ public class CourseService {
     public CourseResponse reassignTeacher(
             Long courseId,
             Long newTeacherId,
+            Long version,
             boolean isAdmin
     ) {
         if (!isAdmin) {
@@ -583,8 +593,10 @@ public class CourseService {
         ensureTeacherNotEnrolled(courseId, newTeacherId);
         ensureScheduleCompatible(course, newTeacherId);
 
+        EditVersion.require(version, course.getVersion());
         course.reassignTeacher(newTeacher);
 
+        courseRepository.flush();
         return CourseResponse.from(course);
     }
 

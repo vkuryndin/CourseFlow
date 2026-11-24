@@ -25,7 +25,11 @@ public record CreateAssignmentRequest(
 
         @NotNull
         @Positive
-        Integer maxScore
+        Integer maxScore,
+
+        @io.swagger.v3.oas.annotations.media.Schema(description = "Required on PUT; omit on POST")
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

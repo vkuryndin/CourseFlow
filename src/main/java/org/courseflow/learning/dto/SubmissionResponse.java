@@ -8,6 +8,7 @@ import java.time.Instant;
 
 public record SubmissionResponse(
         Long id,
+        long version,
         Long assignmentId,
         Long studentId,
         String content,
@@ -19,6 +20,7 @@ public record SubmissionResponse(
     public static SubmissionResponse from(Submission submission) {
         return new SubmissionResponse(
                 submission.getId(),
+                submission.getVersion(),
                 submission.getAssignment().getId(),
                 submission.getStudent().getId(),
                 submission.getContent(),

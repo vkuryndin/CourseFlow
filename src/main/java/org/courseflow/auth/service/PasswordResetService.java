@@ -1,5 +1,6 @@
 package org.courseflow.auth.service;
 
+import java.time.Clock;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.dto.ResetPasswordRequest;
 import org.courseflow.auth.entity.PasswordResetToken;
@@ -33,6 +34,8 @@ import java.util.HexFormat;
 @Service
 public class PasswordResetService {
 
+    private final Clock clock;
+
     private static final Logger log =
             LoggerFactory.getLogger(PasswordResetService.class);
 
@@ -61,8 +64,10 @@ public class PasswordResetService {
             JavaMailSender mailSender,
             @Value("${spring.mail.username}") String senderEmail,
             @Value("${courseflow.password-reset-url}")
-            String resetPageUrl
+            String resetPageUrl,
+            Clock clock
     ) {
+        this.clock = clock;
         this.userAccountRepository = userAccountRepository;
         this.tokenRepository = tokenRepository;
         this.authSessionRepository = authSessionRepository;
@@ -99,7 +104,7 @@ public class PasswordResetService {
             return;
         }
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         // At most one new request per two minutes
         // for this account.
@@ -184,7 +189,7 @@ public class PasswordResetService {
                         )
                 );
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         if (!token.isValid(now)
                 || account.getUser().getStatus()

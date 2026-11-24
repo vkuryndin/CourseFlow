@@ -12,7 +12,11 @@ public record GradeSubmissionRequest(
         Integer score,
 
         @Size(max = 5000)
-        String feedback
+        String feedback,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

@@ -1,6 +1,7 @@
 
 package org.courseflow.dashboard.service;
 
+import java.time.Clock;
 import jakarta.persistence.EntityManager;
 
 import org.courseflow.catalog.entity.CourseStatus;
@@ -24,6 +25,8 @@ import java.util.List;
 @Service
 public class StudentDashboardService {
 
+    private final Clock clock;
+
     private static final int COURSE_LIMIT = 5;
     private static final int EVENT_LIMIT = 10;
 
@@ -32,8 +35,10 @@ public class StudentDashboardService {
 
     public StudentDashboardService(
             EntityManager entityManager,
-            ProgressService progressService
+            ProgressService progressService,
+            Clock clock
     ) {
+        this.clock = clock;
         this.entityManager = entityManager;
         this.progressService = progressService;
     }
@@ -42,7 +47,7 @@ public class StudentDashboardService {
     public StudentDashboardResponse getDashboard(
             Long studentId
     ) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         PageResponse<CourseProgressResponse> courses =
                 progressService.getMyProgress(

@@ -1,15 +1,14 @@
 
 package org.courseflow.security;
 
+import java.time.Clock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -48,16 +47,20 @@ public class JwtConfig {
     @Bean
     public JwtDecoder jwtDecoder(
             SecretKey jwtSigningKey,
-            JwtSessionValidator sessionValidator
+            JwtSessionValidator sessionValidator,
+            Clock clock
     ) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder
                 .withSecretKey(jwtSigningKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
 
+        var timestamps = new org.springframework.security.oauth2.jwt.JwtTimestampValidator();
+        timestamps.setClock(clock);
         decoder.setJwtValidator(
-                new DelegatingOAuth2TokenValidator<Jwt>(
-                        JwtValidators.createDefaultWithIssuer(ISSUER),
+                JwtValidators.createDefaultWithValidators(
+                        timestamps,
+                        new org.springframework.security.oauth2.jwt.JwtIssuerValidator(ISSUER),
                         sessionValidator
                 )
         );

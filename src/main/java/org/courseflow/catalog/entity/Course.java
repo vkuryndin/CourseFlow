@@ -19,6 +19,14 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long version;
+
+    public long getVersion() {
+        return version;
+    }
+
     @Column(nullable = false, length = 200)
     private String title;
 

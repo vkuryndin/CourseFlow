@@ -1,6 +1,7 @@
 
 package org.courseflow.dashboard.service;
 
+import java.time.Clock;
 import jakarta.persistence.EntityManager;
 
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
@@ -22,14 +23,18 @@ import java.util.List;
 @Service
 public class TeacherDashboardService {
 
+    private final Clock clock;
+
     private static final int COURSE_LIMIT = 5;
     private static final int EVENT_LIMIT = 10;
 
     private final EntityManager entityManager;
 
     public TeacherDashboardService(
-            EntityManager entityManager
+            EntityManager entityManager,
+            Clock clock
     ) {
+        this.clock = clock;
         this.entityManager = entityManager;
     }
 
@@ -44,7 +49,7 @@ public class TeacherDashboardService {
     public TeacherDashboardResponse getDashboard(
             Long teacherId
     ) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         CourseCounts courseCounts =
                 countCourses(teacherId);

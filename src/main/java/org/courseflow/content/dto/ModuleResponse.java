@@ -5,6 +5,7 @@ import org.courseflow.content.entity.Module;
 
 public record ModuleResponse(
         Long id,
+        long version,
         Long courseId,
         String title,
         String description,
@@ -14,6 +15,7 @@ public record ModuleResponse(
     public static ModuleResponse from(Module module) {
         return new ModuleResponse(
                 module.getId(),
+                module.getVersion(),
                 module.getCourse().getId(),
                 module.getTitle(),
                 module.getDescription(),

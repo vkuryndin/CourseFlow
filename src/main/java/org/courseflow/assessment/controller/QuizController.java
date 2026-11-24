@@ -22,9 +22,11 @@ import java.util.List;
 public class QuizController {
 
     private final QuizService quizService;
+    private final org.courseflow.assessment.service.QuestionService questionService;
 
-    public QuizController(QuizService quizService) {
+    public QuizController(QuizService quizService, org.courseflow.assessment.service.QuestionService questionService) {
         this.quizService = quizService;
+        this.questionService = questionService;
     }
 
     @PostMapping("/api/modules/{moduleId}/quiz")
@@ -89,7 +91,7 @@ public class QuizController {
         boolean isAdmin = CurrentUser.isAdmin(authentication);
 
         QuestionResponse.ManagementResponse response =
-                quizService.createQuestion(
+                questionService.createQuestion(
                         quizId,
                         request,
                         CurrentUser.id(jwt),
@@ -107,7 +109,7 @@ public class QuizController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        return quizService.getQuestions(
+        return questionService.getQuestions(
                 quizId,
                 CurrentUser.id(jwt),
                 authentication
@@ -123,7 +125,7 @@ public class QuizController {
     ) {
         boolean isAdmin = CurrentUser.isAdmin(authentication);
 
-        return quizService.getQuestionsForManagement(
+        return questionService.getQuestionsForManagement(
                 quizId,
                 CurrentUser.id(jwt),
                 isAdmin
@@ -175,7 +177,7 @@ public class QuizController {
     ) {
         boolean isAdmin = CurrentUser.isAdmin(authentication);
 
-        return quizService.updateQuestion(
+        return questionService.updateQuestion(
                 quizId,
                 questionId,
                 request,
@@ -194,7 +196,7 @@ public class QuizController {
     ) {
         boolean isAdmin = CurrentUser.isAdmin(authentication);
 
-        quizService.deleteQuestion(
+        questionService.deleteQuestion(
                 quizId,
                 questionId,
                 CurrentUser.id(jwt),

@@ -10,7 +10,11 @@ import java.util.Set;
 public record UpdateUserRolesRequest(
 
         @NotEmpty
-        Set<@NotNull UserRole> roles
+        Set<@NotNull UserRole> roles,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

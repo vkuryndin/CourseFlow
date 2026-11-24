@@ -15,6 +15,14 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long version;
+
+    public long getVersion() {
+        return version;
+    }
+
     @Column(name = "display_name", nullable = false, length = 120)
     private String displayName;
 
@@ -29,7 +37,7 @@ public class User {
     private boolean systemAdmin = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
@@ -50,7 +58,8 @@ public class User {
     protected User() {
     }
 
-    public User(String displayName, String email, Set<UserRole> roles) {
+    public User(String displayName, String email, Set<UserRole> roles, Instant now) {
+        this.createdAt = now;
         this.displayName = displayName;
         this.email = email;
         this.roles.addAll(roles);
@@ -166,7 +175,7 @@ public class User {
     }
 
 
-    public void markDeleted() {
+    public void markDeleted(Instant now) {
         if (systemAdmin) {
             throw new IllegalStateException(
                     "Cannot delete system administrator"
@@ -180,7 +189,7 @@ public class User {
         }
 
         this.status = UserStatus.DELETED;
-        this.deletedAt = java.time.Instant.now();
+        this.deletedAt = now;
         this.displayName = "Deleted user";
         this.email = null;
         this.roles.clear();

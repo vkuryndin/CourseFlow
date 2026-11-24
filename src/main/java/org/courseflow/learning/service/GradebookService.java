@@ -1,8 +1,8 @@
 package org.courseflow.learning.service;
 
+import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
-import java.time.Instant;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import org.courseflow.catalog.entity.Course;
@@ -28,13 +28,17 @@ import java.util.Map;
 @Service
 public class GradebookService {
 
+    private final Clock clock;
+
     private final CourseRepository courseRepository;
     private final EntityManager entityManager;
 
     public GradebookService(
             CourseRepository courseRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            Clock clock
     ) {
+        this.clock = clock;
         this.courseRepository = courseRepository;
         this.entityManager = entityManager;
     }
@@ -525,7 +529,7 @@ public class GradebookService {
                     )
                     .setParameter("studentIds", studentIds)
                     .setParameter("quizIds", quizIds)
-                    .setParameter("now", Instant.now())
+                    .setParameter("now", clock.instant())
                     .getResultList();
 
             for (Object[] row : rows) {

@@ -1,5 +1,6 @@
 package org.courseflow.assessment.service;
 
+import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.assessment.repository.QuestionRepository;
 import org.courseflow.common.api.Pagination;
@@ -41,6 +42,8 @@ import org.springframework.data.domain.PageRequest;
 @Service
 public class QuizAttemptService {
 
+    private final Clock clock;
+
     private final QuizRepository quizRepository;
     private final QuizSubmissionRepository quizSubmissionRepository;
     private final CourseRepository courseRepository;
@@ -56,8 +59,10 @@ public class QuizAttemptService {
             EnrollmentRepository enrollmentRepository,
             UserRepository userRepository,
             QuestionRepository questionRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            Clock clock
     ) {
+        this.clock = clock;
         this.quizRepository = quizRepository;
         this.quizSubmissionRepository = quizSubmissionRepository;
         this.courseRepository = courseRepository;
@@ -110,7 +115,7 @@ public class QuizAttemptService {
 
         Optional<QuizSubmission> latest =
                 findLatestAttempt(quizId, studentId);
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         int usedAttempts = 0;
 
@@ -167,7 +172,7 @@ public class QuizAttemptService {
                 studentId
         );
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         if (attempt.getStatus()
                 == QuizSubmissionStatus.IN_PROGRESS
@@ -272,7 +277,7 @@ public class QuizAttemptService {
             );
         }
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         if (!attempt.isActive(now)) {
             attempt.expire(now);
@@ -293,7 +298,7 @@ public class QuizAttemptService {
         int score = QuizGrader.score(questions, selectedAnswers);
 
         // Check deadline again before saving the result.
-        now = Instant.now();
+        now = clock.instant();
 
         if (!attempt.isActive(now)) {
             attempt.expire(now);
@@ -398,7 +403,7 @@ public class QuizAttemptService {
                 studentId
         );
 
-        attempt.expire(Instant.now());
+        attempt.expire(clock.instant());
 
         return buildAttemptDetail(attempt);
     }
@@ -430,7 +435,7 @@ public class QuizAttemptService {
             );
         }
 
-        attempt.expire(Instant.now());
+        attempt.expire(clock.instant());
 
         return buildAttemptDetail(attempt);
     }
@@ -562,7 +567,7 @@ public class QuizAttemptService {
                 .setParameter("expired", QuizSubmissionStatus.EXPIRED)
                 .setParameter("inProgress", QuizSubmissionStatus.IN_PROGRESS)
                 .setParameter("quizId", quizId)
-                .setParameter("now", Instant.now());
+                .setParameter("now", clock.instant());
         if (studentId != null) {
             query.setParameter("studentId", studentId);
         }

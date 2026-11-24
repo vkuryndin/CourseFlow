@@ -1,6 +1,7 @@
 
 package org.courseflow.security;
 
+import java.time.Clock;
 import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.identity.entity.UserStatus;
 
@@ -11,7 +12,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.UUID;
 import java.util.List;
 
@@ -19,11 +19,15 @@ import java.util.List;
 public class JwtSessionValidator
         implements OAuth2TokenValidator<Jwt> {
 
+    private final Clock clock;
+
     private final AuthSessionRepository sessionRepository;
 
     public JwtSessionValidator(
-            AuthSessionRepository sessionRepository
+            AuthSessionRepository sessionRepository,
+            Clock clock
     ) {
+        this.clock = clock;
         this.sessionRepository = sessionRepository;
     }
 
@@ -55,7 +59,8 @@ public class JwtSessionValidator
         }
 
         List<String> currentRoles = sessionRepository
-                .findValidSessionRoles(id, userId, UserStatus.ACTIVE, Instant.now())
+                .findValidSessionRoles(id, userId, UserStatus.ACTIVE, clock.instant(),
+                        Boolean.TRUE.equals(jwt.getClaimAsBoolean("passwordChangeRequired")))
                 .stream()
                 .map(Enum::name)
                 .sorted()

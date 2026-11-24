@@ -1,6 +1,7 @@
 
 package org.courseflow.common.exception;
 
+import java.time.Clock;
 import jakarta.servlet.http.HttpServletRequest;
 import org.courseflow.common.api.RequestIdFilter;
 import org.slf4j.Logger;
@@ -26,11 +27,16 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.security.access.AccessDeniedException;
-import java.time.Instant;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private final Clock clock;
+
+    public GlobalExceptionHandler(Clock clock) {
+        this.clock = clock;
+    }
 
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -279,7 +285,7 @@ public class GlobalExceptionHandler {
             String code
     ) {
         ApiErrorResponse body = new ApiErrorResponse(
-                Instant.now(),
+                clock.instant(),
                 status.value(),
                 status.getReasonPhrase(),
                 message,

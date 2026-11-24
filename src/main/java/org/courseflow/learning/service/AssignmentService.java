@@ -1,5 +1,7 @@
 package org.courseflow.learning.service;
 
+import org.courseflow.common.exception.EditVersion;
+import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.springframework.transaction.annotation.Isolation;
@@ -24,11 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
-import java.time.Instant;
 import java.util.Set;
 
 @Service
 public class AssignmentService {
+
+    private final Clock clock;
 
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of("id", "title", "dueAt", "maxScore");
@@ -44,8 +47,10 @@ public class AssignmentService {
             LessonRepository lessonRepository,
             CourseRepository courseRepository,
             ContentAccessService contentAccessService,
-            EntityManager entityManager
+            EntityManager entityManager,
+            Clock clock
     ) {
+        this.clock = clock;
         this.assignmentRepository = assignmentRepository;
         this.lessonRepository = lessonRepository;
         this.courseRepository = courseRepository;
@@ -196,6 +201,8 @@ public class AssignmentService {
 
         requireFutureDeadline(request);
 
+        EditVersion.require(request.version(), assignment.getVersion());
+
         assignment.updateDetails(
                 request.title().trim(),
                 request.description().trim(),
@@ -203,6 +210,7 @@ public class AssignmentService {
                 request.maxScore()
         );
 
+        assignmentRepository.flush();
         return AssignmentResponse.from(assignment);
     }
 
@@ -285,7 +293,7 @@ public class AssignmentService {
     }
 
     private void requireFutureDeadline(CreateAssignmentRequest request) {
-        if (!request.dueAt().isAfter(Instant.now())) {
+        if (!request.dueAt().isAfter(clock.instant())) {
             throw new BadRequestException("Assignment deadline must be in the future");
         }
     }

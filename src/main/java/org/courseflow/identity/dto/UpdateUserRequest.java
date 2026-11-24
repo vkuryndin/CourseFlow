@@ -14,7 +14,11 @@ public record UpdateUserRequest(
         @NotBlank
         @Email
         @Size(max = 254)
-        String email
+        String email,
+
+        @jakarta.validation.constraints.NotNull
+        @jakarta.validation.constraints.PositiveOrZero
+        Long version
 
 ) {
 }

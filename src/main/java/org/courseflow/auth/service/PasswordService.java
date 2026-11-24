@@ -1,5 +1,6 @@
 package org.courseflow.auth.service;
 
+import java.time.Clock;
 import org.courseflow.auth.dto.ChangePasswordRequest;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
@@ -13,10 +14,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 
 @Service
 public class PasswordService {
+
+    private final Clock clock;
 
     private final UserAccountRepository userAccountRepository;
     private final AuthSessionRepository authSessionRepository;
@@ -27,8 +29,10 @@ public class PasswordService {
             UserAccountRepository userAccountRepository,
             AuthSessionRepository authSessionRepository,
             PasswordResetTokenRepository tokenRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            Clock clock
     ) {
+        this.clock = clock;
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
         this.tokenRepository = tokenRepository;
@@ -91,7 +95,7 @@ public class PasswordService {
         // Previously issued reset links must also stop working.
         tokenRepository.invalidateUnusedTokensForAccount(
                 account.getId(),
-                Instant.now()
+                clock.instant()
         );
 
         authSessionRepository.revokeActiveSessionsByUserId(userId);
