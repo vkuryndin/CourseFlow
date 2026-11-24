@@ -5,7 +5,7 @@ spring:
     password: ${courseflow.test.db-password}
     hikari:
       connection-timeout: 5000
-      maximum-pool-size: 10
+      maximum-pool-size: 20
 
   jpa:
     open-in-view: false

@@ -165,6 +165,7 @@ final class EndpointAuthorization {
             AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         auth.requestMatchers(HttpMethod.POST, "/api/auth/logout", "/api/auth/change-password").authenticated();
         auth.requestMatchers(HttpMethod.GET, "/api/system/status").authenticated();
+        auth.requestMatchers(HttpMethod.GET, "/api/system/info").hasRole("ADMIN");
     }
 
 }

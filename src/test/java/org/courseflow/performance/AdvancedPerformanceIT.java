@@ -54,7 +54,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
     private static final int AUTH_USERS = 100;
     private static final int COURSE_COUNT = 100;
     private static final int STUDY_COURSES = 10;
-    private static final String LESSON_CONTENT = "Advanced performance lesson content ".repeat(20);
+    private static final String LESSON_CONTENT = "Advanced performance lesson content ".repeat(20).trim();
 
     @Autowired private AuthService auth;
     @Autowired private JdbcTemplate jdbc;

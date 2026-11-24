@@ -53,8 +53,43 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("integration", "performance")
+    }
     finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.register<Test>("integrationTest") {
+    group = "verification"
+    description = "Runs integration tests with PostgreSQL Testcontainers"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("integration")
+        excludeTags("performance")
+    }
+
+    shouldRunAfter(tasks.test)
+    outputs.upToDateWhen { false }
+}
+
+tasks.register<Test>("performanceTest") {
+    group = "verification"
+    description = "Runs performance and load tests"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("performance")
+    }
+
+    systemProperty("courseflow.performance", "true")
+
+    shouldRunAfter(tasks.named("integrationTest"))
+    outputs.upToDateWhen { false }
 }
 
 tasks.jacocoTestReport {
