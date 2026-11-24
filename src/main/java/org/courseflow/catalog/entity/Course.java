@@ -181,14 +181,12 @@ public class Course {
             String newTitle,
             String newDescription,
             Category newCategory,
-            User newTeacher,
             int newDuration,
             LocalDate newStartDate
     ) {
         this.title = newTitle;
         this.description = newDescription;
         this.category = newCategory;
-        this.teacher = newTeacher;
         this.duration = newDuration;
         this.startDate = newStartDate;
     }

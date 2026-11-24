@@ -37,6 +37,8 @@ public interface CourseRepository
 
     boolean existsByTeacher_Id(Long teacherId);
 
+    boolean existsByTeacher_IdAndStatus(Long teacherId, CourseStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Course c where c.id = :id")
     Optional<Course> findByIdForUpdate(@Param("id") Long id);

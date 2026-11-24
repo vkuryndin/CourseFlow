@@ -1,6 +1,8 @@
 package org.courseflow.content.service;
 
 import org.courseflow.common.exception.EditVersion;
+import java.time.Clock;
+import java.time.Instant;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.identity.repository.UserRepository;
@@ -35,19 +37,22 @@ public class LessonSessionService {
     private final CourseRepository courseRepository;
     private final ContentAccessService contentAccessService;
     private final UserRepository userRepository;
+    private final Clock clock;
 
     public LessonSessionService(
             LessonSessionRepository sessionRepository,
             LessonRepository lessonRepository,
             ContentAccessService contentAccessService,
             CourseRepository courseRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            Clock clock
     ) {
         this.sessionRepository = sessionRepository;
         this.lessonRepository = lessonRepository;
         this.courseRepository = courseRepository;
         this.contentAccessService = contentAccessService;
         this.userRepository = userRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -57,7 +62,7 @@ public class LessonSessionService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        validateTimeRange(request);
+        validateInterval(request.startsAt(), request.endsAt());
 
         Long courseId = findCourseId(lessonId);
 
@@ -78,6 +83,7 @@ public class LessonSessionService {
 
         Long teacherId = course.getTeacher().getId();
         lockTeacher(teacherId);
+        requireFutureStart(request.startsAt());
         Lesson lesson = findLesson(lessonId);
         checkNoOverlap(teacherId, null, request.startsAt(), request.endsAt());
 
@@ -165,16 +171,6 @@ public class LessonSessionService {
         return url;
     }
 
-    private void validateTimeRange(
-            CreateLessonSessionRequest request
-    ) {
-        if (!request.startsAt().isBefore(request.endsAt())) {
-            throw new BadRequestException(
-                    "Session start time must be before end time"
-            );
-        }
-    }
-
     @Transactional
     public LessonSessionResponse update(
             Long lessonId,
@@ -188,6 +184,8 @@ public class LessonSessionService {
         );
 
         validateInterval(request.startsAt(), request.endsAt());
+        requireNotStarted(session);
+        requireFutureStart(request.startsAt());
 
         checkNoOverlap(
                 session.getLesson().getModule().getCourse().getTeacher().getId(),
@@ -224,6 +222,8 @@ public class LessonSessionService {
         );
 
         validateInterval(request.startsAt(), request.endsAt());
+        requireNotStarted(session);
+        requireFutureStart(request.startsAt());
 
         checkNoOverlap(
                 session.getLesson().getModule().getCourse().getTeacher().getId(),
@@ -254,6 +254,7 @@ public class LessonSessionService {
                 lessonId, sessionId, currentUserId, isAdmin
         );
 
+        requireNotStarted(session);
         session.getLesson().removeSession(session);
 
         sessionRepository.delete(session);
@@ -290,6 +291,18 @@ public class LessonSessionService {
                                 "Lesson session not found: " + sessionId
                         )
                 );
+    }
+
+    private void requireFutureStart(Instant startsAt) {
+        if (!startsAt.isAfter(clock.instant())) {
+            throw new BadRequestException("Session start must be in the future");
+        }
+    }
+
+    private void requireNotStarted(LessonSession session) {
+        if (!session.getStartsAt().isAfter(clock.instant())) {
+            throw new BusinessConflictException("A session that has already started cannot be changed or deleted");
+        }
     }
 
     private void validateInterval(

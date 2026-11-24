@@ -34,6 +34,8 @@ public interface LessonSessionRepository
 
     boolean existsByLesson_Id(Long lessonId);
 
+    boolean existsByLesson_Module_Course_IdAndEndsAtGreaterThan(Long courseId, Instant now);
+
     Optional<LessonSession> findByIdAndLesson_Id(
             Long id,
             Long lessonId

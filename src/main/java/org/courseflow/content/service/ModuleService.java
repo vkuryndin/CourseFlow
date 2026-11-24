@@ -171,36 +171,12 @@ public class ModuleService {
             return ModuleResponse.from(module);
         }
 
-        var occupying = moduleRepository
-                .findByCourse_IdAndPosition(courseId, newPosition);
-
-        if (occupying.isPresent()) {
-            Module other = occupying.get();
-
-            int maxPosition = moduleRepository
-                    .findMaxPositionByCourseId(courseId);
-
-            if (maxPosition == Integer.MAX_VALUE) {
-                throw new BusinessConflictException(
-                        "Cannot reorder modules: position limit reached"
-                );
-            }
-
-            // Move the other module to a temporary free position.
-            other.changePosition(maxPosition + 1);
-            moduleRepository.flush();
-
-            // Move the requested module to its target position.
-            module.changePosition(newPosition);
-            moduleRepository.flush();
-
-            // Return the other module to the vacated position.
-            other.changePosition(oldPosition);
-            moduleRepository.flush();
-        } else {
-            module.changePosition(newPosition);
-            moduleRepository.flush();
-        }
+        var affected = moduleRepository.findByCourse_IdAndPositionBetweenOrderByPositionAsc(
+                courseId, Math.min(oldPosition, newPosition), Math.max(oldPosition, newPosition));
+        PositionMover.move(module, oldPosition, newPosition, affected,
+                Module::getPosition, Module::changePosition,
+                () -> moduleRepository.findMaxPositionByCourseId(courseId),
+                moduleRepository::flush);
 
         return ModuleResponse.from(module);
     }

@@ -31,7 +31,7 @@ import java.util.Map;
 public class GradebookService {
     public record StudentProjection(Long studentId, String name, org.courseflow.identity.entity.UserStatus status,
                                     EnrollmentStatus enrollmentStatus) {}
-    public record AssignmentColumn(Long id, String title, Long moduleId, String moduleTitle, Integer maxScore) {}
+    public record AssignmentColumn(Long id, String title, Long moduleId, String moduleTitle, Integer maxScore, Instant dueAt) {}
     public record QuizColumn(Long id, String title, Long moduleId, String moduleTitle) {}
     public record AssignmentResult(Long studentId, Long assignmentId, SubmissionStatus status, Integer score) {}
     public record QuizResult(Long studentId, Long quizId, Long attemptsUsed, Integer bestScore, Long activeAttempts) {}
@@ -170,18 +170,16 @@ public class GradebookService {
 
         long total = countQuery.getSingleResult();
 
-        List<Column> columns = loadColumns(
-                courseId,
-                moduleId,
-                type
-        );
+        Map<Long, Instant> assignmentDeadlines = new HashMap<>();
+        List<Column> columns = loadColumns(courseId, moduleId, type, assignmentDeadlines);
+        Instant now = clock.instant();
 
         List<Long> studentIds = studentRows
                 .stream()
                 .map(StudentProjection::studentId)
                 .toList();
 
-        Map<CellKey, Cell> cells = loadResults(studentIds, columns, clock.instant());
+        Map<CellKey, Cell> cells = loadResults(studentIds, columns, now);
 
         List<StudentRow> result = new ArrayList<>();
 
@@ -193,7 +191,7 @@ public class GradebookService {
                     .stream()
                     .map(column -> {
                         Cell cell = cells.get(new CellKey(studentId, column.id(), column.type()));
-                        return cell == null ? emptyCell(column) : cell;
+                        return cell == null ? emptyCell(column, assignmentDeadlines, now) : cell;
                     })
                     .toList();
 
@@ -338,7 +336,8 @@ public class GradebookService {
     private List<Column> loadColumns(
             Long courseId,
             Long moduleId,
-            AssessmentType type
+            AssessmentType type,
+            Map<Long, Instant> assignmentDeadlines
     ) {
         List<Column> columns = new ArrayList<>();
 
@@ -350,7 +349,8 @@ public class GradebookService {
                            a.title,
                            a.lesson.module.id,
                            a.lesson.module.title,
-                           a.maxScore
+                           a.maxScore,
+                           a.dueAt
                     FROM Assignment a
                     WHERE a.lesson.module.course.id = :courseId
                     """;
@@ -377,6 +377,7 @@ public class GradebookService {
             }
 
             for (AssignmentColumn row : query.getResultList()) {
+                assignmentDeadlines.put(row.id(), row.dueAt());
 
                 columns.add(new Column(
                         row.id(),
@@ -555,7 +556,7 @@ public class GradebookService {
         return cells;
     }
 
-    private Cell emptyCell(Column column) {
+    private Cell emptyCell(Column column, Map<Long, Instant> assignmentDeadlines, Instant now) {
 
         boolean isQuiz =
                 column.type() == AssessmentType.QUIZ;
@@ -563,7 +564,7 @@ public class GradebookService {
         return new Cell(
                 column.id(),
                 column.type(),
-                isQuiz ? "NOT_STARTED" : "NOT_SUBMITTED",
+                isQuiz ? "NOT_STARTED" : AssessmentStatuses.assignment(null, assignmentDeadlines.get(column.id()), now),
                 null,
                 isQuiz ? 0L : null
         );

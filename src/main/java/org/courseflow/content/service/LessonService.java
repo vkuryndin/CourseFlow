@@ -211,39 +211,12 @@ public class LessonService {
             return LessonResponse.from(lesson);
         }
 
-        var occupying = lessonRepository
-                .findByModule_IdAndPosition(moduleId, newPosition);
-
-        if (occupying.isPresent()) {
-            Lesson other = occupying.get();
-
-            int maxPosition = lessonRepository
-                    .findFirstByModule_IdOrderByPositionDescIdDesc(moduleId)
-                    .map(Lesson::getPosition)
-                    .orElse(0);
-
-            if (maxPosition == Integer.MAX_VALUE) {
-                throw new BusinessConflictException(
-                        "Cannot reorder lessons: position limit reached"
-                );
-            }
-
-            // Temporarily move the other lesson to a free position.
-            other.changePosition(maxPosition + 1);
-            lessonRepository.flush();
-
-            // Move the requested lesson to its new position.
-            lesson.changePosition(newPosition);
-            lessonRepository.flush();
-
-            // Move the other lesson to the vacated position.
-            other.changePosition(oldPosition);
-            lessonRepository.flush();
-
-        } else {
-            lesson.changePosition(newPosition);
-            lessonRepository.flush();
-        }
+        var affected = lessonRepository.findByModule_IdAndPositionBetweenOrderByPositionAsc(
+                moduleId, Math.min(oldPosition, newPosition), Math.max(oldPosition, newPosition));
+        PositionMover.move(lesson, oldPosition, newPosition, affected,
+                Lesson::getPosition, Lesson::changePosition,
+                () -> lessonRepository.findFirstByModule_IdOrderByPositionDescIdDesc(moduleId).map(Lesson::getPosition).orElse(0),
+                lessonRepository::flush);
 
         return LessonResponse.from(lesson);
     }

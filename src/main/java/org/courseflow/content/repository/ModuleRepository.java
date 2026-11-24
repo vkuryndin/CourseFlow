@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
+import java.util.List;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -47,4 +48,6 @@ public interface ModuleRepository
 
 
 
+    List<Module> findByCourse_IdAndPositionBetweenOrderByPositionAsc(
+            Long courseId, Integer from, Integer to);
 }

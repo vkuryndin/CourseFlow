@@ -129,36 +129,20 @@ public class CourseService {
                         )
                 );
 
-        // A teacher may edit only their own course
-        // and may not reassign it to someone else.
-        if (!isAdmin) {
-            boolean ownsCourse = currentUserId.equals(
-                    course.getTeacher().getId()
-            );
-
-            boolean keepsOwnership = currentUserId.equals(
-                    request.teacherId()
-            );
-
-            if (!ownsCourse || !keepsOwnership) {
-                throw new AccessDeniedException(
-                        "Teacher can update only own courses "
-                                + "without reassignment"
-                );
-            }
-        }
-
+        checkCourseOwner(course, currentUserId, isAdmin);
         CourseAccessPolicy.requireActive(course,
                 "Cannot edit an archived course");
 
-        Category category =
-                findCategory(request.categoryId());
+        // Keep the existing request field for compatibility, but prohibit
+        // ownership changes outside the audited /teacher endpoint.
+        if (!course.getTeacher().getId().equals(request.teacherId())) {
+            if (!isAdmin) {
+                throw new AccessDeniedException("Teacher cannot reassign a course");
+            }
+            throw new BusinessConflictException("Use the dedicated teacher reassignment endpoint");
+        }
 
-        User teacher =
-                findActiveTeacher(request.teacherId());
-
-        ensureTeacherNotEnrolled(courseId, teacher.getId());
-        ensureScheduleCompatible(course, teacher.getId());
+        Category category = findCategory(request.categoryId());
 
         EditVersion.require(request.version(), course.getVersion());
 
@@ -166,7 +150,6 @@ public class CourseService {
                 request.title().trim(),
                 request.description().trim(),
                 category,
-                teacher,
                 request.duration(),
                 request.startDate()
         );
@@ -381,6 +364,11 @@ public class CourseService {
 
         // Repeated archival is idempotent.
         if (course.getStatus() != CourseStatus.ARCHIVED) {
+            if (sessionRepository.existsByLesson_Module_Course_IdAndEndsAtGreaterThan(
+                    courseId, clock.instant())) {
+                throw new BusinessConflictException(
+                        "Cancel future sessions and wait for ongoing sessions to finish before archiving");
+            }
             course.archive();
         }
 

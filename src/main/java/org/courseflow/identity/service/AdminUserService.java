@@ -8,6 +8,7 @@ import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.PasswordResetTokenRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.catalog.repository.CourseRepository;
+import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
@@ -232,6 +233,13 @@ public class AdminUserService {
         if (user.getStatus() == UserStatus.ACTIVE
                 && user.getRoles().contains(UserRole.ADMIN)) {
             ensureAnotherActiveAdminExists();
+        }
+
+        // Course creation and reassignment lock the target teacher, too.
+        if (user.getStatus() == UserStatus.ACTIVE
+                && courseRepository.existsByTeacher_IdAndStatus(userId, CourseStatus.ACTIVE)) {
+            throw new BusinessConflictException(
+                    "Reassign or archive active courses before deactivating their teacher");
         }
 
         user.deactivate();

@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
+import java.util.List;
 
 public interface LessonRepository
         extends JpaRepository<Lesson, Long> {
@@ -55,4 +56,6 @@ public interface LessonRepository
     @Query("SELECT l.module.course.id FROM Lesson l WHERE l.id = :lessonId")
     Optional<Long> findCourseId(@Param("lessonId") Long lessonId);
 
+    List<Lesson> findByModule_IdAndPositionBetweenOrderByPositionAsc(
+            Long moduleId, Integer from, Integer to);
 }

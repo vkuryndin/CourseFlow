@@ -120,8 +120,10 @@ final class QuizGrader {
             }
         }
 
-        return (int) Math.round(
-                correctQuestions * 100.0 / questions.size()
-        );
+        return percentage(correctQuestions, questions.size());
+    }
+
+    static int percentage(int correctQuestions, int totalQuestions) {
+        return totalQuestions == 0 ? 0 : (int) (100L * correctQuestions / totalQuestions);
     }
 }
