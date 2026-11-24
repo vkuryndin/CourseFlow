@@ -1,13 +1,13 @@
 package org.courseflow.assessment.service;
 
+import org.courseflow.learning.service.EnrollmentAccess;
+import org.courseflow.identity.service.StudentAccess;
 import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.assessment.repository.QuestionRepository;
 import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
 import org.springframework.transaction.annotation.Isolation;
-import org.courseflow.identity.entity.UserRole;
-import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.assessment.dto.QuizAttemptResponse;
 import org.courseflow.assessment.entity.Quiz;
 import org.courseflow.assessment.entity.QuizSubmission;
@@ -19,8 +19,6 @@ import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.repository.UserRepository;
-import org.courseflow.learning.repository.EnrollmentRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,8 +45,8 @@ public class QuizAttemptService {
     private final QuizRepository quizRepository;
     private final QuizSubmissionRepository quizSubmissionRepository;
     private final CourseRepository courseRepository;
-    private final EnrollmentRepository enrollmentRepository;
-    private final UserRepository userRepository;
+    private final EnrollmentAccess enrollmentAccess;
+    private final StudentAccess studentAccess;
     private final QuestionRepository questionRepository;
     private final EntityManager entityManager;
 
@@ -56,8 +54,8 @@ public class QuizAttemptService {
             QuizRepository quizRepository,
             QuizSubmissionRepository quizSubmissionRepository,
             CourseRepository courseRepository,
-            EnrollmentRepository enrollmentRepository,
-            UserRepository userRepository,
+            EnrollmentAccess enrollmentAccess,
+            StudentAccess studentAccess,
             QuestionRepository questionRepository,
             EntityManager entityManager,
             Clock clock
@@ -66,17 +64,16 @@ public class QuizAttemptService {
         this.quizRepository = quizRepository;
         this.quizSubmissionRepository = quizSubmissionRepository;
         this.courseRepository = courseRepository;
-        this.enrollmentRepository = enrollmentRepository;
-        this.userRepository = userRepository;
+        this.enrollmentAccess = enrollmentAccess;
+        this.studentAccess = studentAccess;
         this.questionRepository = questionRepository;
         this.entityManager = entityManager;
     }
 
-    public record StartResult(
-            QuizAttemptResponse attempt,
-            boolean created
-    ) {
-    }
+    public sealed interface StartResult permits Started, Existing, LimitReached {}
+    public record Started(QuizAttemptResponse attempt) implements StartResult {}
+    public record Existing(QuizAttemptResponse attempt) implements StartResult {}
+    public record LimitReached() implements StartResult {}
 
     @Transactional
     public StartResult start(
@@ -125,10 +122,7 @@ public class QuizAttemptService {
             usedAttempts = previous.getAttemptNumber();
 
             if (previous.isActive(now)) {
-                return new StartResult(
-                        QuizAttemptResponse.from(previous),
-                        false
-                );
+                return new Existing(QuizAttemptResponse.from(previous));
             }
 
             if (previous.getStatus()
@@ -139,7 +133,7 @@ public class QuizAttemptService {
         }
 
         if (usedAttempts >= quiz.getMaxAttempts()) {
-            return new StartResult(null, false);
+            return new LimitReached();
         }
 
         QuizSubmission attempt = new QuizSubmission(
@@ -152,10 +146,7 @@ public class QuizAttemptService {
         QuizSubmission saved =
                 quizSubmissionRepository.saveAndFlush(attempt);
 
-        return new StartResult(
-                QuizAttemptResponse.from(saved),
-                true
-        );
+        return new Started(QuizAttemptResponse.from(saved));
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -202,24 +193,11 @@ public class QuizAttemptService {
             Long courseId,
             Long studentId
     ) {
-        boolean active = enrollmentRepository.hasActiveEnrollment(studentId, courseId);
-
-        if (!active) {
-            throw new AccessDeniedException(
-                    "Active enrollment is required to take Quiz"
-            );
-        }
+        enrollmentAccess.requireActive(studentId, courseId, "Active enrollment is required to take Quiz");
     }
 
     private User lockActiveStudent(Long studentId) {
-        User student = userRepository.findByIdForUpdate(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Student not found: " + studentId));
-        if (student.getStatus() != UserStatus.ACTIVE
-                || !student.getRoles().contains(UserRole.STUDENT)) {
-            throw new AccessDeniedException("Active STUDENT is required");
-        }
-        return student;
+        return studentAccess.lockActive(studentId);
     }
 
     private Optional<QuizSubmission> findLatestAttempt(Long quizId, Long studentId) {

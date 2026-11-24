@@ -1,13 +1,12 @@
 package org.courseflow.content.service;
 
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.EditVersion;
-import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Isolation;
 import org.courseflow.common.validation.HttpUrls;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
@@ -33,7 +32,7 @@ public class LessonService {
 
     private final LessonRepository lessonRepository;
     private final ModuleRepository moduleRepository;
-    private final CourseRepository courseRepository;
+    private final CourseGuard courseGuard;
     private final ContentAccessService contentAccessService;
     private final EntityManager entityManager;
 
@@ -41,12 +40,12 @@ public class LessonService {
             LessonRepository lessonRepository,
             ModuleRepository moduleRepository,
             ContentAccessService contentAccessService,
-            CourseRepository courseRepository,
+            CourseGuard courseGuard,
             EntityManager entityManager
     ) {
         this.lessonRepository = lessonRepository;
         this.moduleRepository = moduleRepository;
-        this.courseRepository = courseRepository;
+        this.courseGuard = courseGuard;
         this.contentAccessService = contentAccessService;
         this.entityManager = entityManager;
     }
@@ -60,18 +59,7 @@ public class LessonService {
             boolean isAdmin
     ) {
         // Lock the parent course to serialize content changes.
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
-                "Teacher can manage only own courses");
-
-        CourseAccessPolicy.requireActive(course,
+        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
                 "Cannot add lessons to an archived course");
 
         Module module = findModule(courseId, moduleId);
@@ -292,18 +280,7 @@ public class LessonService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
-                "Teacher can manage only own courses");
-
-        CourseAccessPolicy.requireActive(course,
+        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
                 "Cannot modify lessons of archived course");
 
         return course;

@@ -1,5 +1,6 @@
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.PasswordBytes;
 import java.time.Clock;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.dto.LoginRequest;
@@ -10,7 +11,6 @@ import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
-import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.courseflow.auth.repository.AccountPasswordSnapshot;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
@@ -33,6 +32,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final Clock clock;
+    private final AccountCreator accountCreator;
     private final TransactionTemplate transaction;
 
     private final UserRepository userRepository;
@@ -49,9 +49,11 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             Clock clock,
-            PlatformTransactionManager transactionManager
+            PlatformTransactionManager transactionManager,
+            AccountCreator accountCreator
     ) {
         this.clock = clock;
+        this.accountCreator = accountCreator;
         this.transaction = new TransactionTemplate(transactionManager);
         this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
@@ -63,9 +65,7 @@ public class AuthService {
 
     public RegistrationResponse register(RegistrationRequest request) {
         String email = EmailAddresses.normalize(request.email());
-        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException("Password must not exceed 72 UTF-8 bytes");
-        }
+        PasswordBytes.requireFits(request.password(), "Password");
         // Fast duplicate check; the unique database constraint is authoritative.
         if (userRepository.existsByEmail(email)) {
             throw new BusinessConflictException("Email is already registered");
@@ -75,19 +75,15 @@ public class AuthService {
             if (userRepository.existsByEmail(email)) {
                 throw new BusinessConflictException("Email is already registered");
             }
-            User user = new User(request.displayName().trim(), email,
-                    Set.of(UserRole.STUDENT), clock.instant());
-            User savedUser = userRepository.saveAndFlush(user);
-            userAccountRepository.saveAndFlush(new UserAccount(savedUser, passwordHash, clock.instant()));
+            User savedUser = accountCreator.create(request.displayName().trim(), email,
+                    Set.of(UserRole.STUDENT), passwordHash, false);
             return RegistrationResponse.from(savedUser);
         });
     }
 
     public LoginResponse login(LoginRequest request) {
         String email = EmailAddresses.normalize(request.email());
-        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException("Password must not exceed 72 UTF-8 bytes");
-        }
+        PasswordBytes.requireFits(request.password(), "Password");
 
         AccountPasswordSnapshot snapshot = userAccountRepository.findPasswordByEmail(email).orElse(null);
         // Comparable BCrypt work for an unknown email; no database lock while hashing.

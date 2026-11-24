@@ -6,10 +6,7 @@ import org.springframework.http.HttpStatus;
 
 import org.courseflow.security.CurrentUser;
 import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpServletRequest;
-import org.courseflow.auth.service.AuthRateLimiter;
 import org.courseflow.auth.dto.ChangePasswordRequest;
-import org.courseflow.auth.service.PasswordService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -22,26 +19,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class PasswordController {
 
-    private final PasswordService passwordService;
+    private final AuthHttpOperations operations;
 
-    private final AuthRateLimiter authRateLimiter;
-
-    public PasswordController(PasswordService passwordService, AuthRateLimiter authRateLimiter) {
-        this.passwordService = passwordService;
-        this.authRateLimiter = authRateLimiter;
+    public PasswordController(AuthHttpOperations operations) {
+        this.operations = operations;
     }
 
     @PostMapping("/change-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> changePassword(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody ChangePasswordRequest request,
-            HttpServletRequest servletRequest
+            @Valid @RequestBody ChangePasswordRequest request
     ) {
-        Long userId = CurrentUser.id(jwt);
-        authRateLimiter.checkChangePassword(servletRequest.getRemoteAddr(), userId);
-
-        passwordService.changePassword(userId, request);
+        operations.changePassword(CurrentUser.id(jwt), request);
 
         return ResponseEntity.noContent().build();
     }

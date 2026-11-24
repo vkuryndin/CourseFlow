@@ -1,5 +1,7 @@
 package org.courseflow.learning.service;
 
+import org.courseflow.learning.service.EnrollmentAccess;
+import org.courseflow.identity.service.StudentAccess;
 import org.courseflow.common.exception.EditVersion;
 import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
@@ -11,17 +13,12 @@ import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.entity.UserRole;
-import org.courseflow.identity.entity.UserStatus;
-import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.learning.dto.SubmissionResponse;
 import org.courseflow.learning.entity.Assignment;
 import org.courseflow.learning.entity.Submission;
 import org.courseflow.learning.repository.AssignmentRepository;
-import org.courseflow.learning.repository.EnrollmentRepository;
 import org.courseflow.learning.repository.SubmissionRepository;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
@@ -41,26 +38,26 @@ public class SubmissionService {
 
     private final SubmissionRepository submissionRepository;
     private final AssignmentRepository assignmentRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentAccess enrollmentAccess;
     private final CourseRepository courseRepository;
-    private final UserRepository userRepository;
+    private final StudentAccess studentAccess;
     private final EntityManager entityManager;
 
     public SubmissionService(
             SubmissionRepository submissionRepository,
             AssignmentRepository assignmentRepository,
-            EnrollmentRepository enrollmentRepository,
+            EnrollmentAccess enrollmentAccess,
             CourseRepository courseRepository,
-            UserRepository userRepository,
+            StudentAccess studentAccess,
             EntityManager entityManager,
             Clock clock
     ) {
         this.clock = clock;
         this.submissionRepository = submissionRepository;
         this.assignmentRepository = assignmentRepository;
-        this.enrollmentRepository = enrollmentRepository;
+        this.enrollmentAccess = enrollmentAccess;
         this.courseRepository = courseRepository;
-        this.userRepository = userRepository;
+        this.studentAccess = studentAccess;
         this.entityManager = entityManager;
     }
 
@@ -96,22 +93,9 @@ public class SubmissionService {
             );
         }
 
-        User student = userRepository.findByIdForUpdate(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Student not found: " + studentId
-                ));
-        if (student.getStatus() != UserStatus.ACTIVE
-                || !student.getRoles().contains(UserRole.STUDENT)) {
-            throw new AccessDeniedException("Active STUDENT is required");
-        }
+        User student = studentAccess.lockActive(studentId);
 
-        boolean enrolled = enrollmentRepository.hasActiveEnrollment(studentId, courseId);
-
-        if (!enrolled) {
-            throw new AccessDeniedException(
-                    "Active enrollment is required to submit work"
-            );
-        }
+        enrollmentAccess.requireActive(studentId, courseId, "Active enrollment is required to submit work");
 
         if (!clock.instant().isBefore(assignment.getDueAt())) {
             throw new BusinessConflictException(

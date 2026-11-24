@@ -1,5 +1,6 @@
 package org.courseflow.learning.service;
 
+import org.courseflow.identity.service.StudentAccess;
 import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
@@ -8,13 +9,10 @@ import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.entity.UserRole;
-import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.entity.Enrollment;
 import org.courseflow.learning.repository.EnrollmentRepository;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.courseflow.common.api.PageResponse;
@@ -34,17 +32,20 @@ public class EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
+    private final StudentAccess studentAccess;
 
     public EnrollmentService(
             EnrollmentRepository enrollmentRepository,
             CourseRepository courseRepository,
             UserRepository userRepository,
+            StudentAccess studentAccess,
             Clock clock
     ) {
         this.clock = clock;
         this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
+        this.studentAccess = studentAccess;
     }
 
     public record EnrollResult(
@@ -69,24 +70,7 @@ public class EnrollmentService {
         CourseAccessPolicy.requireActive(course,
                 "Cannot enroll in an archived course");
 
-        User student = userRepository.findByIdForUpdate(studentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Student not found: " + studentId
-                        )
-                );
-
-        if (student.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessConflictException(
-                    "Student must be ACTIVE"
-            );
-        }
-
-        if (!student.getRoles().contains(UserRole.STUDENT)) {
-            throw new AccessDeniedException(
-                    "STUDENT role is required"
-            );
-        }
+        User student = studentAccess.lockForEnrollment(studentId);
 
         if (course.getTeacher().getId().equals(studentId)) {
             throw new BusinessConflictException(

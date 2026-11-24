@@ -1,5 +1,6 @@
 package org.courseflow.catalog.service;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.EditVersion;
 import org.courseflow.catalog.dto.CategoryCreateRequest;
@@ -31,6 +32,7 @@ public class CategoryService {
         this.courseRepository = courseRepository;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public CategoryResponse update(Long id, CategoryCreateRequest request) {
         Category category = lockCategory(id);
@@ -44,6 +46,7 @@ public class CategoryService {
         return CategoryResponse.from(category);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void delete(Long id) {
         Category category = lockCategory(id);
@@ -59,6 +62,7 @@ public class CategoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public CategoryResponse create(CategoryCreateRequest request) {
         String name = request.name().trim();
@@ -106,12 +110,7 @@ public class CategoryService {
         }
 
         Pagination.validate(page, size);
-        Sort.Direction sortDirection = Sort.Direction.fromString(Pagination.direction(direction));
-
-        Sort sort = Sort.by(sortDirection, sortBy);
-        if (!sortBy.equals("id")) {
-            sort = sort.and(Sort.by("id"));
-        }
+        Sort sort = Pagination.stableSort(sortBy, direction);
 
         Pageable pageable = PageRequest.of(
                 page,

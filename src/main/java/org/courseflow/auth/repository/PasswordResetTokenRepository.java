@@ -21,19 +21,6 @@ public interface PasswordResetTokenRepository
     @Query("delete from PasswordResetToken t where t.expiresAt < :cutoff")
     int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
 
-    Optional<PasswordResetToken> findByTokenHash(
-            String tokenHash
-    );
-
-    @Query("""
-            select t.userAccount.id
-            from PasswordResetToken t
-            where t.tokenHash = :tokenHash
-            """)
-    Optional<Long> findAccountIdByTokenHash(
-            @Param("tokenHash") String tokenHash
-    );
-
     @Query("""
             select new org.courseflow.auth.repository.AccountPasswordSnapshot(a.id, a.passwordHash)
             from PasswordResetToken t join t.userAccount a

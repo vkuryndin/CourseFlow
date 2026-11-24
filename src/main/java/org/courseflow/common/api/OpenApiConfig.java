@@ -1,5 +1,6 @@
 package org.courseflow.common.api;
 
+import org.courseflow.security.PublicEndpoints;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -22,15 +23,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
-import java.util.Set;
 
 @Configuration
 @ConditionalOnProperty(name = "springdoc.api-docs.enabled", havingValue = "true")
 public class OpenApiConfig {
     private static final String BEARER = "bearerAuth";
-    private static final Set<String> PUBLIC_POST = Set.of(
-            "/api/auth/register", "/api/auth/login",
-            "/api/auth/forgot-password", "/api/auth/reset-password");
 
     @Bean
     public OpenAPI courseFlowOpenApi() {
@@ -54,10 +51,10 @@ public class OpenApiConfig {
             registerErrorSchema(api.getComponents());
             if (api.getPaths() == null) return;
             api.getPaths().forEach((path, item) -> {
-                if (item.getPost() != null && PUBLIC_POST.contains(path)) {
+                if (item.getPost() != null && PublicEndpoints.isPublicPost(path)) {
                     item.getPost().setSecurity(List.of());
                 }
-                if (item.getGet() != null && isPublicGet(path)) {
+                if (item.getGet() != null && PublicEndpoints.isPublicGet(path)) {
                     item.getGet().setSecurity(List.of());
                 }
                 item.readOperationsMap().forEach((method, operation) -> {
@@ -75,7 +72,7 @@ public class OpenApiConfig {
                     if (method != PathItem.HttpMethod.GET || path.contains("/quizzes/")) {
                         addError(operation, "409", "Business or concurrency conflict");
                     }
-                    if (PUBLIC_POST.contains(path) && !path.endsWith("/register")) {
+                    if (method == PathItem.HttpMethod.POST && PublicEndpoints.isRateLimitedPost(path)) {
                         addError(operation, "429", "Rate limit exceeded");
                     }
                     if (path.equals("/api/auth/login")) addError(operation, "401", "Invalid credentials");
@@ -119,12 +116,4 @@ public class OpenApiConfig {
                         .schema(new Schema<>().$ref("#/components/schemas/ApiErrorResponse")))));
     }
 
-    private boolean isPublicGet(String path) {
-        // Match the public GET rules in SecurityConfig; parameter names may vary.
-        String normalized = path.replaceAll("\\{[^/]+}", "*");
-        return Set.of("/api/categories", "/api/categories/*", "/api/tags", "/api/tags/*",
-                "/api/courses", "/api/courses/*", "/api/courses/*/tags",
-                "/api/courses/*/modules", "/api/courses/*/modules/*", "/api/teachers/*",
-                "/api/courses/*/reviews", "/api/courses/*/reviews/rating").contains(normalized);
-    }
 }

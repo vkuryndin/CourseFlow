@@ -1,15 +1,15 @@
 package org.courseflow.identity.service;
 
-import org.courseflow.common.exception.EditVersion;
+import org.courseflow.auth.service.CredentialLifecycle;
 import java.time.Clock;
+import org.courseflow.auth.service.AccountCreator;
+import org.courseflow.common.validation.PasswordBytes;
+import org.courseflow.common.exception.EditVersion;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
-import org.courseflow.auth.repository.AuthSessionRepository;
-import org.courseflow.auth.repository.PasswordResetTokenRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.catalog.entity.CourseStatus;
-import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.dto.AdminCreateUserRequest;
@@ -27,19 +27,18 @@ import org.courseflow.learning.repository.EnrollmentRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Set;
 
 @Service
 public class AdminUserService {
 
+    private final AccountCreator accountCreator;
     private final Clock clock;
 
     private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
-    private final AuthSessionRepository authSessionRepository;
-    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final CredentialLifecycle credentialLifecycle;
     private final ProfileRepository profileRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
@@ -48,19 +47,19 @@ public class AdminUserService {
     public AdminUserService(
             UserRepository userRepository,
             UserAccountRepository userAccountRepository,
-            AuthSessionRepository authSessionRepository,
-            PasswordResetTokenRepository passwordResetTokenRepository,
+            CredentialLifecycle credentialLifecycle,
             ProfileRepository profileRepository,
             EnrollmentRepository enrollmentRepository,
             CourseRepository courseRepository,
             PasswordEncoder passwordEncoder,
+            AccountCreator accountCreator,
             Clock clock
     ) {
+        this.accountCreator = accountCreator;
         this.clock = clock;
         this.userRepository = userRepository;
         this.userAccountRepository = userAccountRepository;
-        this.authSessionRepository = authSessionRepository;
-        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.credentialLifecycle = credentialLifecycle;
         this.profileRepository = profileRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
@@ -77,32 +76,11 @@ public class AdminUserService {
             );
         }
 
-        if (request.password()
-                .getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException(
-                    "Password must not exceed 72 UTF-8 bytes"
-            );
-        }
+        PasswordBytes.requireFits(request.password(), "Password");
 
-        User user = new User(
-                request.displayName().trim(),
-                email,
-                request.roles(),
-                clock.instant()
-        );
-
-        User savedUser = userRepository.saveAndFlush(user);
-
-        UserAccount account = new UserAccount(
-                savedUser,
-                passwordEncoder.encode(request.password()),
-                clock.instant()
-        );
-
-        if (!Boolean.FALSE.equals(request.passwordChangeRequired())) {
-            account.requirePasswordChange();
-        }
-        userAccountRepository.saveAndFlush(account);
+        User savedUser = accountCreator.create(request.displayName().trim(), email,
+                request.roles(), passwordEncoder.encode(request.password()),
+                !Boolean.FALSE.equals(request.passwordChangeRequired()));
 
         return UserResponse.from(savedUser);
     }
@@ -323,13 +301,7 @@ public class AdminUserService {
                         );
 
         // Remove credentials and their dependent records.
-        authSessionRepository.deleteAllByAccountId(
-                account.getId()
-        );
-
-        passwordResetTokenRepository.deleteAllByAccountId(
-                account.getId()
-        );
+        credentialLifecycle.deleteDependentCredentials(account.getId());
 
         userAccountRepository.delete(account);
 
@@ -378,14 +350,11 @@ public class AdminUserService {
     }
 
     private void invalidateResetTokens(Long userId) {
-        userAccountRepository.findByUser_Id(userId).ifPresent(account ->
-                passwordResetTokenRepository.invalidateUnusedTokensForAccount(
-                        account.getId(), clock.instant()
-                ));
+        credentialLifecycle.invalidateResetTokens(userId);
     }
 
     private void revokeSessions(Long userId) {
-        authSessionRepository.revokeActiveSessionsByUserId(userId);
+        credentialLifecycle.revokeSessions(userId);
     }
 
 }

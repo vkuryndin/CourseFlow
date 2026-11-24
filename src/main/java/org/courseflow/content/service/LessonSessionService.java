@@ -1,9 +1,9 @@
 package org.courseflow.content.service;
 
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.EditVersion;
 import java.time.Clock;
 import java.time.Instant;
-import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.identity.repository.UserRepository;
 import org.springframework.security.core.Authentication;
@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Isolation;
 import org.courseflow.common.validation.HttpUrls;
 import org.courseflow.content.entity.LessonSessionFormat;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
@@ -34,7 +33,7 @@ public class LessonSessionService {
 
     private final LessonSessionRepository sessionRepository;
     private final LessonRepository lessonRepository;
-    private final CourseRepository courseRepository;
+    private final CourseGuard courseGuard;
     private final ContentAccessService contentAccessService;
     private final UserRepository userRepository;
     private final Clock clock;
@@ -43,13 +42,13 @@ public class LessonSessionService {
             LessonSessionRepository sessionRepository,
             LessonRepository lessonRepository,
             ContentAccessService contentAccessService,
-            CourseRepository courseRepository,
+            CourseGuard courseGuard,
             UserRepository userRepository,
             Clock clock
     ) {
         this.sessionRepository = sessionRepository;
         this.lessonRepository = lessonRepository;
-        this.courseRepository = courseRepository;
+        this.courseGuard = courseGuard;
         this.contentAccessService = contentAccessService;
         this.userRepository = userRepository;
         this.clock = clock;
@@ -67,18 +66,7 @@ public class LessonSessionService {
         Long courseId = findCourseId(lessonId);
 
         // Serialize schedule changes within the course.
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
-                "Teacher can manage only own courses");
-
-        CourseAccessPolicy.requireActive(course,
+        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
                 "Cannot schedule lessons in an archived course");
 
         Long teacherId = course.getTeacher().getId();
@@ -269,18 +257,7 @@ public class LessonSessionService {
     ) {
         Long courseId = findCourseId(lessonId);
 
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
-                "Teacher can manage only own courses");
-
-        CourseAccessPolicy.requireActive(course,
+        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
                 "Cannot modify sessions of an archived course");
 
         lockTeacher(course.getTeacher().getId());

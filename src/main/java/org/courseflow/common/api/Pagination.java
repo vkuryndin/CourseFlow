@@ -1,5 +1,6 @@
 package org.courseflow.common.api;
 
+import org.springframework.data.domain.Sort;
 import java.util.Locale;
 import org.courseflow.common.exception.BadRequestException;
 
@@ -21,5 +22,9 @@ public final class Pagination {
             throw new BadRequestException("Direction must be asc or desc");
         }
         return normalized;
+    }
+    public static Sort stableSort(String sortBy, String direction) {
+        Sort sort = Sort.by(Sort.Direction.fromString(direction(direction)), sortBy);
+        return "id".equals(sortBy) ? sort : sort.and(Sort.by("id"));
     }
 }

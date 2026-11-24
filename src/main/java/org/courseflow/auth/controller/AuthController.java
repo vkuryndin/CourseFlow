@@ -1,18 +1,13 @@
-
 package org.courseflow.auth.controller;
 
 import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpServletRequest;
 
 import org.courseflow.auth.dto.LoginRequest;
 import org.courseflow.auth.dto.LoginResponse;
 import org.courseflow.auth.dto.RegistrationRequest;
 import org.courseflow.auth.dto.RegistrationResponse;
-import org.courseflow.auth.service.AuthService;
-import org.courseflow.auth.service.AuthRateLimiter;
 import org.courseflow.auth.service.LogoutService;
 
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,29 +18,23 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthService authService;
+    private final AuthHttpOperations operations;
     private final LogoutService logoutService;
-    private final AuthRateLimiter authRateLimiter;
 
     public AuthController(
-            AuthService authService,
-            LogoutService logoutService,
-            AuthRateLimiter authRateLimiter
+            AuthHttpOperations operations,
+            LogoutService logoutService
     ) {
-        this.authService = authService;
+        this.operations = operations;
         this.logoutService = logoutService;
-        this.authRateLimiter = authRateLimiter;
     }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<RegistrationResponse> register(
-            @Valid @RequestBody RegistrationRequest request,
-            HttpServletRequest servletRequest
+            @Valid @RequestBody RegistrationRequest request
     ) {
-        authRateLimiter.checkRegistration(servletRequest.getRemoteAddr());
-        RegistrationResponse response =
-                authService.register(request);
+        RegistrationResponse response = operations.register(request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -54,16 +43,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(
-            @Valid @RequestBody LoginRequest request,
-            HttpServletRequest servletRequest
+            @Valid @RequestBody LoginRequest request
     ) {
-        authRateLimiter.checkLogin(servletRequest.getRemoteAddr(), request.email());
-        try {
-            return authService.login(request);
-        } catch (BadCredentialsException ex) {
-            authRateLimiter.recordLoginFailure(request.email());
-            throw ex;
-        }
+        return operations.login(request);
     }
 
     @PostMapping("/logout")

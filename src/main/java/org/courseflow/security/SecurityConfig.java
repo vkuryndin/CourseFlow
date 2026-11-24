@@ -1,6 +1,7 @@
 
 package org.courseflow.security;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -20,6 +21,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -72,10 +74,11 @@ public class SecurityConfig {
                                 && ("/api/auth/change-password".equals(path) || "/api/auth/logout".equals(path)));
                     }).denyAll();
                     auth
+                        .requestMatchers(HttpMethod.GET, PublicEndpoints.getPatterns()).permitAll()
+                        .requestMatchers(HttpMethod.POST, PublicEndpoints.postPatterns()).permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/users/me/profile").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/users/me/profile").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/teachers/*").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/users/me/assignments",
                                 "/api/users/me/submissions",
@@ -127,12 +130,6 @@ public class SecurityConfig {
                                 HttpMethod.DELETE,
                                 "/api/courses/*/reviews/me"
                         ).hasRole("STUDENT")
-
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/courses/*/reviews",
-                                "/api/courses/*/reviews/rating"
-                        ).permitAll()
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -199,14 +196,6 @@ public class SecurityConfig {
                                 "/api/quizzes/*"
                         ).authenticated()
 
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/auth/register",
-                                "/api/auth/login",
-                                "/api/auth/forgot-password",
-                                "/api/auth/reset-password"
-                        ).permitAll()
-
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -242,21 +231,9 @@ public class SecurityConfig {
                         ).hasRole("ADMIN")
 
                         .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/categories",
-                                "/api/categories/*"
-                        ).permitAll()
-
-                        .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/categories"
                         ).hasRole("ADMIN")
-
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/courses",
-                                "/api/courses/*"
-                        ).permitAll()
 
                         .requestMatchers(
                                 HttpMethod.POST,
@@ -283,13 +260,6 @@ public class SecurityConfig {
                                 "/api/courses/*"
                         ).hasAnyRole("ADMIN", "TEACHER")
 
-
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/tags",
-                                "/api/tags/*"
-                        ).permitAll()
-
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/tags"
@@ -305,12 +275,6 @@ public class SecurityConfig {
                                 "/api/tags/*"
                         ).hasRole("ADMIN")
 
-
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/courses/*/tags"
-                        ).permitAll()
-
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/courses/*/tags/*"
@@ -321,22 +285,10 @@ public class SecurityConfig {
                                 "/api/courses/*/tags/*"
                         ).hasAnyRole("ADMIN", "TEACHER")
 
-
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/courses/*/modules"
-                        ).permitAll()
-
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/courses/*/modules"
                         ).hasAnyRole("ADMIN", "TEACHER")
-
-
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/courses/*/modules/*"
-                        ).permitAll()
 
                         .requestMatchers(
                                 HttpMethod.PUT,

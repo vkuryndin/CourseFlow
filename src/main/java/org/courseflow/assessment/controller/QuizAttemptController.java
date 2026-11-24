@@ -42,19 +42,22 @@ public class QuizAttemptController {
                         CurrentUser.id(jwt)
                 );
 
-        if (result.attempt() == null) {
+        if (result instanceof QuizAttemptService.LimitReached) {
             throw new BusinessConflictException(
                     "Maximum number of Quiz attempts reached"
             );
         }
 
-        if (result.created()) {
+        if (result instanceof QuizAttemptService.Started started) {
             return ResponseEntity
-                    .created(URI.create("/api/quizzes/" + quizId + "/attempts/" + result.attempt().id()))
-                    .body(result.attempt());
+                    .created(URI.create("/api/quizzes/" + quizId + "/attempts/" + started.attempt().id()))
+                    .body(started.attempt());
         }
 
-        return ResponseEntity.ok(result.attempt());
+        if (result instanceof QuizAttemptService.Existing existing) {
+            return ResponseEntity.ok(existing.attempt());
+        }
+        throw new IllegalStateException("Unsupported Quiz start outcome");
     }
 
     @GetMapping("/{attemptId}")

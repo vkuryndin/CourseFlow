@@ -1,5 +1,6 @@
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.PasswordBytes;
 import java.time.Clock;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.courseflow.common.validation.EmailAddresses;
@@ -13,7 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
 @Service
@@ -63,10 +63,7 @@ public class SystemAdminBootstrapService {
 
         String email = EmailAddresses.normalize(adminEmail);
 
-        int passwordBytes = adminPassword
-                .getBytes(StandardCharsets.UTF_8).length;
-
-        if (adminPassword.length() < 8 || passwordBytes > 72) {
+        if (adminPassword.length() < 8 || !PasswordBytes.fits(adminPassword)) {
             throw new IllegalStateException(
                     "System ADMIN password must contain at least "
                             + "8 characters and at most 72 UTF-8 bytes"

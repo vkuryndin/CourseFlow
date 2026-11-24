@@ -1,7 +1,7 @@
 package org.courseflow.content.service;
 
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.EditVersion;
-import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.repository.CourseRepository;
@@ -27,15 +27,18 @@ public class ModuleService {
 
     private final ModuleRepository moduleRepository;
     private final CourseRepository courseRepository;
+    private final CourseGuard courseGuard;
     private final EntityManager entityManager;
 
     public ModuleService(
             ModuleRepository moduleRepository,
             CourseRepository courseRepository,
+            CourseGuard courseGuard,
             EntityManager entityManager
     ) {
         this.moduleRepository = moduleRepository;
         this.courseRepository = courseRepository;
+        this.courseGuard = courseGuard;
         this.entityManager = entityManager;
     }
 
@@ -46,18 +49,7 @@ public class ModuleService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
-                "Teacher can manage only own courses");
-
-        CourseAccessPolicy.requireActive(course,
+        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
                 "Cannot add modules to archived course");
 
         if (moduleRepository.existsByCourse_IdAndPosition(
@@ -245,18 +237,7 @@ public class ModuleService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
-
-        CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
-                "Teacher can manage only own courses");
-
-        CourseAccessPolicy.requireActive(course,
+        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
                 "Cannot modify an archived course");
 
         return course;

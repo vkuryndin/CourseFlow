@@ -1,5 +1,7 @@
 package org.courseflow.review.service;
 
+import org.courseflow.learning.service.EnrollmentAccess;
+import org.courseflow.identity.service.StudentAccess;
 import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
@@ -11,10 +13,7 @@ import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.entity.UserRole;
-import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.UserRepository;
-import org.courseflow.learning.repository.EnrollmentRepository;
 import org.courseflow.review.dto.CourseRatingResponse;
 import org.courseflow.review.dto.CourseReviewRequest;
 import org.courseflow.review.dto.CourseReviewResponse;
@@ -39,21 +38,24 @@ public class CourseReviewService {
 
     private final CourseReviewRepository courseReviewRepository;
     private final CourseRepository courseRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentAccess enrollmentAccess;
     private final UserRepository userRepository;
+    private final StudentAccess studentAccess;
 
     public CourseReviewService(
             CourseReviewRepository courseReviewRepository,
             CourseRepository courseRepository,
-            EnrollmentRepository enrollmentRepository,
+            EnrollmentAccess enrollmentAccess,
             UserRepository userRepository,
+            StudentAccess studentAccess,
             Clock clock
     ) {
         this.clock = clock;
         this.courseReviewRepository = courseReviewRepository;
         this.courseRepository = courseRepository;
-        this.enrollmentRepository = enrollmentRepository;
+        this.enrollmentAccess = enrollmentAccess;
         this.userRepository = userRepository;
+        this.studentAccess = studentAccess;
     }
 
     @Transactional
@@ -231,13 +233,7 @@ public class CourseReviewService {
                 );
 
         // Serialize review changes and enrollment changes of the same student.
-        User student = userRepository.findByIdForUpdate(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Student not found: " + studentId));
-        if (student.getStatus() != UserStatus.ACTIVE
-                || !student.getRoles().contains(UserRole.STUDENT)) {
-            throw new AccessDeniedException("Active STUDENT is required");
-        }
+        User student = studentAccess.lockActive(studentId);
 
         if (course.getTeacher().getId().equals(studentId)) {
             throw new AccessDeniedException(
@@ -245,13 +241,7 @@ public class CourseReviewService {
             );
         }
 
-        boolean enrolled = enrollmentRepository.hasActiveEnrollment(studentId, courseId);
-
-        if (!enrolled) {
-            throw new AccessDeniedException(
-                    "Active enrollment is required to review course"
-            );
-        }
+        enrollmentAccess.requireActive(studentId, courseId, "Active enrollment is required to review course");
 
         CourseAccessPolicy.requireActive(course,
                 "Cannot modify review in archived course");

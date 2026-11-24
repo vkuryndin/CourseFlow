@@ -1,11 +1,11 @@
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.PasswordBytes;
 import java.time.Clock;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.dto.ResetPasswordRequest;
 import org.courseflow.auth.entity.PasswordResetToken;
 import org.courseflow.auth.entity.UserAccount;
-import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.PasswordResetTokenRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.common.exception.BadRequestException;
@@ -55,7 +55,7 @@ public class PasswordResetService {
 
     private final UserAccountRepository userAccountRepository;
     private final PasswordResetTokenRepository tokenRepository;
-    private final AuthSessionRepository authSessionRepository;
+    private final CredentialLifecycle credentialLifecycle;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
     private final String senderEmail;
@@ -64,7 +64,7 @@ public class PasswordResetService {
     public PasswordResetService(
             UserAccountRepository userAccountRepository,
             PasswordResetTokenRepository tokenRepository,
-            AuthSessionRepository authSessionRepository,
+            CredentialLifecycle credentialLifecycle,
             PasswordEncoder passwordEncoder,
             JavaMailSender mailSender,
             @Value("${spring.mail.username}") String senderEmail,
@@ -80,7 +80,7 @@ public class PasswordResetService {
                 && !environment.acceptsProfiles(Profiles.of("prod"));
         this.userAccountRepository = userAccountRepository;
         this.tokenRepository = tokenRepository;
-        this.authSessionRepository = authSessionRepository;
+        this.credentialLifecycle = credentialLifecycle;
         this.passwordEncoder = passwordEncoder;
         this.mailSender = mailSender;
         this.senderEmail = senderEmail;
@@ -119,9 +119,7 @@ public class PasswordResetService {
 
     public void resetPassword(ResetPasswordRequest request) {
         String newPassword = request.newPassword();
-        if (newPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException("New password must not exceed 72 UTF-8 bytes");
-        }
+        PasswordBytes.requireFits(newPassword, "New password");
         String tokenHash = hashToken(request.token());
         AccountPasswordSnapshot snapshot = tokenRepository.findValidPasswordSnapshot(
                 tokenHash, clock.instant(), UserStatus.ACTIVE).orElseThrow(this::invalidToken);
@@ -144,7 +142,7 @@ public class PasswordResetService {
             account.replacePasswordHash(newHash);
             token.markUsed(now);
             tokenRepository.invalidateUnusedTokensForAccount(account.getId(), now);
-            authSessionRepository.revokeActiveSessionsByUserId(account.getUser().getId());
+            credentialLifecycle.revokeSessions(account.getUser().getId());
         });
     }
 

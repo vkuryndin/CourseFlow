@@ -1,9 +1,9 @@
 package org.courseflow.auth.service;
 
+import org.courseflow.common.validation.PasswordBytes;
 import java.time.Clock;
 import org.courseflow.auth.dto.ChangePasswordRequest;
 import org.courseflow.auth.entity.UserAccount;
-import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.PasswordResetTokenRepository;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.common.exception.BadRequestException;
@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.courseflow.auth.repository.AccountPasswordSnapshot;
-import java.nio.charset.StandardCharsets;
 
 @Service
 public class PasswordService {
@@ -24,13 +23,13 @@ public class PasswordService {
     private final TransactionTemplate transaction;
 
     private final UserAccountRepository userAccountRepository;
-    private final AuthSessionRepository authSessionRepository;
+    private final CredentialLifecycle credentialLifecycle;
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
 
     public PasswordService(
             UserAccountRepository userAccountRepository,
-            AuthSessionRepository authSessionRepository,
+            CredentialLifecycle credentialLifecycle,
             PasswordResetTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
             Clock clock,
@@ -39,24 +38,20 @@ public class PasswordService {
         this.clock = clock;
         this.transaction = new TransactionTemplate(transactionManager);
         this.userAccountRepository = userAccountRepository;
-        this.authSessionRepository = authSessionRepository;
+        this.credentialLifecycle = credentialLifecycle;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     public void changePassword(Long userId, ChangePasswordRequest request) {
-        if (request.currentPassword().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException("Current password must not exceed 72 UTF-8 bytes");
-        }
+        PasswordBytes.requireFits(request.currentPassword(), "Current password");
         AccountPasswordSnapshot snapshot = userAccountRepository.findPasswordByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User account not found"));
         if (!passwordEncoder.matches(request.currentPassword(), snapshot.passwordHash())) {
             throw new BadRequestException("Current password is incorrect");
         }
         String newPassword = request.newPassword();
-        if (newPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BadRequestException("New password must not exceed 72 UTF-8 bytes");
-        }
+        PasswordBytes.requireFits(newPassword, "New password");
         if (passwordEncoder.matches(newPassword, snapshot.passwordHash())) {
             throw new BadRequestException("New password must differ from current password");
         }
@@ -75,7 +70,7 @@ public class PasswordService {
             }
             account.replacePasswordHash(newHash);
             tokenRepository.invalidateUnusedTokensForAccount(account.getId(), clock.instant());
-            authSessionRepository.revokeActiveSessionsByUserId(userId);
+            credentialLifecycle.revokeSessions(userId);
         });
     }
 }

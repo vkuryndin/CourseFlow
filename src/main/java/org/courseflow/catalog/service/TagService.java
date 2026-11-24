@@ -1,5 +1,6 @@
 package org.courseflow.catalog.service;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.EditVersion;
 import org.courseflow.catalog.dto.TagRequest;
@@ -56,16 +57,7 @@ public class TagService {
             );
         }
 
-        Sort.Direction sortDirection =
-                normalizedDirection.equals("desc")
-                        ? Sort.Direction.DESC
-                        : Sort.Direction.ASC;
-
-        Sort sort = Sort.by(sortDirection, sortBy);
-
-        if (!sortBy.equals("id")) {
-            sort = sort.and(Sort.by("id"));
-        }
+        Sort sort = Pagination.stableSort(sortBy, normalizedDirection);
 
         PageRequest pageable = PageRequest.of(
                 page,
@@ -85,6 +77,7 @@ public class TagService {
         return TagResponse.from(findTag(id));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public TagResponse create(TagRequest request) {
         String name = request.name().trim();
@@ -104,6 +97,7 @@ public class TagService {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public TagResponse update(
             Long id,
@@ -129,6 +123,7 @@ public class TagService {
         return TagResponse.from(tag);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void delete(Long id) {
         Tag tag = lockTag(id);
