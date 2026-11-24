@@ -1,6 +1,7 @@
 package org.courseflow.auth.service;
 
 import java.util.concurrent.Executor;
+import org.courseflow.common.system.CourseFlowMetrics;
 import java.util.concurrent.RejectedExecutionException;
 import org.courseflow.common.exception.RateLimitExceededException;
 import org.slf4j.Logger;
@@ -19,13 +20,15 @@ public class PasswordResetDispatcher {
 
     private final PasswordResetService passwordResetService;
     private final Executor executor;
+    private final CourseFlowMetrics metrics;
 
     public PasswordResetDispatcher(
             PasswordResetService passwordResetService,
-            @Qualifier("passwordResetExecutor") Executor executor
+            @Qualifier("passwordResetExecutor") Executor executor, CourseFlowMetrics metrics
     ) {
         this.passwordResetService = passwordResetService;
         this.executor = executor;
+        this.metrics = metrics;
     }
 
     public void enqueue(String email) {
@@ -34,9 +37,12 @@ public class PasswordResetDispatcher {
         String requestId = MDC.get("requestId");
         try {
             executor.execute(() -> process(email, requestId));
+            metrics.resetAccepted();
+            log.info("event=password_reset_accepted");
         } catch (RejectedExecutionException ex) {
             // Same overload response regardless of account existence.
-            log.warn("Password reset queue is full; request rejected");
+            metrics.resetRejected();
+            log.warn("event=password_reset_queue_rejected");
             throw new RateLimitExceededException(60);
         }
     }
@@ -48,6 +54,7 @@ public class PasswordResetDispatcher {
         try {
             passwordResetService.requestReset(email);
         } catch (RuntimeException ex) {
+            metrics.resetProcessingFailed();
             // Stack frames are useful; messages and causes may contain credentials or email addresses.
             log.error("Password reset processing failed: {}; stack={}",
                     ex.getClass().getName(), Arrays.toString(ex.getStackTrace()));

@@ -47,6 +47,7 @@ public class CourseController {
                 CurrentUser.isAdmin(authentication)
         );
 
+        LOG.info("event=course_created actor={} course={}", CurrentUser.id(jwt), response.id());
         return ResponseEntity
                 .created(
                         URI.create("/api/courses/" + response.id())
@@ -120,11 +121,13 @@ public class CourseController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication
     ) {
-        return courseService.archive(
+        CourseResponse response = courseService.archive(
                 id,
                 CurrentUser.id(jwt),
                 CurrentUser.isAdmin(authentication)
         );
+        LOG.info("event=course_archive_succeeded actor={} course={}", CurrentUser.id(jwt), id);
+        return response;
     }
 
     @DeleteMapping("/{id}")
@@ -139,6 +142,7 @@ public class CourseController {
                 CurrentUser.id(jwt),
                 CurrentUser.isAdmin(authentication)
         );
+        LOG.info("event=course_delete_succeeded actor={} course={}", CurrentUser.id(jwt), id);
 
         return ResponseEntity.noContent().build();
     }

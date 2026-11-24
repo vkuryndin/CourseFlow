@@ -61,6 +61,9 @@ public class SecurityConfig {
                                 "/v3/api-docs", "/v3/api-docs.yaml", "/v3/api-docs/swagger-config",
                                 "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     }
+                    // Only the three status-only probes are public; no wildcard actuator access.
+                    auth.requestMatchers(HttpMethod.GET, "/actuator/health",
+                            "/actuator/health/liveness", "/actuator/health/readiness").permitAll();
                     // A temporary-password JWT can only change its password or log out.
                     auth.requestMatchers(request -> {
                         var authentication = org.springframework.security.core.context.SecurityContextHolder
@@ -74,6 +77,7 @@ public class SecurityConfig {
                                 && ("/api/auth/change-password".equals(path) || "/api/auth/logout".equals(path)));
                     }).denyAll();
                     auth
+                        .requestMatchers(HttpMethod.GET, "/actuator/metrics", "/actuator/metrics/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, PublicEndpoints.getPatterns()).permitAll()
                         .requestMatchers(HttpMethod.POST, PublicEndpoints.postPatterns()).permitAll()
 

@@ -2,6 +2,7 @@ package org.courseflow.auth.service;
 
 import org.courseflow.common.validation.PasswordBytes;
 import java.time.Clock;
+import org.courseflow.common.system.CourseFlowMetrics;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.dto.ResetPasswordRequest;
 import org.courseflow.auth.entity.PasswordResetToken;
@@ -38,6 +39,7 @@ import java.util.HexFormat;
 public class PasswordResetService {
 
     private final Clock clock;
+    private final CourseFlowMetrics metrics;
     private final TransactionTemplate transaction;
     private final boolean includeTestToken;
 
@@ -72,9 +74,11 @@ public class PasswordResetService {
             String resetPageUrl,
             Clock clock,
             PlatformTransactionManager transactionManager,
-            Environment environment
+            Environment environment,
+            CourseFlowMetrics metrics
     ) {
         this.clock = clock;
+        this.metrics = metrics;
         this.transaction = new TransactionTemplate(transactionManager);
         this.includeTestToken = environment.acceptsProfiles(Profiles.of("dev"))
                 && !environment.acceptsProfiles(Profiles.of("prod"));
@@ -210,7 +214,10 @@ public class PasswordResetService {
 
         try {
             mailSender.send(message);
+            metrics.resetMailSent();
+            log.info("event=password_reset_mail_sent");
         } catch (MailException ex) {
+            metrics.resetMailFailed();
             // Do not disclose whether the email exists,
             // and never log the raw reset token.
             log.error(

@@ -30,6 +30,8 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import java.util.stream.Collectors;
+import java.util.Arrays;
+import org.springframework.web.servlet.HandlerMapping;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -42,6 +44,11 @@ public class GlobalExceptionHandler {
 
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private static String route(HttpServletRequest request) {
+        Object pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        return pattern == null ? "unmapped" : pattern.toString();
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(
@@ -197,7 +204,7 @@ public class GlobalExceptionHandler {
             Exception ex, HttpServletRequest request
     ) {
         log.warn("Concurrent operation conflict for {}: {}",
-                request.getRequestURI(), ex.getClass().getSimpleName());
+                route(request), ex.getClass().getSimpleName());
         return buildResponse(HttpStatus.CONFLICT,
                 "Concurrent operation conflict; reload and retry if appropriate", request, "CONCURRENT_CONFLICT");
     }
@@ -209,7 +216,7 @@ public class GlobalExceptionHandler {
     ) {
         log.warn(
                 "Database constraint violation for {}",
-                request.getRequestURI()
+                route(request)
         );
 
         return buildResponse(
@@ -248,6 +255,7 @@ public class GlobalExceptionHandler {
             RateLimitExceededException ex,
             HttpServletRequest request
     ) {
+        log.warn("event=request_rate_limited route={}", route(request));
         ResponseEntity<ApiErrorResponse> result = buildResponse(
                 HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request, "RATE_LIMIT_EXCEEDED");
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
@@ -265,6 +273,9 @@ public class GlobalExceptionHandler {
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
         if (status == null) {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        if (status.is5xxServerError()) {
+            log.error("event=service_error status={} route={}", status.value(), route(request));
         }
         return buildResponse(status, status.getReasonPhrase(), request,
                 status == HttpStatus.SERVICE_UNAVAILABLE ? "SERVICE_UNAVAILABLE" : "HTTP_" + status.value());
@@ -290,9 +301,9 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         log.error(
-                "Unexpected error for {}",
-                request.getRequestURI(),
-                ex
+                "event=unexpected_error route={} type={} stack={}",
+                route(request), ex.getClass().getName(),
+                Arrays.toString(Arrays.stream(ex.getStackTrace()).limit(32).toArray())
         );
 
         return buildResponse(

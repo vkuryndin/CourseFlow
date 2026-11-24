@@ -1,6 +1,9 @@
 package org.courseflow.auth.controller;
 
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.courseflow.security.CurrentUser;
 
 import org.courseflow.auth.dto.LoginRequest;
 import org.courseflow.auth.dto.LoginResponse;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final AuthHttpOperations operations;
     private final LogoutService logoutService;
 
@@ -54,6 +58,7 @@ public class AuthController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         logoutService.logout(jwt);
+        log.info("event=logout_succeeded userId={}", CurrentUser.id(jwt));
 
         return ResponseEntity.noContent().build();
     }
