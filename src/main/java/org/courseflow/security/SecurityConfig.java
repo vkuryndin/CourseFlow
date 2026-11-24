@@ -47,6 +47,71 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/quizzes/*/attempts",
+                                "/api/quizzes/*/attempts/*/manage"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/quizzes/*/attempts/me",
+                                "/api/quizzes/*/attempts/*/result"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/quizzes/*/attempts/*/submit"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/quizzes/*/attempts"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/quizzes/*/attempts/*"
+                        ).hasRole("STUDENT")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/quizzes/*",
+                                "/api/quizzes/*/questions/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/quizzes/*",
+                                "/api/quizzes/*/questions/*"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/quizzes/*/questions"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/quizzes/*/questions/manage"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/quizzes/*/questions"
+                        ).authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/modules/*/quiz"
+                        ).hasAnyRole("ADMIN", "TEACHER")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/modules/*/quiz",
+                                "/api/quizzes/*"
+                        ).authenticated()
+
+                        .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/auth/register",
                                 "/api/auth/login",

@@ -1,0 +1,43 @@
+
+package org.courseflow.assessment.dto;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+
+import org.courseflow.assessment.entity.QuestionType;
+
+import java.util.List;
+
+public record CreateQuestionRequest(
+
+        @NotBlank
+        @Size(max = 5000)
+        String text,
+
+        @NotNull
+        QuestionType type,
+
+        @NotNull
+        @Positive
+        Integer position,
+
+        @NotNull
+        @Size(min = 2, max = 10)
+        List<@NotNull @Valid OptionRequest> options
+
+) {
+    public record OptionRequest(
+
+            @NotBlank
+            @Size(max = 2000)
+            String text,
+
+            @NotNull
+            Boolean correct
+
+    ) {
+    }
+}

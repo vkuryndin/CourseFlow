@@ -2712,3 +2712,1275 @@ Authorization: Bearer {{enrollment_teacher_token}}
 
 ### 16. Guest cannot list submissions — 401
 GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
+
+
+
+### =========================================================
+### STAGE 5.3.1 — QUIZ CREATE / READ
+### =========================================================
+
+### 1. ADMIN creates Quiz — expected 201
+POST http://localhost:8080/api/modules/{{module_id}}/quiz
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Fundamentals Quiz",
+  "timeLimit": 20
+}
+
+> {%
+    client.test("Quiz created", function () {
+        client.assert(response.status === 201, "Expected 201");
+        client.assert(response.body.maxAttempts === 2, "Expected 2 attempts");
+    });
+    client.global.set("quiz_id", response.body.id);
+%}
+
+
+### 2. ADMIN gets Quiz by ID — expected 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 3. STUDENT gets Quiz by module — expected 200
+GET http://localhost:8080/api/modules/{{module_id}}/quiz
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 4. STUDENT gets Quiz by ID — expected 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 5. Duplicate Quiz for same module — expected 409
+POST http://localhost:8080/api/modules/{{module_id}}/quiz
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Duplicate Java Quiz",
+  "timeLimit": 30
+}
+
+
+### 6. STUDENT cannot create Quiz — expected 403
+POST http://localhost:8080/api/modules/{{module_id}}/quiz
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "title": "Unauthorized Quiz",
+  "timeLimit": 20
+}
+
+
+### 7. Guest cannot access Quiz — expected 401
+GET http://localhost:8080/api/modules/{{module_id}}/quiz
+
+
+### 8. Invalid time limit — expected 400
+POST http://localhost:8080/api/modules/{{module_id}}/quiz
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Quiz",
+  "timeLimit": 0
+}
+
+
+### 9. Unknown module — expected 404
+POST http://localhost:8080/api/modules/999999/quiz
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Missing Module Quiz",
+  "timeLimit": 20
+}
+
+
+### 10. Unknown Quiz — expected 404
+GET http://localhost:8080/api/quizzes/999999
+Authorization: Bearer {{admin_token}}
+
+
+### 11. TEACHER creates second module — expected 201
+POST http://localhost:8080/api/courses/{{course_id}}/modules
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Module 2 - Java Collections",
+  "description": "Collections and generics",
+  "position": 2
+}
+
+> {%
+    client.test("Second module created", function () {
+        client.assert(response.status === 201, "Expected 201");
+    });
+    client.global.set("quiz_teacher_module_id", response.body.id);
+%}
+
+
+### 12. TEACHER creates Quiz — expected 201
+POST http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Collections Quiz",
+  "timeLimit": 15
+}
+
+> {%
+    client.test("Teacher Quiz created", function () {
+        client.assert(response.status === 201, "Expected 201");
+    });
+    client.global.set("quiz_teacher_quiz_id", response.body.id);
+%}
+
+
+### 13. STUDENT reads teacher's Quiz — expected 200
+GET http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### STAGE 5.3.2 — QUIZ QUESTIONS AND ANSWER OPTIONS
+### =========================================================
+
+### 1. ADMIN creates SINGLE_CHOICE question — 201
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Which Java data type is primitive?",
+  "type": "SINGLE_CHOICE",
+  "position": 1,
+  "options": [
+    {
+      "text": "String",
+      "correct": false
+    },
+    {
+      "text": "int",
+      "correct": true
+    },
+    {
+      "text": "Integer",
+      "correct": false
+    }
+  ]
+}
+
+> {%
+    client.test("Single choice question created", function () {
+        client.assert(response.status === 201);
+    });
+
+    client.global.set("question_1_id", response.body.id);
+
+    client.global.set("question_1_correct_option_id",
+        response.body.options.find(o => o.correct === true).id);
+
+    client.global.set("question_1_wrong_option_id",
+        response.body.options.find(o => o.correct === false).id);
+%}
+
+
+### 2. TEACHER creates MULTIPLE_CHOICE question — 201
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "text": "Which Java data types are primitive?",
+  "type": "MULTIPLE_CHOICE",
+  "position": 2,
+  "options": [
+    {
+      "text": "int",
+      "correct": true
+    },
+    {
+      "text": "double",
+      "correct": true
+    },
+    {
+      "text": "String",
+      "correct": false
+    },
+    {
+      "text": "Object",
+      "correct": false
+    }
+  ]
+}
+
+> {%
+    client.test("Multiple choice question created", function () {
+        client.assert(response.status === 201);
+    });
+
+    client.global.set("question_2_id", response.body.id);
+
+    let correct = response.body.options.filter(o => o.correct);
+
+    client.global.set("question_2_correct_option_1_id",
+        correct[0].id);
+
+    client.global.set("question_2_correct_option_2_id",
+        correct[1].id);
+
+    client.global.set("question_2_wrong_option_id",
+        response.body.options.find(o => !o.correct).id);
+%}
+
+
+### 3. ADMIN gets questions with correct answers — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
+Authorization: Bearer {{admin_token}}
+
+
+### 4. TEACHER gets questions with correct answers — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 5. STUDENT reads questions without correct answers — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Correct answers are hidden", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.length === 2);
+
+        response.body.forEach(question => {
+            question.options.forEach(option => {
+                client.assert(!("correct" in option),
+                    "Correct answer leaked to student");
+            });
+        });
+    });
+%}
+
+
+### 6. STUDENT cannot access management endpoint — 403
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 7. Duplicate question position — 409
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Duplicate position question",
+  "type": "SINGLE_CHOICE",
+  "position": 1,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": false}
+  ]
+}
+
+
+### 8. SINGLE_CHOICE with two correct answers — 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Invalid single choice question",
+  "type": "SINGLE_CHOICE",
+  "position": 3,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": true}
+  ]
+}
+
+
+### 9. MULTIPLE_CHOICE with one correct answer — 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Invalid multiple choice question",
+  "type": "MULTIPLE_CHOICE",
+  "position": 3,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": false}
+  ]
+}
+
+
+### 10. Question with one option — 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Not enough answer options",
+  "type": "SINGLE_CHOICE",
+  "position": 3,
+  "options": [
+    {"text": "Answer A", "correct": true}
+  ]
+}
+
+
+### 11. STUDENT cannot create question — 403
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "text": "Unauthorized question",
+  "type": "SINGLE_CHOICE",
+  "position": 3,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": false}
+  ]
+}
+
+
+### 12. Unknown Quiz — 404
+GET http://localhost:8080/api/quizzes/999999/questions
+Authorization: Bearer {{admin_token}}
+
+
+### 13. Guest cannot read questions — 401
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+
+
+### 14. Withdraw student — 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 15. Withdrawn student cannot read questions — 403
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 16. Reactivate enrollment — 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 17. Student can read questions again — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{enrollment_student_token}}
+
+
+
+### =========================================================
+### STAGE 5.3.2b — QUIZ AND QUESTION UPDATE / DELETE
+### =========================================================
+
+### 1. TEACHER updates Quiz settings — 200
+PUT http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Fundamentals Quiz - Updated",
+  "timeLimit": 30,
+  "maxAttempts": 3
+}
+
+
+### 2. STUDENT reads updated Quiz — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Quiz settings updated", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.timeLimit === 30);
+        client.assert(response.body.maxAttempts === 3);
+    });
+%}
+
+
+### 3. Invalid maxAttempts — 400
+PUT http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Quiz",
+  "timeLimit": 20,
+  "maxAttempts": 0
+}
+
+
+### 4. STUDENT cannot update Quiz — 403
+PUT http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "title": "Unauthorized update",
+  "timeLimit": 20,
+  "maxAttempts": 5
+}
+
+
+### 5. Restore original Quiz settings — 200
+PUT http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Java Fundamentals Quiz",
+  "timeLimit": 20,
+  "maxAttempts": 2
+}
+
+
+### 6. Create temporary question — 201
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Temporary test question",
+  "type": "SINGLE_CHOICE",
+  "position": 3,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": false}
+  ]
+}
+
+> {%
+    client.test("Temporary question created", function () {
+        client.assert(response.status === 201);
+    });
+    client.global.set("question_temp_id", response.body.id);
+%}
+
+
+### 7. TEACHER updates temporary question — 200
+PUT http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "text": "Which collections implement List?",
+  "type": "MULTIPLE_CHOICE",
+  "position": 3,
+  "options": [
+    {"text": "ArrayList", "correct": true},
+    {"text": "LinkedList", "correct": true},
+    {"text": "HashSet", "correct": false}
+  ]
+}
+
+> {%
+    client.test("Question updated", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.type === "MULTIPLE_CHOICE");
+        client.assert(response.body.options.length === 3);
+    });
+%}
+
+
+### 8. Read updated questions — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
+Authorization: Bearer {{admin_token}}
+
+
+### 9. Update to occupied position — 409
+PUT http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Duplicate position",
+  "type": "SINGLE_CHOICE",
+  "position": 1,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": false}
+  ]
+}
+
+
+### 10. STUDENT cannot delete question — 403
+DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 11. TEACHER deletes temporary question — 204
+DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 12. Main Quiz contains only original two questions — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
+Authorization: Bearer {{admin_token}}
+
+> {%
+    client.test("Temporary question deleted", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.length === 2);
+    });
+%}
+
+
+### 13. Delete nonexistent question — 404
+DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/999999
+Authorization: Bearer {{admin_token}}
+
+
+### 14. STUDENT cannot delete Quiz — 403
+DELETE http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### DELETE SECONDARY QUIZ WITH RELATED QUESTIONS
+### =========================================================
+
+### 15. Create question in secondary Quiz — 201
+POST http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Question for Quiz deletion test",
+  "type": "SINGLE_CHOICE",
+  "position": 1,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": false}
+  ]
+}
+
+
+### 16. Delete secondary Quiz with questions — 204
+DELETE http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 17. Deleted Quiz is not available — 404
+GET http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 18. Secondary module has no Quiz — 404
+GET http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz
+Authorization: Bearer {{admin_token}}
+
+
+### 19. Main Quiz still exists — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 20. Original questions and answers still exist — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
+Authorization: Bearer {{admin_token}}
+
+
+### =========================================================
+### STAGE 5.3.3 — QUIZ ATTEMPTS
+### =========================================================
+
+### 1. Create Quiz with 1 minute time limit — 201
+POST http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Quiz Attempt Lifecycle Test",
+  "timeLimit": 1
+}
+
+> {%
+    client.global.set("quiz_attempt_test_id", response.body.id);
+%}
+
+
+### 2. Cannot start empty Quiz — 409
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 3. Create question for attempt testing — 201
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "text": "Which Java type is primitive?",
+  "type": "SINGLE_CHOICE",
+  "position": 1,
+  "options": [
+    {"text": "int", "correct": true},
+    {"text": "String", "correct": false}
+  ]
+}
+
+> {%
+    client.global.set("attempt_test_question_id", response.body.id);
+%}
+
+
+### 4. Guest cannot start Quiz — 401
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+
+
+### 5. ADMIN without STUDENT role cannot start Quiz — 403
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{admin_token}}
+
+
+### 6. Withdraw student — 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 7. Withdrawn student cannot start Quiz — 403
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 8. Restore enrollment — 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### FIRST ATTEMPT
+### Execute requests 9-11 within one minute
+### =========================================================
+
+### 9. Student starts first attempt — 201
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("First attempt created", function () {
+        client.assert(response.status === 201);
+        client.assert(response.body.attemptNumber === 1);
+        client.assert(response.body.status === "IN_PROGRESS");
+        client.assert(response.body.score === null);
+    });
+
+    client.global.set("quiz_attempt_1_id", response.body.id);
+%}
+
+
+### 10. Repeated start returns existing attempt — 200
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Existing attempt returned", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.attemptNumber === 1);
+        client.assert(
+            String(response.body.id) ===
+            String(client.global.get("quiz_attempt_1_id"))
+        );
+    });
+%}
+
+
+### 11. Student reads own attempt — 200
+GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### PROTECT QUIZ HISTORY
+### =========================================================
+
+### 12. Teacher cannot update Quiz after attempt — 409
+PUT http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Cannot modify Quiz",
+  "timeLimit": 20,
+  "maxAttempts": 5
+}
+
+
+### 13. ADMIN cannot delete Quiz after attempt — 409
+DELETE http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### 14. Teacher cannot add question after attempt — 409
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions
+Authorization: Bearer {{enrollment_teacher_token}}
+Content-Type: application/json
+
+{
+  "text": "New question after attempt",
+  "type": "SINGLE_CHOICE",
+  "position": 2,
+  "options": [
+    {"text": "Answer A", "correct": true},
+    {"text": "Answer B", "correct": false}
+  ]
+}
+
+
+### 15. Teacher cannot delete question after attempt — 409
+DELETE http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions/{{attempt_test_question_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### =========================================================
+### WAIT UNTIL FIRST ATTEMPT EXPIRES
+### Check expiresAt returned by request 9
+### =========================================================
+
+### 16. Read expired first attempt — 200
+GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("First attempt expired", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "EXPIRED");
+    });
+%}
+
+
+### 17. Student starts second attempt — 201
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Second attempt created", function () {
+        client.assert(response.status === 201);
+        client.assert(response.body.attemptNumber === 2);
+        client.assert(response.body.status === "IN_PROGRESS");
+    });
+
+    client.global.set("quiz_attempt_2_id", response.body.id);
+%}
+
+
+### 18. Repeated start returns second attempt — 200
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Existing second attempt returned", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.attemptNumber === 2);
+        client.assert(
+            String(response.body.id) ===
+            String(client.global.get("quiz_attempt_2_id"))
+        );
+    });
+%}
+
+
+### =========================================================
+### WAIT UNTIL SECOND ATTEMPT EXPIRES
+### Check expiresAt returned by request 17
+### =========================================================
+
+### 19. Third attempt is forbidden — 409
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 20. Read expired second attempt — 200
+GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_2_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Second attempt expired", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "EXPIRED");
+    });
+%}
+
+
+### 21. Nonexistent attempt — 404
+GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/999999
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 22. Attempt belongs to another Quiz — 404
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 23. Unknown Quiz — 404
+POST http://localhost:8080/api/quizzes/999999/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### STAGE 5.3.4 — QUIZ SUBMISSION AND AUTOMATIC GRADING
+### =========================================================
+
+### 1. Start first attempt — expected 201
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("First attempt started", function () {
+        client.assert(response.status === 201);
+        client.assert(response.body.attemptNumber === 1);
+    });
+
+    client.global.set("grading_attempt_1_id", response.body.id);
+%}
+
+
+### 2. Answer option belongs to another question — 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": [
+    {
+      "questionId": {{question_1_id}},
+      "optionIds": [
+        {{question_2_correct_option_1_id}}
+      ]
+    }
+  ]
+}
+
+
+### 3. Duplicate question — expected 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": [
+    {
+      "questionId": {{question_1_id}},
+      "optionIds": [{{question_1_correct_option_id}}]
+    },
+    {
+      "questionId": {{question_1_id}},
+      "optionIds": [{{question_1_wrong_option_id}}]
+    }
+  ]
+}
+
+
+### 4. Duplicate answer option — expected 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": [
+    {
+      "questionId": {{question_2_id}},
+      "optionIds": [
+        {{question_2_correct_option_1_id}},
+        {{question_2_correct_option_1_id}}
+      ]
+    }
+  ]
+}
+
+
+### 5. SINGLE_CHOICE with two options — expected 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": [
+    {
+      "questionId": {{question_1_id}},
+      "optionIds": [
+        {{question_1_correct_option_id}},
+        {{question_1_wrong_option_id}}
+      ]
+    }
+  ]
+}
+
+
+### 6. Unknown question — expected 400
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": [
+    {
+      "questionId": 999999,
+      "optionIds": [{{question_1_correct_option_id}}]
+    }
+  ]
+}
+
+
+### 7. Attempt is still active — expected 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Invalid requests did not finish attempt", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "IN_PROGRESS");
+        client.assert(response.body.score === null);
+    });
+%}
+
+
+### =========================================================
+### SUBMIT FIRST ATTEMPT — ALL ANSWERS CORRECT
+### =========================================================
+
+### 8. Submit correct answers — expected 200, score 100
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": [
+    {
+      "questionId": {{question_1_id}},
+      "optionIds": [
+        {{question_1_correct_option_id}}
+      ]
+    },
+    {
+      "questionId": {{question_2_id}},
+      "optionIds": [
+        {{question_2_correct_option_1_id}},
+        {{question_2_correct_option_2_id}}
+      ]
+    }
+  ]
+}
+
+> {%
+    client.test("Perfect result", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "SUBMITTED");
+        client.assert(response.body.score === 100);
+        client.assert(response.body.finishedAt !== null);
+    });
+%}
+
+
+### 9. Read completed attempt — expected 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 10. Cannot submit completed attempt again — 409
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": []
+}
+
+
+### =========================================================
+### SECOND ATTEMPT — PARTIALLY CORRECT RESULT
+### =========================================================
+
+### 11. Start second attempt — expected 201
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Second attempt started", function () {
+        client.assert(response.status === 201);
+        client.assert(response.body.attemptNumber === 2);
+    });
+
+    client.global.set("grading_attempt_2_id", response.body.id);
+%}
+
+
+### 12. Submit partially correct answers — 200, score 50
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": [
+    {
+      "questionId": {{question_1_id}},
+      "optionIds": [
+        {{question_1_correct_option_id}}
+      ]
+    },
+    {
+      "questionId": {{question_2_id}},
+      "optionIds": [
+        {{question_2_correct_option_1_id}}
+      ]
+    }
+  ]
+}
+
+> {%
+    client.test("Partial result", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "SUBMITTED");
+        client.assert(response.body.score === 50);
+    });
+%}
+
+
+### 13. Read second attempt — expected 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 14. Third attempt exceeds limit — expected 409
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### SECURITY AND DEADLINE CHECKS
+### =========================================================
+
+### 15. ADMIN without STUDENT role cannot submit — 403
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "answers": []
+}
+
+
+### 16. Guest cannot submit — expected 401
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
+Content-Type: application/json
+
+{
+  "answers": []
+}
+
+
+### 17. Cannot submit expired attempt — expected 409
+POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": []
+}
+
+
+### 18. Attempt does not belong to specified Quiz — 404
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": []
+}
+
+
+### 19. Nonexistent attempt — expected 404
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/999999/submit
+Authorization: Bearer {{enrollment_student_token}}
+Content-Type: application/json
+
+{
+  "answers": []
+}
+
+
+
+### =========================================================
+### STAGE 5.3.5 — QUIZ HISTORY AND RESULTS
+### =========================================================
+
+### 1. STUDENT reads own attempt history — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 2. STUDENT filters submitted attempts — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?status=SUBMITTED
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 3. STUDENT sorts attempts by score DESC — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?sortBy=score&direction=desc
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 4. STUDENT reads first attempt details — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/result
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("First attempt result", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.attempt.score === 100);
+        client.assert(response.body.selectedAnswers.length === 3);
+
+        response.body.selectedAnswers.forEach(answer => {
+            client.assert(!("correct" in answer));
+            client.assert(!("isCorrect" in answer));
+        });
+    });
+%}
+
+
+### 5. STUDENT reads second attempt details — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/result
+Authorization: Bearer {{enrollment_student_token}}
+
+> {%
+    client.test("Second attempt result", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.attempt.score === 50);
+        client.assert(response.body.selectedAnswers.length === 2);
+    });
+%}
+
+
+### 6. STUDENT reads expired attempts — 200
+GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/me?status=EXPIRED
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 7. STUDENT cannot list all student results — 403
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 8. STUDENT cannot access management details — 403
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/manage
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### =========================================================
+### TEACHER AND ADMIN RESULTS
+### =========================================================
+
+### 9. TEACHER lists Quiz results — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 10. TEACHER filters results by student — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?studentId={{enrollment_student_id}}
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 11. TEACHER filters submitted attempts — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?status=SUBMITTED&sortBy=score&direction=desc
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 12. TEACHER reads first page — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?page=0&size=1&sortBy=score&direction=desc
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 13. TEACHER reads second page — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?page=1&size=1&sortBy=score&direction=desc
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 14. TEACHER reads detailed attempt result — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/manage
+Authorization: Bearer {{enrollment_teacher_token}}
+
+
+### 15. ADMIN lists Quiz results — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{admin_token}}
+
+
+### 16. ADMIN reads detailed attempt result — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/manage
+Authorization: Bearer {{admin_token}}
+
+
+### =========================================================
+### VALIDATION AND SECURITY
+### =========================================================
+
+### 17. Unknown sort field — 400
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?sortBy=unknown
+Authorization: Bearer {{admin_token}}
+
+
+### 18. Invalid pagination — 400
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?page=-1
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 19. Invalid status — 400
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?status=UNKNOWN
+Authorization: Bearer {{admin_token}}
+
+
+### 20. Nonexistent attempt — 404
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/999999/result
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 21. Attempt belongs to another Quiz — 404
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}/result
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 22. Guest cannot read results — 401
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+
+
+### =========================================================
+### PRESERVE STUDENT HISTORY AFTER WITHDRAWAL
+### =========================================================
+
+### 23. Withdraw student — 204
+DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 24. Withdrawn student can read own history — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 25. Withdrawn student can read own result — 200
+GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/result
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 26. Withdrawn student cannot start Quiz — 403
+POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{enrollment_student_token}}
+
+
+### 27. Restore enrollment — 200
+POST http://localhost:8080/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{enrollment_student_token}}
