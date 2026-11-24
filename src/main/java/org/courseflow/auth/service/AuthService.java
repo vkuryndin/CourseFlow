@@ -1,4 +1,3 @@
-
 package org.courseflow.auth.service;
 
 import org.courseflow.auth.dto.LoginRequest;
@@ -95,9 +94,21 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
-        UserAccount account = userAccountRepository
-                .findByUser_Email(email)
+        Long accountId = userAccountRepository
+                .findAccountIdByUserEmail(email)
                 .orElseThrow(this::invalidCredentials);
+
+        // Serialize login with password changes and resets. Read the
+        // password hash only after obtaining the account lock.
+        UserAccount account = userAccountRepository
+                .findByIdForUpdate(accountId)
+                .orElseThrow(this::invalidCredentials);
+
+        User user = account.getUser();
+
+        if (!email.equals(user.getEmail())) {
+            throw invalidCredentials();
+        }
 
         if (!passwordEncoder.matches(
                 request.password(),
@@ -105,8 +116,6 @@ public class AuthService {
         )) {
             throw invalidCredentials();
         }
-
-        User user = account.getUser();
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw invalidCredentials();

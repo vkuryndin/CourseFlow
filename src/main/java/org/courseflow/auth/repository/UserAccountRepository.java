@@ -1,4 +1,3 @@
-
 package org.courseflow.auth.repository;
 
 import org.courseflow.auth.entity.UserAccount;
@@ -17,6 +16,23 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     Optional<UserAccount> findByUser_Email(String email);
 
     Optional<UserAccount> findByUser_EmailIgnoreCase(String email);
+
+    // Read only the ID so the account is not loaded into the persistence
+    // context before acquiring the write lock.
+    @Query("""
+        select a.id
+        from UserAccount a
+        where a.user.email = :email
+        """)
+    Optional<Long> findAccountIdByUserEmail(@Param("email") String email);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select a
+        from UserAccount a
+        where a.user.id = :userId
+        """)
+    Optional<UserAccount> findByUserIdForUpdate(@Param("userId") Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

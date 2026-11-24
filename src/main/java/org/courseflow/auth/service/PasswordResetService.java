@@ -1,4 +1,3 @@
-
 package org.courseflow.auth.service;
 
 import org.courseflow.auth.dto.ResetPasswordRequest;
@@ -82,21 +81,22 @@ public class PasswordResetService {
         String normalizedEmail =
                 email.trim().toLowerCase(Locale.ROOT);
 
-        UserAccount foundAccount = userAccountRepository
-                .findByUser_EmailIgnoreCase(normalizedEmail)
+        Long accountId = userAccountRepository
+                .findAccountIdByUserEmail(normalizedEmail)
                 .orElse(null);
 
         // The API returns the same response for unknown,
         // inactive and existing users.
-        if (foundAccount == null) {
+        if (accountId == null) {
             return;
         }
 
         UserAccount account = userAccountRepository
-                .findByIdForUpdate(foundAccount.getId())
+                .findByIdForUpdate(accountId)
                 .orElse(null);
 
         if (account == null
+                || !normalizedEmail.equals(account.getUser().getEmail())
                 || account.getUser().getStatus()
                 != UserStatus.ACTIVE) {
             return;

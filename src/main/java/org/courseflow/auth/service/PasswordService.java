@@ -1,4 +1,3 @@
-
 package org.courseflow.auth.service;
 
 import org.courseflow.auth.dto.ChangePasswordRequest;
@@ -42,8 +41,9 @@ public class PasswordService {
             Long userId,
             ChangePasswordRequest request
     ) {
+        // Use the same account lock as login and password reset.
         UserAccount account = userAccountRepository
-                .findByUser_Id(userId)
+                .findByUserIdForUpdate(userId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User account not found"
