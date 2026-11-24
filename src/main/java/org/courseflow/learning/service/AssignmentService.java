@@ -6,13 +6,13 @@ import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.springframework.transaction.annotation.Isolation;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.repository.CourseRepository;
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.content.entity.Lesson;
-import org.courseflow.content.repository.LessonRepository;
+import org.courseflow.content.api.ContentStructure;
 import org.courseflow.content.service.ContentAccessService;
 import org.courseflow.learning.dto.AssignmentResponse;
 import org.courseflow.learning.dto.CreateAssignmentRequest;
@@ -38,23 +38,23 @@ public class AssignmentService {
             Set.of("id", "title", "dueAt", "maxScore");
 
     private final AssignmentRepository assignmentRepository;
-    private final LessonRepository lessonRepository;
-    private final CourseRepository courseRepository;
+    private final ContentStructure contentStructure;
+    private final CourseGuard courseGuard;
     private final ContentAccessService contentAccessService;
     private final EntityManager entityManager;
 
     public AssignmentService(
             AssignmentRepository assignmentRepository,
-            LessonRepository lessonRepository,
-            CourseRepository courseRepository,
+            ContentStructure contentStructure,
+            CourseGuard courseGuard,
             ContentAccessService contentAccessService,
             EntityManager entityManager,
             Clock clock
     ) {
         this.clock = clock;
         this.assignmentRepository = assignmentRepository;
-        this.lessonRepository = lessonRepository;
-        this.courseRepository = courseRepository;
+        this.contentStructure = contentStructure;
+        this.courseGuard = courseGuard;
         this.contentAccessService = contentAccessService;
         this.entityManager = entityManager;
     }
@@ -66,24 +66,13 @@ public class AssignmentService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Lesson not found: " + lessonId
-                        )
-                );
+        Lesson lesson = contentStructure.requireLesson(lessonId);
 
         Long courseId = lesson.getModule()
                 .getCourse()
                 .getId();
 
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.lock(courseId);
 
         CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
                 "Only course teacher or ADMIN can create assignments");
@@ -254,24 +243,13 @@ public class AssignmentService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Lesson not found: " + lessonId
-                        )
-                );
+        Lesson lesson = contentStructure.requireLesson(lessonId);
 
         Long courseId = lesson.getModule()
                 .getCourse()
                 .getId();
 
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.lock(courseId);
 
         CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
                 "Only course teacher or ADMIN can manage assignments");

@@ -4,7 +4,6 @@ import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.EditVersion;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
@@ -16,7 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.persistence.EntityManager;
+import org.courseflow.content.api.ContentStructure;
+import org.courseflow.assessment.api.QuizAccess;
 import org.courseflow.content.dto.UpdateModuleRequest;
 import org.courseflow.content.dto.ChangeModulePositionRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -25,20 +25,20 @@ import org.springframework.dao.DataIntegrityViolationException;
 public class ModuleService {
 
     private final ModuleRepository moduleRepository;
-    private final CourseRepository courseRepository;
     private final CourseGuard courseGuard;
-    private final EntityManager entityManager;
+    private final ContentStructure contentStructure;
+    private final QuizAccess quizAccess;
 
     public ModuleService(
             ModuleRepository moduleRepository,
-            CourseRepository courseRepository,
             CourseGuard courseGuard,
-            EntityManager entityManager
+            ContentStructure contentStructure,
+            QuizAccess quizAccess
     ) {
         this.moduleRepository = moduleRepository;
-        this.courseRepository = courseRepository;
         this.courseGuard = courseGuard;
-        this.entityManager = entityManager;
+        this.contentStructure = contentStructure;
+        this.quizAccess = quizAccess;
     }
 
     @Transactional
@@ -84,11 +84,7 @@ public class ModuleService {
     ) {
         Pagination.validate(page, size);
 
-        if (!courseRepository.existsById(courseId)) {
-            throw new ResourceNotFoundException(
-                    "Course not found: " + courseId
-            );
-        }
+        courseGuard.requireExists(courseId);
 
         PageRequest pageable = PageRequest.of(
                 page,
@@ -182,29 +178,7 @@ public class ModuleService {
 
         Module module = findModule(courseId, moduleId);
 
-        Long lessonCount = entityManager.createQuery(
-                        """
-                        SELECT COUNT(l)
-                        FROM Lesson l
-                        WHERE l.module.id = :moduleId
-                        """,
-                        Long.class
-                )
-                .setParameter("moduleId", moduleId)
-                .getSingleResult();
-
-        Long quizCount = entityManager.createQuery(
-                        """
-                        SELECT COUNT(q)
-                        FROM Quiz q
-                        WHERE q.module.id = :moduleId
-                        """,
-                        Long.class
-                )
-                .setParameter("moduleId", moduleId)
-                .getSingleResult();
-
-        if (lessonCount > 0 || quizCount > 0) {
+        if (contentStructure.hasLessons(moduleId) || quizAccess.hasQuiz(moduleId)) {
             throw new BusinessConflictException(
                     "Module has lessons or quiz and cannot be deleted"
             );

@@ -30,14 +30,37 @@ public class AuthRateLimiter {
     // Monotonic clock seam for deterministic tests; not a wall clock.
     AuthRateLimiter(LongSupplier ticker) { this.ticker = ticker; }
 
-    public synchronized void checkLogin(String ip, String email) {
+    /** A request reserves an email slot before BCrypt, atomically with checking the budget. */
+    public synchronized LoginReservation checkLogin(String ip, String email) {
         long now = ticker.getAsLong();
         loginIp.consume(ip, 60, now);
-        loginEmailFailures.check(EmailAddresses.normalize(email), 12, now);
+        String key = EmailAddresses.normalize(email);
+        Window window = loginEmailFailures.reserve(key, 12, now);
+        return new LoginReservation(this, key, window);
     }
 
-    public synchronized void recordLoginFailure(String email) {
-        loginEmailFailures.record(EmailAddresses.normalize(email), 12, ticker.getAsLong());
+    /** Keep failed credentials in the budget; refund successful or aborted requests only.
+     * A reservation belongs to exactly one window, even if a request finishes much later. */
+    public synchronized void completeLogin(LoginReservation reservation, boolean invalidCredentials) {
+        if (reservation.owner != this) throw new IllegalArgumentException("Foreign login reservation");
+        if (reservation.completed) return;
+        reservation.completed = true;
+        if (!invalidCredentials) {
+            loginEmailFailures.refund(reservation.key, reservation.window, ticker.getAsLong());
+        }
+    }
+
+    public static final class LoginReservation {
+        private final AuthRateLimiter owner;
+        private final String key;
+        private final Window window;
+        private boolean completed;
+
+        private LoginReservation(AuthRateLimiter owner, String key, Window window) {
+            this.owner = owner;
+            this.key = key;
+            this.window = window;
+        }
     }
 
     public synchronized void checkRegistration(String ip) {
@@ -88,6 +111,35 @@ public class AuthRateLimiter {
                 long second = TimeUnit.SECONDS.toNanos(1);
                 throw new RateLimitExceededException(Math.max(1, (remaining + second - 1) / second));
             }
+        }
+
+        // Do not evict a live email window to make room for attacker-controlled keys.
+        // The bounded email budget fails closed until a slot expires; IP budgets
+        // retain their original bounded LRU behavior.
+        Window reserve(String key, int limit, long now) {
+            check(key, limit, now);
+            Window w = current(key, now);
+            if (w == null) {
+                if (entries.size() >= MAX_KEYS) {
+                    entries.values().removeIf(entry -> now - entry.startedAt >= WINDOW);
+                    if (entries.size() >= MAX_KEYS) {
+                        long earliest = entries.values().stream()
+                                .mapToLong(entry -> WINDOW - (now - entry.startedAt)).min().orElse(WINDOW);
+                        long second = TimeUnit.SECONDS.toNanos(1);
+                        throw new RateLimitExceededException(Math.max(1, (earliest + second - 1) / second));
+                    }
+                }
+                w = new Window(now);
+                entries.put(key, w);
+            } else {
+                w.count++;
+            }
+            return w;
+        }
+
+        void refund(String key, Window reserved, long now) {
+            Window current = current(key, now);
+            if (current == reserved && --current.count == 0) entries.remove(key);
         }
 
         void consume(String key, int limit, long now) {

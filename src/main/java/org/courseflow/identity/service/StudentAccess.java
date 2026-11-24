@@ -17,13 +17,13 @@ public class StudentAccess {
     private final UserRepository users;
     public StudentAccess(UserRepository users) { this.users = users; }
 
-    private User lock(Long studentId) {
+    public User lockExisting(Long studentId) {
         return users.findByIdForUpdate(studentId).orElseThrow(() ->
                 new ResourceNotFoundException("Student not found: " + studentId));
     }
 
     public User lockActive(Long studentId) {
-        User student = lock(studentId);
+        User student = lockExisting(studentId);
         if (student.getStatus() != UserStatus.ACTIVE || !student.getRoles().contains(UserRole.STUDENT)) {
             throw new AccessDeniedException("Active STUDENT is required");
         }
@@ -31,7 +31,7 @@ public class StudentAccess {
     }
 
     public User lockForEnrollment(Long studentId) {
-        User student = lock(studentId);
+        User student = lockExisting(studentId);
         if (student.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessConflictException("Student must be ACTIVE");
         }

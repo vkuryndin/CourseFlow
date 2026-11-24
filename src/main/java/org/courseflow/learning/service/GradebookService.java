@@ -5,12 +5,11 @@ import java.time.Instant;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.learning.repository.GradebookQueryRepository;
-import org.courseflow.content.repository.ModuleRepository;
+import org.courseflow.content.api.ContentStructure;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BadRequestException;
-import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.learning.dto.GradebookResponse;
 import org.courseflow.learning.dto.GradebookResponse.*;
 import org.courseflow.learning.entity.EnrollmentStatus;
@@ -25,18 +24,18 @@ public class GradebookService {
     private final Clock clock;
 
     private final CourseGuard courseGuard;
-    private final ModuleRepository moduleRepository;
+    private final ContentStructure contentStructure;
     private final GradebookQueryRepository queries;
 
     public GradebookService(
             CourseGuard courseGuard,
-            ModuleRepository moduleRepository,
+            ContentStructure contentStructure,
             GradebookQueryRepository queries,
             Clock clock
     ) {
         this.clock = clock;
         this.courseGuard = courseGuard;
-        this.moduleRepository = moduleRepository;
+        this.contentStructure = contentStructure;
         this.queries = queries;
     }
 
@@ -116,11 +115,7 @@ public class GradebookService {
             Long courseId,
             Long moduleId
     ) {
-        if (!moduleRepository.existsByIdAndCourse_Id(moduleId, courseId)) {
-            throw new ResourceNotFoundException(
-                    "Module not found in course: " + moduleId
-            );
-        }
+        contentStructure.requireModuleInCourse(courseId, moduleId);
     }
 
 }

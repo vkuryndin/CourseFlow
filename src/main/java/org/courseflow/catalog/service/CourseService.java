@@ -16,12 +16,13 @@ import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
-import org.courseflow.identity.repository.UserRepository;
+import org.courseflow.identity.api.UserDirectory;
 import org.courseflow.learning.service.EnrollmentAccess;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.persistence.EntityManager;
+import org.courseflow.content.api.ContentStructure;
+import org.courseflow.review.api.ReviewAccess;
 import org.springframework.dao.DataIntegrityViolationException;
 
 @Service
@@ -32,16 +33,18 @@ public class CourseService {
 
     private final CourseRepository courseRepository;
     private final CategoryRepository categoryRepository;
-    private final UserRepository userRepository;
-    private final EntityManager entityManager;
+    private final UserDirectory userDirectory;
+    private final ContentStructure contentStructure;
+    private final ReviewAccess reviewAccess;
     private final EnrollmentAccess enrollmentAccess;
     private final LessonScheduleChecks scheduleChecks;
 
     public CourseService(
             CourseRepository courseRepository,
             CategoryRepository categoryRepository,
-            UserRepository userRepository,
-            EntityManager entityManager,
+            UserDirectory userDirectory,
+            ContentStructure contentStructure,
+            ReviewAccess reviewAccess,
             EnrollmentAccess enrollmentAccess,
             LessonScheduleChecks scheduleChecks,
             Clock clock,
@@ -51,8 +54,9 @@ public class CourseService {
         this.courseGuard = courseGuard;
         this.courseRepository = courseRepository;
         this.categoryRepository = categoryRepository;
-        this.userRepository = userRepository;
-        this.entityManager = entityManager;
+        this.userDirectory = userDirectory;
+        this.contentStructure = contentStructure;
+        this.reviewAccess = reviewAccess;
         this.enrollmentAccess = enrollmentAccess;
         this.scheduleChecks = scheduleChecks;
     }
@@ -152,12 +156,7 @@ public class CourseService {
     }
 
     private User findActiveTeacher(Long teacherId) {
-        User teacher = userRepository.findByIdForUpdate(teacherId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Teacher not found: " + teacherId
-                        )
-                );
+        User teacher = userDirectory.lockTeacherReference(teacherId);
 
         if (teacher.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessConflictException(
@@ -225,42 +224,9 @@ public class CourseService {
     }
 
     private boolean hasHistoricalDependencies(Long courseId) {
-        // Modules may contain lessons, assignments and quizzes.
-        if (existsForCourse(
-                "select count(m) from Module m "
-                        + "where m.course.id = :courseId",
-                courseId
-        )) {
-            return true;
-        }
-
-        // Both ACTIVE and WITHDRAWN enrollments count as history.
-        if (existsForCourse(
-                "select count(e) from Enrollment e "
-                        + "where e.course.id = :courseId",
-                courseId
-        )) {
-            return true;
-        }
-
-        // Reviews are historical educational data.
-        return existsForCourse(
-                "select count(r) from CourseReview r "
-                        + "where r.course.id = :courseId",
-                courseId
-        );
-    }
-
-    private boolean existsForCourse(
-            String jpql,
-            Long courseId
-    ) {
-        Long count = entityManager
-                .createQuery(jpql, Long.class)
-                .setParameter("courseId", courseId)
-                .getSingleResult();
-
-        return count > 0;
+        return contentStructure.hasModules(courseId)
+                || enrollmentAccess.hasEnrollmentHistory(courseId)
+                || reviewAccess.hasReviews(courseId);
     }
 
     @Transactional

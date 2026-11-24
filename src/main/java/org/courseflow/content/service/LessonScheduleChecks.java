@@ -16,6 +16,8 @@ public class LessonScheduleChecks {
         this.sessions = sessions;
     }
 
+    public boolean hasSessionsForLesson(Long lessonId) { return sessions.existsByLesson_Id(lessonId); }
+
     public boolean hasUnfinishedSessions(Long courseId, Instant now) {
         return sessions.existsByLesson_Module_Course_IdAndEndsAtGreaterThan(courseId, now);
     }

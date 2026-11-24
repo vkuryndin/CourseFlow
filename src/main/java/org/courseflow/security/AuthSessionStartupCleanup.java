@@ -1,7 +1,7 @@
 
 package org.courseflow.security;
 
-import org.courseflow.auth.repository.AuthSessionRepository;
+import org.courseflow.auth.api.SessionAccess;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -9,16 +9,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuthSessionStartupCleanup implements ApplicationRunner {
 
-    private final AuthSessionRepository sessionRepository;
+    private final SessionAccess sessionAccess;
 
     public AuthSessionStartupCleanup(
-            AuthSessionRepository sessionRepository
+            SessionAccess sessionAccess
     ) {
-        this.sessionRepository = sessionRepository;
+        this.sessionAccess = sessionAccess;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        sessionRepository.deleteAllInBatch();
+        sessionAccess.invalidateAllOnStartup();
     }
 }

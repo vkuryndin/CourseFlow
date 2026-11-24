@@ -18,6 +18,12 @@ public class EnrollmentAccess {
             throw new AccessDeniedException(message);
         }
     }
+    /** Both ACTIVE and WITHDRAWN enrollment records count as educational history. */
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public boolean hasEnrollmentHistory(Long courseId) {
+        return enrollments.existsByCourse_Id(courseId);
+    }
+
     /** Used by account lifecycle checks inside the caller's user-lock transaction. */
     @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
     public boolean hasActiveEnrollments(Long studentId) {

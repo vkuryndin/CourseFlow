@@ -21,7 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.persistence.EntityManager;
+import org.courseflow.learning.api.AssignmentAccess;
 import org.courseflow.content.dto.UpdateLessonRequest;
 import org.courseflow.content.dto.ChangeLessonPositionRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -33,20 +33,23 @@ public class LessonService {
     private final ModuleRepository moduleRepository;
     private final CourseGuard courseGuard;
     private final ContentAccessService contentAccessService;
-    private final EntityManager entityManager;
+    private final LessonScheduleChecks scheduleChecks;
+    private final AssignmentAccess assignmentAccess;
 
     public LessonService(
             LessonRepository lessonRepository,
             ModuleRepository moduleRepository,
             ContentAccessService contentAccessService,
             CourseGuard courseGuard,
-            EntityManager entityManager
+            LessonScheduleChecks scheduleChecks,
+            AssignmentAccess assignmentAccess
     ) {
         this.lessonRepository = lessonRepository;
         this.moduleRepository = moduleRepository;
         this.courseGuard = courseGuard;
         this.contentAccessService = contentAccessService;
-        this.entityManager = entityManager;
+        this.scheduleChecks = scheduleChecks;
+        this.assignmentAccess = assignmentAccess;
     }
 
     @Transactional
@@ -220,29 +223,7 @@ public class LessonService {
         Module module = findModule(courseId, moduleId);
         Lesson lesson = findLesson(moduleId, lessonId);
 
-        Long sessionCount = entityManager.createQuery(
-                        """
-                        SELECT COUNT(s)
-                        FROM LessonSession s
-                        WHERE s.lesson.id = :lessonId
-                        """,
-                        Long.class
-                )
-                .setParameter("lessonId", lessonId)
-                .getSingleResult();
-
-        Long assignmentCount = entityManager.createQuery(
-                        """
-                        SELECT COUNT(a)
-                        FROM Assignment a
-                        WHERE a.lesson.id = :lessonId
-                        """,
-                        Long.class
-                )
-                .setParameter("lessonId", lessonId)
-                .getSingleResult();
-
-        if (sessionCount > 0 || assignmentCount > 0) {
+        if (scheduleChecks.hasSessionsForLesson(lessonId) || assignmentAccess.hasAssignments(lessonId)) {
             throw new BusinessConflictException(
                     "Lesson has sessions or assignments "
                             + "and cannot be deleted"

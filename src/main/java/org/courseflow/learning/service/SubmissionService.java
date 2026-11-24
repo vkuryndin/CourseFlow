@@ -1,6 +1,7 @@
 package org.courseflow.learning.service;
 
 import java.util.Map;
+import java.util.Objects;
 import org.courseflow.common.api.JpqlPages;
 import org.courseflow.learning.service.EnrollmentAccess;
 import org.courseflow.identity.service.StudentAccess;
@@ -11,7 +12,7 @@ import org.courseflow.common.api.Pagination;
 import jakarta.persistence.EntityManager;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
-import org.courseflow.catalog.repository.CourseRepository;
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
@@ -34,11 +35,12 @@ import java.util.List;
 public class SubmissionService {
 
     private final Clock clock;
+    private final GradeAudit gradeAudit;
 
     private final SubmissionRepository submissionRepository;
     private final AssignmentRepository assignmentRepository;
     private final EnrollmentAccess enrollmentAccess;
-    private final CourseRepository courseRepository;
+    private final CourseGuard courseGuard;
     private final StudentAccess studentAccess;
     private final EntityManager entityManager;
 
@@ -46,16 +48,18 @@ public class SubmissionService {
             SubmissionRepository submissionRepository,
             AssignmentRepository assignmentRepository,
             EnrollmentAccess enrollmentAccess,
-            CourseRepository courseRepository,
+            CourseGuard courseGuard,
             StudentAccess studentAccess,
             EntityManager entityManager,
-            Clock clock
+            Clock clock,
+            GradeAudit gradeAudit
     ) {
         this.clock = clock;
+        this.gradeAudit = gradeAudit;
         this.submissionRepository = submissionRepository;
         this.assignmentRepository = assignmentRepository;
         this.enrollmentAccess = enrollmentAccess;
-        this.courseRepository = courseRepository;
+        this.courseGuard = courseGuard;
         this.studentAccess = studentAccess;
         this.entityManager = entityManager;
     }
@@ -70,13 +74,7 @@ public class SubmissionService {
         Long courseId = findCourseId(assignmentId);
 
         // Shared course lock conflicts with Assignment update/delete.
-        Course course = courseRepository
-                .findByIdForShare(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.lockShared(courseId);
 
         CourseAccessPolicy.requireActive(course,
                 "Cannot submit work to archived course");
@@ -263,10 +261,15 @@ public class SubmissionService {
 
         EditVersion.require(request.version(), submission.getVersion());
 
+        Integer previousScore = submission.getScore();
+        boolean regrade = submission.getStatus() == SubmissionStatus.GRADED;
+        boolean feedbackChanged = !Objects.equals(submission.getFeedback(), feedback);
         submission.grade(score, feedback);
 
-        // Hibernate Dirty Checking saves the changes.
+        // Hibernate Dirty Checking saves the changes; audit only committed operations.
         submissionRepository.flush();
+        gradeAudit.afterSuccessfulCommit(assignmentId, submissionId, currentUserId,
+                previousScore, score, feedbackChanged, regrade, submission.getVersion(), clock.instant());
         return SubmissionResponse.from(submission);
     }
 
@@ -278,15 +281,7 @@ public class SubmissionService {
     ) {
         Long courseId = findCourseId(assignmentId);
 
-        Course course = (
-                forGrading
-                        ? courseRepository.findByIdForShare(courseId)
-                        : courseRepository.findById(courseId)
-        ).orElseThrow(() ->
-                new ResourceNotFoundException(
-                        "Course not found: " + courseId
-                )
-        );
+        Course course = (forGrading ? courseGuard.lockShared(courseId) : courseGuard.find(courseId));
 
         CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
                 "Only course teacher or ADMIN can review submissions");

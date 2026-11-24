@@ -54,15 +54,24 @@ public class AuthHttpOperations {
     }
 
     public LoginResponse login(LoginRequest request) {
-        checkLimit(() -> limiter.checkLogin(clientIp(), request.email()));
+        AuthRateLimiter.LoginReservation reservation;
+        try {
+            reservation = limiter.checkLogin(clientIp(), request.email());
+        } catch (RateLimitExceededException ex) {
+            metrics.rateLimited();
+            throw ex;
+        }
+        boolean invalidCredentials = false;
         try {
             LoginResponse response = auth.login(request);
             log.info("event=login_succeeded userId={}", response.userId());
             return response;
         } catch (BadCredentialsException ex) {
-            limiter.recordLoginFailure(request.email());
+            invalidCredentials = true;
             log.warn("event=login_failed");
             throw ex;
+        } finally {
+            limiter.completeLogin(reservation, invalidCredentials);
         }
     }
 

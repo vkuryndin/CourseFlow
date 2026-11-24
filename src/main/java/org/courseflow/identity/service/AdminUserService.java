@@ -5,8 +5,6 @@ import java.time.Clock;
 import org.courseflow.auth.service.AccountCreator;
 import org.courseflow.common.exception.EditVersion;
 import org.courseflow.common.validation.EmailAddresses;
-import org.courseflow.auth.entity.UserAccount;
-import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.catalog.service.CourseParticipation;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
@@ -33,7 +31,6 @@ public class AdminUserService {
     private final Clock clock;
 
     private final UserRepository userRepository;
-    private final UserAccountRepository userAccountRepository;
     private final CredentialLifecycle credentialLifecycle;
     private final ProfileRepository profileRepository;
     private final EnrollmentAccess enrollmentAccess;
@@ -41,7 +38,6 @@ public class AdminUserService {
 
     public AdminUserService(
             UserRepository userRepository,
-            UserAccountRepository userAccountRepository,
             CredentialLifecycle credentialLifecycle,
             ProfileRepository profileRepository,
             EnrollmentAccess enrollmentAccess,
@@ -52,7 +48,6 @@ public class AdminUserService {
         this.accountCreator = accountCreator;
         this.clock = clock;
         this.userRepository = userRepository;
-        this.userAccountRepository = userAccountRepository;
         this.credentialLifecycle = credentialLifecycle;
         this.profileRepository = profileRepository;
         this.enrollmentAccess = enrollmentAccess;
@@ -268,18 +263,8 @@ public class AdminUserService {
             );
         }
 
-        UserAccount account =
-                userAccountRepository.findByUser_Id(userId)
-                        .orElseThrow(() ->
-                                new BusinessConflictException(
-                                        "User account is missing"
-                                )
-                        );
-
-        // Remove credentials and their dependent records.
-        credentialLifecycle.deleteDependentCredentials(account.getId());
-
-        userAccountRepository.delete(account);
+        // Remove credentials and their dependent records through the Auth module.
+        credentialLifecycle.deleteCredentials(userId);
 
         // Keep profile relation, remove personal content.
         profileRepository.findByUser_Id(userId)
@@ -293,7 +278,7 @@ public class AdminUserService {
         // All administrative mutations lock the system administrator first.
         // Coordinate with login/password operations before changing User.
         // A deleted user no longer has an account, but its history remains.
-        userAccountRepository.findByUserIdForUpdate(userId);
+        credentialLifecycle.lockAccountIfPresent(userId);
         return userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(

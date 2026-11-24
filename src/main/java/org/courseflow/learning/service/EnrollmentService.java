@@ -5,11 +5,10 @@ import java.time.Clock;
 import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.repository.CourseRepository;
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.repository.UserRepository;
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.entity.Enrollment;
 import org.courseflow.learning.repository.EnrollmentRepository;
@@ -29,21 +28,18 @@ public class EnrollmentService {
     private final Clock clock;
 
     private final EnrollmentRepository enrollmentRepository;
-    private final CourseRepository courseRepository;
-    private final UserRepository userRepository;
+    private final CourseGuard courseGuard;
     private final StudentAccess studentAccess;
 
     public EnrollmentService(
             EnrollmentRepository enrollmentRepository,
-            CourseRepository courseRepository,
-            UserRepository userRepository,
+            CourseGuard courseGuard,
             StudentAccess studentAccess,
             Clock clock
     ) {
         this.clock = clock;
         this.enrollmentRepository = enrollmentRepository;
-        this.courseRepository = courseRepository;
-        this.userRepository = userRepository;
+        this.courseGuard = courseGuard;
         this.studentAccess = studentAccess;
     }
 
@@ -58,13 +54,7 @@ public class EnrollmentService {
             Long courseId,
             Long studentId
     ) {
-        Course course = courseRepository
-                .findByIdForShare(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.lockShared(courseId);
 
         CourseAccessPolicy.requireActive(course,
                 "Cannot enroll in an archived course");
@@ -117,18 +107,11 @@ public class EnrollmentService {
             Long courseId,
             Long studentId
     ) {
-        courseRepository.findByIdForShare(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        courseGuard.lockShared(courseId);
 
         // Same course -> student lock order as enroll and assessment writes.
         // ADMIN may withdraw an inactive student; do not require ACTIVE here.
-        userRepository.findByIdForUpdate(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Student not found: " + studentId));
+        studentAccess.lockExisting(studentId);
 
         Enrollment enrollment = enrollmentRepository
                 .findByStudent_IdAndCourse_Id(
@@ -174,12 +157,7 @@ public class EnrollmentService {
             String sortBy,
             String direction
     ) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.find(courseId);
 
         CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
                 "Teacher can view enrollments only for own courses");

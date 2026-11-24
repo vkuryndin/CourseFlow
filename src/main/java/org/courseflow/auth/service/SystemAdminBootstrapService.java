@@ -7,14 +7,12 @@ import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.entity.UserRole;
-import org.courseflow.identity.repository.UserRepository;
+import org.courseflow.identity.api.UserDirectory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
-import java.util.Set;
 
 @Service
 public class SystemAdminBootstrapService {
@@ -22,7 +20,7 @@ public class SystemAdminBootstrapService {
     private final Clock clock;
     private final JdbcTemplate jdbcTemplate;
 
-    private final UserRepository userRepository;
+    private final UserDirectory userDirectory;
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -33,7 +31,7 @@ public class SystemAdminBootstrapService {
     private String adminPassword;
 
     public SystemAdminBootstrapService(
-            UserRepository userRepository,
+            UserDirectory userDirectory,
             UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
             Clock clock,
@@ -41,7 +39,7 @@ public class SystemAdminBootstrapService {
     ) {
         this.clock = clock;
         this.jdbcTemplate = jdbcTemplate;
-        this.userRepository = userRepository;
+        this.userDirectory = userDirectory;
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -50,7 +48,7 @@ public class SystemAdminBootstrapService {
     public void initialize() {
         // Same database-wide lock as the invariant initializer. Released at commit.
         jdbcTemplate.execute("SELECT pg_advisory_xact_lock(62130001)");
-        if (userRepository.existsBySystemAdminTrue()) {
+        if (userDirectory.systemAdminExists()) {
             return;
         }
 
@@ -70,21 +68,13 @@ public class SystemAdminBootstrapService {
             );
         }
 
-        if (userRepository.existsByEmail(email)) {
+        if (userDirectory.emailInUse(email)) {
             throw new IllegalStateException(
                     "System ADMIN email is already used"
             );
         }
 
-        User admin = new User(
-                "System Administrator",
-                email,
-                Set.of(UserRole.ADMIN),
-                clock.instant()
-        );
-
-        admin.markAsSystemAdmin();
-        userRepository.saveAndFlush(admin);
+        User admin = userDirectory.createSystemAdmin(email, clock.instant());
 
         UserAccount account = new UserAccount(
                 admin,

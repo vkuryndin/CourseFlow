@@ -12,6 +12,13 @@ public class CourseGuard {
     private final CourseRepository courses;
     public CourseGuard(CourseRepository courses) { this.courses = courses; }
 
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public void requireExists(Long courseId) {
+        if (!courses.existsById(courseId)) {
+            throw new ResourceNotFoundException("Course not found: " + courseId);
+        }
+    }
+
     @Transactional(propagation = Propagation.MANDATORY)
     public Course lockEditable(Long courseId, Long userId, boolean admin, String archivedMessage) {
         Course course = lockOwned(courseId, userId, admin);

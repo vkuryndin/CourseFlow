@@ -11,11 +11,11 @@ import org.courseflow.assessment.entity.Quiz;
 import org.courseflow.assessment.repository.QuizRepository;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;
-import org.courseflow.catalog.repository.CourseRepository;
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.content.entity.Module;
-import org.courseflow.content.repository.ModuleRepository;
+import org.courseflow.content.api.ContentStructure;
 import org.courseflow.content.service.ContentAccessService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -28,23 +28,23 @@ import java.util.Optional;
 public class QuizService {
 
     private final QuizRepository quizRepository;
-    private final ModuleRepository moduleRepository;
-    private final CourseRepository courseRepository;
+    private final ContentStructure contentStructure;
+    private final CourseGuard courseGuard;
     private final ContentAccessService contentAccessService;
     private final QuizSubmissionRepository quizSubmissionRepository;
     private final EntityManager entityManager;
 
     public QuizService(
             QuizRepository quizRepository,
-            ModuleRepository moduleRepository,
-            CourseRepository courseRepository,
+            ContentStructure contentStructure,
+            CourseGuard courseGuard,
             ContentAccessService contentAccessService,
             QuizSubmissionRepository quizSubmissionRepository,
             EntityManager entityManager
     ) {
         this.quizRepository = quizRepository;
-        this.moduleRepository = moduleRepository;
-        this.courseRepository = courseRepository;
+        this.contentStructure = contentStructure;
+        this.courseGuard = courseGuard;
         this.contentAccessService = contentAccessService;
         this.quizSubmissionRepository = quizSubmissionRepository;
         this.entityManager = entityManager;
@@ -57,22 +57,11 @@ public class QuizService {
             Long currentUserId,
             boolean isAdmin
     ) {
-        Module module = moduleRepository.findById(moduleId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Module not found: " + moduleId
-                        )
-                );
+        Module module = contentStructure.requireModule(moduleId);
 
         Long courseId = module.getCourse().getId();
 
-        Course course = courseRepository
-                .findByIdForUpdate(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.lock(courseId);
 
         CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
                 "Only course teacher or ADMIN can create Quiz");
@@ -103,12 +92,7 @@ public class QuizService {
             Long currentUserId,
             Authentication authentication
     ) {
-        Module module = moduleRepository.findById(moduleId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Module not found: " + moduleId
-                        )
-                );
+        Module module = contentStructure.requireModule(moduleId);
 
         contentAccessService.checkCourseAccess(
                 module.getCourse().getId(),
@@ -173,15 +157,7 @@ public class QuizService {
                         )
                 );
 
-        Course course = (
-                forModification
-                        ? courseRepository.findByIdForUpdate(courseId)
-                        : courseRepository.findById(courseId)
-        ).orElseThrow(() ->
-                new ResourceNotFoundException(
-                        "Course not found: " + courseId
-                )
-        );
+        Course course = (forModification ? courseGuard.lock(courseId) : courseGuard.find(courseId));
 
         CourseAccessPolicy.requireOwnerOrAdmin(course, currentUserId, isAdmin,
                 "Only course teacher or ADMIN can manage Quiz");

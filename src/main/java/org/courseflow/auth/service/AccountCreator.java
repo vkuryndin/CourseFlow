@@ -7,7 +7,7 @@ import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
-import org.courseflow.identity.repository.UserRepository;
+import org.courseflow.identity.api.UserDirectory;
 import org.springframework.stereotype.Service;
 import org.courseflow.common.validation.EmailAddresses;
 import org.courseflow.common.validation.PasswordBytes;
@@ -18,16 +18,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class AccountCreator {
-    private final UserRepository users;
+    private final UserDirectory userDirectory;
     private final UserAccountRepository accounts;
     private final Clock clock;
 
     private final PasswordEncoder passwordEncoder;
     private final TransactionTemplate transaction;
 
-    public AccountCreator(UserRepository users, UserAccountRepository accounts, Clock clock,
+    public AccountCreator(UserDirectory userDirectory, UserAccountRepository accounts, Clock clock,
                           PasswordEncoder passwordEncoder, PlatformTransactionManager transactionManager) {
-        this.users = users;
+        this.userDirectory = userDirectory;
         this.accounts = accounts;
         this.clock = clock;
         this.passwordEncoder = passwordEncoder;
@@ -48,14 +48,14 @@ public class AccountCreator {
     }
 
     private void requireAvailableEmail(String email) {
-        if (users.existsByEmail(email)) {
+        if (userDirectory.emailInUse(email)) {
             throw new BusinessConflictException("Email is already registered");
         }
     }
 
     private User persist(String displayName, String normalizedEmail, Set<UserRole> roles,
                          String passwordHash, boolean passwordChangeRequired) {
-        User user = users.saveAndFlush(new User(displayName, normalizedEmail, roles, clock.instant()));
+        User user = userDirectory.createUser(displayName, normalizedEmail, roles, clock.instant());
         UserAccount account = new UserAccount(user, passwordHash, clock.instant());
         if (passwordChangeRequired) account.requirePasswordChange();
         accounts.saveAndFlush(account);

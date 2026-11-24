@@ -5,7 +5,7 @@ import org.courseflow.common.exception.EditVersion;
 import java.time.Clock;
 import java.time.Instant;
 import org.courseflow.common.api.Pagination;
-import org.courseflow.identity.repository.UserRepository;
+import org.courseflow.identity.api.UserDirectory;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Isolation;
 import org.courseflow.common.validation.HttpUrls;
@@ -34,7 +34,7 @@ public class LessonSessionService {
     private final LessonRepository lessonRepository;
     private final CourseGuard courseGuard;
     private final ContentAccessService contentAccessService;
-    private final UserRepository userRepository;
+    private final UserDirectory userDirectory;
     private final Clock clock;
 
     public LessonSessionService(
@@ -42,14 +42,14 @@ public class LessonSessionService {
             LessonRepository lessonRepository,
             ContentAccessService contentAccessService,
             CourseGuard courseGuard,
-            UserRepository userRepository,
+            UserDirectory userDirectory,
             Clock clock
     ) {
         this.sessionRepository = sessionRepository;
         this.lessonRepository = lessonRepository;
         this.courseGuard = courseGuard;
         this.contentAccessService = contentAccessService;
-        this.userRepository = userRepository;
+        this.userDirectory = userDirectory;
         this.clock = clock;
     }
 
@@ -297,8 +297,7 @@ public class LessonSessionService {
     }
 
     private void lockTeacher(Long teacherId) {
-        userRepository.findByIdForUpdate(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found: " + teacherId));
+        userDirectory.lockTeacherReference(teacherId);
     }
 
     private void checkNoOverlap(Long teacherId, Long sessionId,

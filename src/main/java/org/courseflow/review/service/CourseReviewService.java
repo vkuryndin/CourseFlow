@@ -7,12 +7,12 @@ import org.courseflow.catalog.service.CourseAccessPolicy;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.review.dto.PublicCourseReviewResponse;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.repository.CourseRepository;
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.repository.UserRepository;
+import org.courseflow.identity.api.UserDirectory;
 import org.courseflow.review.dto.CourseRatingResponse;
 import org.courseflow.review.dto.CourseReviewRequest;
 import org.courseflow.review.dto.CourseReviewResponse;
@@ -36,24 +36,24 @@ public class CourseReviewService {
             Set.of("id", "rating", "createdAt");
 
     private final CourseReviewRepository courseReviewRepository;
-    private final CourseRepository courseRepository;
+    private final CourseGuard courseGuard;
     private final EnrollmentAccess enrollmentAccess;
-    private final UserRepository userRepository;
+    private final UserDirectory userDirectory;
     private final StudentAccess studentAccess;
 
     public CourseReviewService(
             CourseReviewRepository courseReviewRepository,
-            CourseRepository courseRepository,
+            CourseGuard courseGuard,
             EnrollmentAccess enrollmentAccess,
-            UserRepository userRepository,
+            UserDirectory userDirectory,
             StudentAccess studentAccess,
             Clock clock
     ) {
         this.clock = clock;
         this.courseReviewRepository = courseReviewRepository;
-        this.courseRepository = courseRepository;
+        this.courseGuard = courseGuard;
         this.enrollmentAccess = enrollmentAccess;
-        this.userRepository = userRepository;
+        this.userDirectory = userDirectory;
         this.studentAccess = studentAccess;
     }
 
@@ -79,12 +79,7 @@ public class CourseReviewService {
             );
         }
 
-        User student = userRepository.findById(studentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Student not found: " + studentId
-                        )
-                );
+        User student = userDirectory.requireStudentReference(studentId);
 
         CourseReview review = new CourseReview(
                 course,
@@ -208,13 +203,7 @@ public class CourseReviewService {
             Long courseId,
             Long studentId
     ) {
-        Course course = courseRepository
-                .findByIdForShare(courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Course not found: " + courseId
-                        )
-                );
+        Course course = courseGuard.lockShared(courseId);
 
         // Serialize review changes and enrollment changes of the same student.
         User student = studentAccess.lockActive(studentId);
@@ -250,11 +239,7 @@ public class CourseReviewService {
     }
 
     private void requireCourseExists(Long courseId) {
-        if (!courseRepository.existsById(courseId)) {
-            throw new ResourceNotFoundException(
-                    "Course not found: " + courseId
-            );
-        }
+        courseGuard.requireExists(courseId);
     }
 
     private String normalizeComment(String comment) {

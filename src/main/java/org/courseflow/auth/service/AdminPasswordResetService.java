@@ -2,35 +2,29 @@
 package org.courseflow.auth.service;
 
 import org.courseflow.common.exception.BusinessConflictException;
-import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserStatus;
-import org.courseflow.identity.repository.UserRepository;
+import org.courseflow.identity.api.UserDirectory;
 
 import org.springframework.stereotype.Service;
 
 @Service
 public class AdminPasswordResetService {
 
-    private final UserRepository userRepository;
+    private final UserDirectory userDirectory;
     private final PasswordResetService passwordResetService;
 
     public AdminPasswordResetService(
-            UserRepository userRepository,
+            UserDirectory userDirectory,
             PasswordResetService passwordResetService
     ) {
-        this.userRepository = userRepository;
+        this.userDirectory = userDirectory;
         this.passwordResetService = passwordResetService;
     }
 
     public void sendResetLink(Long userId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found: " + userId
-                        )
-                );
+        User user = userDirectory.requireUser(userId);
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessConflictException(
