@@ -17,6 +17,6 @@ public class SystemStatusController {
     @GetMapping("/status")
     public SystemStatusResponse status() {
         systemStatusService.checkDatabase();
-        return new SystemStatusResponse("study-orm", "UP", "CONNECTED");
+        return new SystemStatusResponse("CourseFlow", "UP", "CONNECTED");
     }
 }

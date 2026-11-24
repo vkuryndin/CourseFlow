@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -205,6 +207,32 @@ public class GlobalExceptionHandler {
                 "HTTP method is not supported for this endpoint",
                 request
         );
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleRateLimit(
+            RateLimitExceededException ex,
+            HttpServletRequest request
+    ) {
+        ResponseEntity<ApiErrorResponse> result = buildResponse(
+                HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER,
+                        Long.toString(ex.getRetryAfterSeconds()))
+                .body(result.getBody());
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiErrorResponse> handleResponseStatus(
+            ResponseStatusException ex,
+            HttpServletRequest request
+    ) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        return buildResponse(status, status.getReasonPhrase(), request);
     }
 
     @ExceptionHandler(Exception.class)

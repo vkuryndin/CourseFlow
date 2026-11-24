@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -35,6 +36,7 @@ public class AuthService {
     private final AuthSessionRepository authSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final String dummyPasswordHash;
 
     public AuthService(
             UserRepository userRepository,
@@ -48,6 +50,7 @@ public class AuthService {
         this.authSessionRepository = authSessionRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
     @Transactional
@@ -94,26 +97,37 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
+        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BadRequestException("Password must not exceed 72 UTF-8 bytes");
+        }
+
         Long accountId = userAccountRepository
                 .findAccountIdByUserEmail(email)
-                .orElseThrow(this::invalidCredentials);
+                .orElse(null);
+
+        if (accountId == null) {
+            // Do comparable BCrypt work for nonexistent accounts.
+            passwordEncoder.matches(request.password(), dummyPasswordHash);
+            throw invalidCredentials();
+        }
 
         // Serialize login with password changes and resets. Read the
         // password hash only after obtaining the account lock.
         UserAccount account = userAccountRepository
                 .findByIdForUpdate(accountId)
-                .orElseThrow(this::invalidCredentials);
+                .orElse(null);
 
-        User user = account.getUser();
-
-        if (!email.equals(user.getEmail())) {
+        if (account == null) {
+            passwordEncoder.matches(request.password(), dummyPasswordHash);
             throw invalidCredentials();
         }
 
-        if (!passwordEncoder.matches(
-                request.password(),
-                account.getPasswordHash()
-        )) {
+        User user = account.getUser();
+
+        boolean passwordMatches = passwordEncoder.matches(
+                request.password(), account.getPasswordHash()
+        );
+        if (!passwordMatches || !email.equals(user.getEmail())) {
             throw invalidCredentials();
         }
 

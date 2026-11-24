@@ -43,6 +43,10 @@ public class PasswordService {
             Long userId,
             ChangePasswordRequest request
     ) {
+        if (request.currentPassword().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BadRequestException("Current password must not exceed 72 UTF-8 bytes");
+        }
+
         // Use the same account lock as login and password reset.
         UserAccount account = userAccountRepository
                 .findByUserIdForUpdate(userId)

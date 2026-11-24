@@ -2,12 +2,14 @@
 package org.courseflow.auth.controller;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.courseflow.auth.dto.LoginRequest;
 import org.courseflow.auth.dto.LoginResponse;
 import org.courseflow.auth.dto.RegistrationRequest;
 import org.courseflow.auth.dto.RegistrationResponse;
 import org.courseflow.auth.service.AuthService;
+import org.courseflow.auth.service.AuthRateLimiter;
 import org.courseflow.auth.service.LogoutService;
 
 import org.springframework.http.HttpStatus;
@@ -22,13 +24,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final LogoutService logoutService;
+    private final AuthRateLimiter authRateLimiter;
 
     public AuthController(
             AuthService authService,
-            LogoutService logoutService
+            LogoutService logoutService,
+            AuthRateLimiter authRateLimiter
     ) {
         this.authService = authService;
         this.logoutService = logoutService;
+        this.authRateLimiter = authRateLimiter;
     }
 
     @PostMapping("/register")
@@ -45,8 +50,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(
-            @Valid @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest servletRequest
     ) {
+        authRateLimiter.checkLogin(servletRequest.getRemoteAddr(), request.email());
         return authService.login(request);
     }
 

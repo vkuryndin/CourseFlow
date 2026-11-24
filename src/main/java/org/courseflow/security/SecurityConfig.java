@@ -182,14 +182,32 @@ public class SecurityConfig {
                         ).hasRole("STUDENT")
 
                         .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/users", "/api/users/*"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.POST,
                                 "/api/users",
-                                "/api/users/**"
+                                "/api/users/*/activate",
+                                "/api/users/*/deactivate",
+                                "/api/users/*/password-reset"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/users/*", "/api/users/*/roles"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/users/*"
                         ).hasRole("ADMIN")
 
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/categories",
-                                "/api/categories/**"
+                                "/api/categories/*"
                         ).permitAll()
 
                         .requestMatchers(
@@ -419,7 +437,16 @@ public class SecurityConfig {
                                 "/api/assignments/*/submissions/*/grade"
                         ).hasAnyRole("ADMIN", "TEACHER")
 
-                        .requestMatchers("/api/**").authenticated()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/auth/logout",
+                                "/api/auth/change-password"
+                        ).authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/system/status"
+                        ).authenticated()
 
                         .anyRequest().denyAll()
                 )
