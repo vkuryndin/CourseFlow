@@ -1,12 +1,12 @@
-package org.courseflow.content.service;
+package org.courseflow.content.api;
 
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.exception.ResourceNotFoundException;
+import org.courseflow.common.security.CurrentUser;
 import org.courseflow.content.entity.Lesson;
 import org.courseflow.content.repository.LessonRepository;
-import org.courseflow.learning.service.EnrollmentAccess;
-import org.courseflow.security.CurrentUser;
+import org.courseflow.learning.api.EnrollmentAccess;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;

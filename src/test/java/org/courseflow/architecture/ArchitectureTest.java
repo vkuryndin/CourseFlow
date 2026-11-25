@@ -44,78 +44,50 @@ class ArchitectureTest {
   private static final Map<String, Set<String>> MODULE_DEPENDENCIES =
       Map.ofEntries(
           Map.entry(APPLICATION, Set.of()),
-          Map.entry(
-              "assessment",
-              Set.of("catalog", "common", "content", "identity", "learning", "security")),
-          Map.entry("auth", Set.of("common", "identity", "security")),
-          Map.entry(
-              "catalog", Set.of("common", "content", "identity", "learning", "review", "security")),
-          Map.entry("common", Set.of("security")),
-          Map.entry(
-              "content",
-              Set.of("assessment", "catalog", "common", "identity", "learning", "security")),
+          Map.entry("assessment", Set.of("catalog", "common", "content", "identity", "learning")),
+          Map.entry("auth", Set.of("common", "identity")),
+          Map.entry("catalog", Set.of("common", "content", "identity", "learning", "review")),
+          Map.entry("common", Set.of()),
+          Map.entry("content", Set.of("assessment", "catalog", "common", "identity", "learning")),
           Map.entry(
               "dashboard",
-              Set.of(
-                  "assessment",
-                  "catalog",
-                  "common",
-                  "content",
-                  "identity",
-                  "learning",
-                  "security")),
+              Set.of("assessment", "catalog", "common", "content", "identity", "learning")),
           Map.entry(
               "demo",
               Set.of("assessment", "auth", "catalog", "content", "identity", "learning", "review")),
-          Map.entry("identity", Set.of("auth", "catalog", "common", "learning", "security")),
-          Map.entry(
-              "learning",
-              Set.of("assessment", "catalog", "common", "content", "identity", "security")),
-          Map.entry("review", Set.of("catalog", "common", "identity", "learning", "security")),
+          Map.entry("identity", Set.of("auth", "catalog", "common", "learning")),
+          Map.entry("learning", Set.of("assessment", "catalog", "common", "content", "identity")),
+          Map.entry("review", Set.of("catalog", "common", "identity", "learning")),
           Map.entry("security", Set.of("auth", "common", "identity")));
 
-  // Existing calls to another business module's service layer. New collaboration should use
-  // that module's explicit API or be reviewed before adding a new exception here.
-  private static final Set<String> CROSS_MODULE_SERVICE_DEPENDENCIES =
+  // Reviewed application-level cycle edges, excluding dependencies to/from entity packages.
+  // Keep this independent of MODULE_DEPENDENCIES: an allowed direction may be ORM-only
+  // or acyclic, and must not silently become part of a new application cycle.
+  private static final Set<String> REVIEWED_APPLICATION_CYCLE_EDGES =
       Set.of(
-          "assessment.service.QuestionService -> catalog.service.CourseAccessPolicy",
-          "assessment.service.QuestionService -> content.service.ContentAccessService",
-          "assessment.service.QuizAttemptQueryService -> catalog.service.CourseAccessPolicy",
-          "assessment.service.QuizAttemptQueryService -> catalog.service.CourseGuard",
-          "assessment.service.QuizAttemptService -> catalog.service.CourseAccessPolicy",
-          "assessment.service.QuizAttemptService -> catalog.service.CourseGuard",
-          "assessment.service.QuizAttemptService -> identity.service.StudentAccess",
-          "assessment.service.QuizAttemptService -> learning.service.EnrollmentAccess",
-          "assessment.service.QuizService -> catalog.service.CourseAccessPolicy",
-          "assessment.service.QuizService -> catalog.service.CourseGuard",
-          "assessment.service.QuizService -> content.service.ContentAccessService",
-          "catalog.service.CourseService -> content.service.LessonScheduleChecks",
-          "catalog.service.CourseService -> learning.service.EnrollmentAccess",
-          "content.service.ContentAccessService -> catalog.service.CourseGuard",
-          "content.service.ContentAccessService -> learning.service.EnrollmentAccess",
-          "content.service.LessonService -> catalog.service.CourseGuard",
-          "content.service.LessonSessionService -> catalog.service.CourseGuard",
-          "content.service.ModuleService -> catalog.service.CourseGuard",
-          "dashboard.service.StudentDashboardService -> learning.service.ProgressService",
-          "identity.service.AdminUserService -> auth.service.AccountCreator",
-          "identity.service.AdminUserService -> auth.service.CredentialLifecycle",
-          "identity.service.AdminUserService -> catalog.service.CourseParticipation",
-          "identity.service.AdminUserService -> learning.service.EnrollmentAccess",
-          "learning.service.AssignmentService -> catalog.service.CourseAccessPolicy",
-          "learning.service.AssignmentService -> catalog.service.CourseGuard",
-          "learning.service.AssignmentService -> content.service.ContentAccessService",
-          "learning.service.EnrollmentService -> catalog.service.CourseAccessPolicy",
-          "learning.service.EnrollmentService -> catalog.service.CourseGuard",
-          "learning.service.EnrollmentService -> identity.service.StudentAccess",
-          "learning.service.GradebookService -> catalog.service.CourseAccessPolicy",
-          "learning.service.GradebookService -> catalog.service.CourseGuard",
-          "learning.service.SubmissionService -> catalog.service.CourseAccessPolicy",
-          "learning.service.SubmissionService -> catalog.service.CourseGuard",
-          "learning.service.SubmissionService -> identity.service.StudentAccess",
-          "review.service.CourseReviewService -> catalog.service.CourseAccessPolicy",
-          "review.service.CourseReviewService -> catalog.service.CourseGuard",
-          "review.service.CourseReviewService -> identity.service.StudentAccess",
-          "review.service.CourseReviewService -> learning.service.EnrollmentAccess");
+          "assessment -> catalog",
+          "assessment -> content",
+          "assessment -> identity",
+          "assessment -> learning",
+          "auth -> identity",
+          "catalog -> content",
+          "catalog -> identity",
+          "catalog -> learning",
+          "catalog -> review",
+          "content -> assessment",
+          "content -> catalog",
+          "content -> identity",
+          "content -> learning",
+          "identity -> auth",
+          "identity -> catalog",
+          "identity -> learning",
+          "learning -> assessment",
+          "learning -> catalog",
+          "learning -> content",
+          "learning -> identity",
+          "review -> catalog",
+          "review -> identity",
+          "review -> learning");
 
   private static JavaClasses classes;
 
@@ -318,20 +290,18 @@ class ArchitectureTest {
   }
 
   @Test
-  void crossModuleServiceDependenciesDoNotGrowWithoutReview() {
+  void internalServicesArePrivateToTheirOwningModule() {
     checkDependencies(
         ArchitectureTest::isProject,
         (origin, target) ->
             isProject(target)
                 && layer(target, "service")
-                && !module(origin).equals(module(target))
-                && !CROSS_MODULE_SERVICE_DEPENDENCIES.contains(
-                    shortName(origin) + " -> " + shortName(target)));
+                && !module(origin).equals(module(target)));
   }
 
   @Test
-  void moduleDependencyDirectionsAndExistingCyclesDoNotGrow() {
-    Map<String, Set<String>> actual = new HashMap<>();
+  void moduleDependencyDirectionsAndApplicationCyclesDoNotGrow() {
+    Map<String, Set<String>> applicationGraph = new HashMap<>();
     List<String> violations = new ArrayList<>();
     for (JavaClass type : classes) {
       if (!isProject(type)) {
@@ -344,19 +314,22 @@ class ArchitectureTest {
         }
         String from = module(type);
         String to = module(target);
-        actual.computeIfAbsent(from, ignored -> new HashSet<>()).add(to);
+        if (!layer(type, "entity") && !layer(target, "entity")) {
+          applicationGraph.computeIfAbsent(from, ignored -> new HashSet<>()).add(to);
+        }
         if (!MODULE_DEPENDENCIES.getOrDefault(from, Set.of()).contains(to)) {
           violations.add(dependency.getDescription());
         }
       }
     }
-    Set<String> newCyclicEdges = cyclicEdges(actual);
-    newCyclicEdges.removeAll(cyclicEdges(MODULE_DEPENDENCIES));
+    Set<String> newCyclicEdges = cyclicEdges(applicationGraph);
+    newCyclicEdges.removeAll(REVIEWED_APPLICATION_CYCLE_EDGES);
     assertAll(
         () -> assertNoViolations(violations),
         () ->
             assertTrue(
-                newCyclicEdges.isEmpty(), () -> "New cyclic module edges: " + newCyclicEdges));
+                newCyclicEdges.isEmpty(),
+                () -> "New cyclic application module edges: " + newCyclicEdges));
   }
 
   @Test
@@ -368,10 +341,24 @@ class ArchitectureTest {
       }
       for (var constructor : type.getConstructors()) {
         for (JavaClass parameter : constructor.getRawParameterTypes()) {
-          if (isProject(parameter) && isManagedType(parameter)) {
+          if (!isProject(parameter)) {
+            continue;
+          }
+          if (isManagedType(parameter)) {
             graph
                 .computeIfAbsent(type.getName(), ignored -> new HashSet<>())
                 .add(parameter.getName());
+          } else if (parameter.isInterface()) {
+            // A public interface (e.g. ProgressQuery) can hide a managed implementation.
+            for (JavaClass candidate : classes) {
+              if (!candidate.isInterface()
+                  && isManagedType(candidate)
+                  && candidate.isAssignableTo(parameter.getName())) {
+                graph
+                    .computeIfAbsent(type.getName(), ignored -> new HashSet<>())
+                    .add(candidate.getName());
+              }
+            }
           }
         }
       }
@@ -473,10 +460,6 @@ class ArchitectureTest {
         || isAdvice(type)
         || type.isAnnotatedWith(REPOSITORY)
         || type.isAssignableTo(DATA_REPOSITORY);
-  }
-
-  private static String shortName(JavaClass type) {
-    return type.getName().substring(ROOT.length() + 1);
   }
 
   private static void checkDependencies(

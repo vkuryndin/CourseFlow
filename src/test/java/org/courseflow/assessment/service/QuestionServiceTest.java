@@ -25,7 +25,7 @@ import org.courseflow.assessment.repository.QuizRepository;
 import org.courseflow.assessment.repository.QuizSubmissionRepository;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
-import org.courseflow.content.service.ContentAccessService;
+import org.courseflow.content.api.ContentAccessService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

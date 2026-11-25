@@ -1,8 +1,8 @@
 package org.courseflow.dashboard.controller;
 
+import org.courseflow.common.security.CurrentUser;
 import org.courseflow.dashboard.dto.TeacherDashboardResponse;
 import org.courseflow.dashboard.service.TeacherDashboardService;
-import org.courseflow.security.CurrentUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;

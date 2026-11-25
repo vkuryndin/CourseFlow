@@ -13,7 +13,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Optional;
 import org.courseflow.assessment.api.QuizAccess;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.content.api.ContentStructure;
 import org.courseflow.content.dto.ChangeModulePositionRequest;

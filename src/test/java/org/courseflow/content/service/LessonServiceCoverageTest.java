@@ -17,9 +17,11 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
+import org.courseflow.content.api.ContentAccessService;
+import org.courseflow.content.api.LessonScheduleChecks;
 import org.courseflow.content.dto.ChangeLessonPositionRequest;
 import org.courseflow.content.dto.LessonSummaryResponse;
 import org.courseflow.content.entity.Lesson;

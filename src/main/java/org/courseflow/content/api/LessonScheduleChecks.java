@@ -1,4 +1,4 @@
-package org.courseflow.content.service;
+package org.courseflow.content.api;
 
 import java.time.Instant;
 import org.courseflow.content.repository.LessonSessionRepository;

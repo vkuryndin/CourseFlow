@@ -2,11 +2,11 @@ package org.courseflow.learning.controller;
 
 import java.net.URI;
 import org.courseflow.common.api.PageResponse;
+import org.courseflow.common.security.CurrentUser;
 import org.courseflow.learning.dto.EnrollmentListItemResponse;
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.service.EnrollmentService;
-import org.courseflow.security.CurrentUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

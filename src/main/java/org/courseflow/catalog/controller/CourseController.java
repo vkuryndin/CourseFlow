@@ -14,7 +14,7 @@ import org.courseflow.catalog.service.CourseQueryService;
 import org.courseflow.catalog.service.CourseService;
 import org.courseflow.catalog.service.CourseTagService;
 import org.courseflow.common.api.PageResponse;
-import org.courseflow.security.CurrentUser;
+import org.courseflow.common.security.CurrentUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

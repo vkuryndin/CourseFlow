@@ -6,7 +6,7 @@ import org.courseflow.auth.dto.LoginResponse;
 import org.courseflow.auth.dto.RegistrationRequest;
 import org.courseflow.auth.dto.RegistrationResponse;
 import org.courseflow.auth.service.LogoutService;
-import org.courseflow.security.CurrentUser;
+import org.courseflow.common.security.CurrentUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

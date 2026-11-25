@@ -11,8 +11,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
-import org.courseflow.catalog.service.CourseGuard;
-import org.courseflow.identity.service.StudentAccess;
+import org.courseflow.catalog.api.CourseGuard;
+import org.courseflow.identity.api.StudentAccess;
 import org.courseflow.learning.entity.Enrollment;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;

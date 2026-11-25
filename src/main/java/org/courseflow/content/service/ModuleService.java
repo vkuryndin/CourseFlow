@@ -1,8 +1,8 @@
 package org.courseflow.content.service;
 
 import org.courseflow.assessment.api.QuizAccess;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.BusinessConflictException;

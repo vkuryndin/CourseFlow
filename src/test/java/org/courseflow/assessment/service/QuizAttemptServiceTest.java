@@ -29,11 +29,11 @@ import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.assessment.repository.QuestionRepository;
 import org.courseflow.assessment.repository.QuizRepository;
 import org.courseflow.assessment.repository.QuizSubmissionRepository;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-import org.courseflow.identity.service.StudentAccess;
-import org.courseflow.learning.service.EnrollmentAccess;
+import org.courseflow.identity.api.StudentAccess;
+import org.courseflow.learning.api.EnrollmentAccess;
 import org.junit.jupiter.api.Test;
 
 class QuizAttemptServiceTest {

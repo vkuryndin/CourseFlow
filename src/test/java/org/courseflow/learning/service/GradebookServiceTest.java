@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.common.api.JpqlPages;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.content.api.ContentStructure;

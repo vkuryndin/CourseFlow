@@ -224,9 +224,9 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [rejectsExistingEmailBeforeHashing](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java#L42) | Отклонение операции: Existing Email Before Hashing. Исключение `BusinessConflictException`; Отсутствие вызовов `encoder` |
-| [checksEmailAgainInsideTransaction](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java#L59) | Checks email again inside transaction. Исключение `BusinessConflictException`; Отсутствие вызовов `accounts` |
-| [createsUserAndAccountWithRequiredPasswordFlag](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java#L77) | Creates user and account with required password flag. `actual = 10L`; `captor.getValue().getUser() = user`; `captor.getValue().getPasswordHash() = "hash"` |
+| [rejectsExistingEmailBeforeHashing](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java#L43) | Отклонение операции: Existing Email Before Hashing. Исключение `BusinessConflictException`; Отсутствие вызовов `encoder` |
+| [checksEmailAgainInsideTransaction](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java#L60) | Checks email again inside transaction. Исключение `BusinessConflictException`; Отсутствие вызовов `accounts` |
+| [createsUserAndAccountWithRequiredPasswordFlag](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java#L78) | Creates user and account with required password flag. `actual = 10L`; `captor.getValue().getUser() = user`; `captor.getValue().getPasswordHash() = "hash"` |
 
 #### [AdminPasswordResetServiceTest](../src/test/java/org/courseflow/auth/service/AdminPasswordResetServiceTest.java)
 
@@ -261,12 +261,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [unknownEmailStillRunsPasswordCheck](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L57) | Unknown email still runs password check. Исключение `BadCredentialsException`; Вызов `encoder.matches()`; Отсутствие вызовов `sessions` |
-| [wrongPasswordDoesNotCreateSession](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L68) | Wrong password does not create session. Исключение `BadCredentialsException`; Отсутствие вызовов `sessions` |
-| [loginChecksHashAgainAfterAcquiringLock](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L80) | Login checks hash again after acquiring lock. Исключение `BadCredentialsException`; Отсутствие вызовов `sessions` |
-| [inactiveUserCannotLogin](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L92) | Inactive user cannot login. Исключение `BadCredentialsException`; Отсутствие вызовов `sessions` |
-| [loginCreatesOneHourSessionAndReturnsFlag](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L104) | Login creates one hour session and returns flag. `result.accessToken() = "jwt"`; `result.tokenType() = "Bearer"`; `result.userId() = 10L` |
-| [longPasswordRejectedBeforeAccountLookup](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L124) | Long password rejected before account lookup. Исключение `BadRequestException`; Отсутствие вызовов `accounts` |
+| [unknownEmailStillRunsPasswordCheck](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L58) | Unknown email still runs password check. Исключение `BadCredentialsException`; Вызов `encoder.matches()`; Отсутствие вызовов `sessions` |
+| [wrongPasswordDoesNotCreateSession](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L69) | Wrong password does not create session. Исключение `BadCredentialsException`; Отсутствие вызовов `sessions` |
+| [loginChecksHashAgainAfterAcquiringLock](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L81) | Login checks hash again after acquiring lock. Исключение `BadCredentialsException`; Отсутствие вызовов `sessions` |
+| [inactiveUserCannotLogin](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L93) | Inactive user cannot login. Исключение `BadCredentialsException`; Отсутствие вызовов `sessions` |
+| [loginCreatesOneHourSessionAndReturnsFlag](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L105) | Login creates one hour session and returns flag. `result.accessToken() = "jwt"`; `result.tokenType() = "Bearer"`; `result.userId() = 10L` |
+| [longPasswordRejectedBeforeAccountLookup](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L125) | Long password rejected before account lookup. Исключение `BadRequestException`; Отсутствие вызовов `accounts` |
 
 #### [CredentialLifecycleTest](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java)
 
@@ -274,10 +274,10 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [revokesSessionsByUserId](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L29) | Revokes sessions by user id. Вызов `sessions.revokeActiveSessionsByUserId()` |
-| [invalidatesTokensOnlyIfAccountExists](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L36) | Invalidates tokens only if account exists. Отсутствие вызовов `tokens`; Вызов `tokens.invalidateUnusedTokensForAccount()` |
-| [locksAccountAndDeletesCredentialsInOrder](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L47) | Locks account and deletes credentials in order. Вызов `accounts.findByUserIdForUpdate()`; Вызов `sessions.deleteAllByAccountId()`; Вызов `tokens.deleteAllByAccountId()` |
-| [missingAccountCannotBeDeleted](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L60) | Missing account cannot be deleted. Исключение `BusinessConflictException`; Отсутствие вызовов `sessions` |
+| [revokesSessionsByUserId](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L30) | Revokes sessions by user id. Вызов `sessions.revokeActiveSessionsByUserId()` |
+| [invalidatesTokensOnlyIfAccountExists](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L37) | Invalidates tokens only if account exists. Отсутствие вызовов `tokens`; Вызов `tokens.invalidateUnusedTokensForAccount()` |
+| [locksAccountAndDeletesCredentialsInOrder](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L48) | Locks account and deletes credentials in order. Вызов `accounts.findByUserIdForUpdate()`; Вызов `sessions.deleteAllByAccountId()`; Вызов `tokens.deleteAllByAccountId()` |
+| [missingAccountCannotBeDeleted](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L61) | Missing account cannot be deleted. Исключение `BusinessConflictException`; Отсутствие вызовов `sessions` |
 
 #### [ExpiredCredentialsCleanupTest](../src/test/java/org/courseflow/auth/service/ExpiredCredentialsCleanupTest.java)
 
@@ -312,14 +312,14 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [smtpFailureDoesNotExposeAccountExistence](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L84) | Smtp failure does not expose account existence. Вызов `metrics.resetMailFailed()`; Вызов `metrics.resetMailSent()` (`never()`) |
-| [deactivatedAccountDoesNotReceiveToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L93) | Deactivated account does not receive token. Отсутствие вызовов `tokens` |
-| [changedEmailDoesNotReceiveToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L101) | Changed email does not receive token. Отсутствие вызовов `tokens` |
-| [developmentMailIncludesTestToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L109) | Development mail includes test token. `message.getValue().getText().contains("For testing through requests.http")` — истина; Вызов `mail.send()` |
-| [productionSuppressesDebugTokenEvenWithDevProfile](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L118) | Production suppresses debug token even with dev profile. `message.getValue().getText().contains("For testing through requests.http")` — ложь; Вызов `mail.send()` |
-| [samePasswordRejectedBeforeLock](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L127) | Same password rejected before lock. Исключение `BadRequestException`; Отсутствие вызовов `lifecycle`; Вызов `accounts.findByIdForUpdate()` (`never()`) |
-| [expiredTokenRejectedAfterLock](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L138) | Expired token rejected after lock. Исключение `BadRequestException`; `account.getPasswordHash() = "old-hash"`; Отсутствие вызовов `lifecycle` |
-| [changedPasswordHashRejectsStaleReset](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L150) | Changed password hash rejects stale reset. Исключение `BadRequestException`; `account.getPasswordHash() = "changed-hash"`; `token.getUsedAt()` — null |
+| [smtpFailureDoesNotExposeAccountExistence](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L85) | Smtp failure does not expose account existence. Вызов `metrics.resetMailFailed()`; Вызов `metrics.resetMailSent()` (`never()`) |
+| [deactivatedAccountDoesNotReceiveToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L94) | Deactivated account does not receive token. Отсутствие вызовов `tokens` |
+| [changedEmailDoesNotReceiveToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L102) | Changed email does not receive token. Отсутствие вызовов `tokens` |
+| [developmentMailIncludesTestToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L110) | Development mail includes test token. `message.getValue().getText().contains("For testing through requests.http")` — истина; Вызов `mail.send()` |
+| [productionSuppressesDebugTokenEvenWithDevProfile](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L119) | Production suppresses debug token even with dev profile. `message.getValue().getText().contains("For testing through requests.http")` — ложь; Вызов `mail.send()` |
+| [samePasswordRejectedBeforeLock](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L128) | Same password rejected before lock. Исключение `BadRequestException`; Отсутствие вызовов `lifecycle`; Вызов `accounts.findByIdForUpdate()` (`never()`) |
+| [expiredTokenRejectedAfterLock](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L139) | Expired token rejected after lock. Исключение `BadRequestException`; `account.getPasswordHash() = "old-hash"`; Отсутствие вызовов `lifecycle` |
+| [changedPasswordHashRejectsStaleReset](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java#L151) | Changed password hash rejects stale reset. Исключение `BadRequestException`; `account.getPasswordHash() = "changed-hash"`; `token.getUsedAt()` — null |
 
 #### [PasswordResetServiceTest](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java)
 
@@ -327,11 +327,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [unknownEmailDoesNotSendMail](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L74) | Unknown email does not send mail. Вызов `accounts.findAccountIdByUserEmail()`; Отсутствие вызовов `tokens` |
-| [cooldownPreventsSendingAnotherToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L83) | Cooldown prevents sending another token. Вызов `tokens.saveAndFlush()` (`never()`); Отсутствие вызовов `mail` |
-| [storesHashedTokenAndSendsResetLink](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L94) | Stores hashed token and sends reset link. `token.getValue().getTokenHash().length() = 64`; `token.getValue().getExpiresAt() = NOW.plusSeconds(1800)`; `message.getValue().getTo()[0] = "student@example.test"` |
-| [invalidTokenDoesNotHashNewPassword](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L111) | Invalid token does not hash new password. Исключение `BadRequestException`; Отсутствие вызовов `encoder` |
-| [resetChangesPasswordAndRevokesSessions](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L119) | Reset changes password and revokes sessions. `account.getPasswordHash() = "new-hash"`; `token.getUsedAt() = NOW`; Вызов `tokens.invalidateUnusedTokensForAccount()` |
+| [unknownEmailDoesNotSendMail](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L75) | Unknown email does not send mail. Вызов `accounts.findAccountIdByUserEmail()`; Отсутствие вызовов `tokens` |
+| [cooldownPreventsSendingAnotherToken](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L84) | Cooldown prevents sending another token. Вызов `tokens.saveAndFlush()` (`never()`); Отсутствие вызовов `mail` |
+| [storesHashedTokenAndSendsResetLink](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L95) | Stores hashed token and sends reset link. `token.getValue().getTokenHash().length() = 64`; `token.getValue().getExpiresAt() = NOW.plusSeconds(1800)`; `message.getValue().getTo()[0] = "student@example.test"` |
+| [invalidTokenDoesNotHashNewPassword](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L112) | Invalid token does not hash new password. Исключение `BadRequestException`; Отсутствие вызовов `encoder` |
+| [resetChangesPasswordAndRevokesSessions](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L120) | Reset changes password and revokes sessions. `account.getPasswordHash() = "new-hash"`; `token.getUsedAt() = NOW`; Вызов `tokens.invalidateUnusedTokensForAccount()` |
 
 #### [PasswordServiceTest](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java)
 
@@ -339,11 +339,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [passwordChangeUpdatesHashAndRevokesCredentials](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L51) | Password change updates hash and revokes credentials. `account.getPasswordHash() = "new-hash"`; `account.isPasswordChangeRequired()` — ложь; Вызов `tokens.invalidateUnusedTokensForAccount()` |
-| [rejectsWrongOrSamePassword](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L63) | Отклонение операции: Wrong Or Same Password. Исключение `BadRequestException`; Отсутствие вызовов `tx` |
-| [stalePasswordHashCannotOverwriteConcurrentReset](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L77) | Stale password hash cannot overwrite concurrent reset. Исключение `BadRequestException`; `account.getPasswordHash() = "other"`; Отсутствие вызовов `tokens` |
-| [inactiveAccountRejected](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L90) | Отклонение операции: inactive Account. Исключение `AccessDeniedException`; Отсутствие вызовов `tokens` |
-| [missingAccountRejected](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L102) | Отказ при отсутствии учётной записи. Исключение `ResourceNotFoundException` |
+| [passwordChangeUpdatesHashAndRevokesCredentials](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L52) | Password change updates hash and revokes credentials. `account.getPasswordHash() = "new-hash"`; `account.isPasswordChangeRequired()` — ложь; Вызов `tokens.invalidateUnusedTokensForAccount()` |
+| [rejectsWrongOrSamePassword](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L64) | Отклонение операции: Wrong Or Same Password. Исключение `BadRequestException`; Отсутствие вызовов `tx` |
+| [stalePasswordHashCannotOverwriteConcurrentReset](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L78) | Stale password hash cannot overwrite concurrent reset. Исключение `BadRequestException`; `account.getPasswordHash() = "other"`; Отсутствие вызовов `tokens` |
+| [inactiveAccountRejected](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L91) | Отклонение операции: inactive Account. Исключение `AccessDeniedException`; Отсутствие вызовов `tokens` |
+| [missingAccountRejected](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java#L103) | Отказ при отсутствии учётной записи. Исключение `ResourceNotFoundException` |
 
 #### [RegistrationServiceTest](../src/test/java/org/courseflow/auth/service/RegistrationServiceTest.java)
 
@@ -351,7 +351,7 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [registrationAlwaysCreatesStudentWithoutTemporaryPassword](../src/test/java/org/courseflow/auth/service/RegistrationServiceTest.java#L38) | Registration always creates student without temporary password. `response.id() = 10L`; `response.roles() = Set.of(UserRole.STUDENT)`; `response.email() = "student@example.test"` |
+| [registrationAlwaysCreatesStudentWithoutTemporaryPassword](../src/test/java/org/courseflow/auth/service/RegistrationServiceTest.java#L39) | Registration always creates student without temporary password. `response.id() = 10L`; `response.roles() = Set.of(UserRole.STUDENT)`; `response.email() = "student@example.test"` |
 
 #### [SystemAdminBootstrapServiceTest](../src/test/java/org/courseflow/auth/service/SystemAdminBootstrapServiceTest.java)
 
@@ -494,10 +494,10 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [activeStudentAccepted](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L21) | Active student accepted. `access.lockActive(10L) = s`; `access.lockForEnrollment(10L) = s` |
-| [missingStudentRejected](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L30) | Отказ при отсутствии студента. Исключение `ResourceNotFoundException` |
-| [inactiveStudentRejected](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L35) | Отклонение операции: inactive Student. Исключение `AccessDeniedException`; Исключение `BusinessConflictException` |
-| [teacherWithoutStudentRoleRejected](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L45) | Отклонение операции: teacher Without Student Role. Исключение `AccessDeniedException` |
+| [activeStudentAccepted](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L22) | Active student accepted. `access.lockActive(10L) = s`; `access.lockForEnrollment(10L) = s` |
+| [missingStudentRejected](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L31) | Отказ при отсутствии студента. Исключение `ResourceNotFoundException` |
+| [inactiveStudentRejected](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L36) | Отклонение операции: inactive Student. Исключение `AccessDeniedException`; Исключение `BusinessConflictException` |
+| [teacherWithoutStudentRoleRejected](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L46) | Отклонение операции: teacher Without Student Role. Исключение `AccessDeniedException` |
 
 #### [UserServiceTest](../src/test/java/org/courseflow/identity/service/UserServiceTest.java)
 
@@ -603,11 +603,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [ownerAndAdminMayEditActiveCourse](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L23) | Owner and admin may edit active course. `guard.lockEditable(40L, 20L, false, "archived") = c`; `guard.lockEditable(40L, 99L, true, "archived") = c` |
-| [nonOwnerDenied](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L32) | Non owner denied. Исключение `AccessDeniedException` |
-| [archivedCourseCannotBeEditedEvenByAdmin](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L39) | Archived course cannot be edited even by admin. Исключение `BusinessConflictException` |
-| [missingCourseRejectedByEveryLookup](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L49) | Missing course rejected by every lookup. Исключение `ResourceNotFoundException` |
-| [correctRepositoryMethodsForReadAndSharedLock](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L57) | Correct repository methods for read and shared lock. `guard.find(40L) = c`; `guard.lockShared(40L) = c`; Вызов `repo.findByIdForUpdate()` (`never()`) |
+| [ownerAndAdminMayEditActiveCourse](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L24) | Owner and admin may edit active course. `guard.lockEditable(40L, 20L, false, "archived") = c`; `guard.lockEditable(40L, 99L, true, "archived") = c` |
+| [nonOwnerDenied](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L33) | Non owner denied. Исключение `AccessDeniedException` |
+| [archivedCourseCannotBeEditedEvenByAdmin](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L40) | Archived course cannot be edited even by admin. Исключение `BusinessConflictException` |
+| [missingCourseRejectedByEveryLookup](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L50) | Missing course rejected by every lookup. Исключение `ResourceNotFoundException` |
+| [correctRepositoryMethodsForReadAndSharedLock](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L58) | Correct repository methods for read and shared lock. `guard.find(40L) = c`; `guard.lockShared(40L) = c`; Вызов `repo.findByIdForUpdate()` (`never()`) |
 
 #### [CourseParticipationTest](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java)
 
@@ -615,8 +615,8 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [historicalCoursesCount](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java#L16) | Historical courses count. `service.teachesAnyCourse(20L)` — истина; `service.teachesAnyCourse(10L)` — ложь |
-| [activeCoursesOnly](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java#L23) | Active courses only. `service.teachesActiveCourse(20L)` — истина; `service.teachesActiveCourse(10L)` — ложь |
+| [historicalCoursesCount](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java#L17) | Historical courses count. `service.teachesAnyCourse(20L)` — истина; `service.teachesAnyCourse(10L)` — ложь |
+| [activeCoursesOnly](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java#L24) | Active courses only. `service.teachesActiveCourse(20L)` — истина; `service.teachesActiveCourse(10L)` — ложь |
 
 #### [CourseQueryServiceTest](../src/test/java/org/courseflow/catalog/service/CourseQueryServiceTest.java)
 
@@ -639,10 +639,10 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [updatesDetailsWithoutChangingTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L55) | Updates details without changing teacher. `response.title() = "New"`; `response.description() = "Details"`; `response.duration() = 45` |
-| [unknownCategoryCannotBeUsed](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L69) | Unknown category cannot be used. Исключение `ResourceNotFoundException`; Отсутствие вызовов `courses` |
-| [adminCanCreateForTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L79) | Admin can create for teacher. `service .create(new CreateCourseRequest("Title", "Text", 30L, 20L, 30, date), 1L, true) .teacherId() = 20L` |
-| [deleteTranslatesConstraintViolation](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L91) | Delete translates constraint violation. Исключение `BusinessConflictException` |
+| [updatesDetailsWithoutChangingTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L56) | Updates details without changing teacher. `response.title() = "New"`; `response.description() = "Details"`; `response.duration() = 45` |
+| [unknownCategoryCannotBeUsed](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L70) | Unknown category cannot be used. Исключение `ResourceNotFoundException`; Отсутствие вызовов `courses` |
+| [adminCanCreateForTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L80) | Admin can create for teacher. `service .create(new CreateCourseRequest("Title", "Text", 30L, 20L, 30, date), 1L, true) .teacherId() = 20L` |
+| [deleteTranslatesConstraintViolation](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L92) | Delete translates constraint violation. Исключение `BusinessConflictException` |
 
 #### [CourseServiceTest](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java)
 
@@ -650,14 +650,14 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [teacherCreatesOwnCourse](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L61) | Teacher creates own course. `response.title() = "New"`; `response.id() = 40L` |
-| [teacherCannotCreateForOtherTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L73) | Teacher cannot create for other teacher. Исключение `AccessDeniedException`; Отсутствие вызовов `courses` |
-| [inactiveTeacherOrStudentCannotBeAssigned](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L79) | Inactive teacher or student cannot be assigned. Исключение `BusinessConflictException`; Отсутствие вызовов `courses` |
-| [regularUpdateCannotChangeTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L93) | Regular update cannot change teacher. Исключение `AccessDeniedException`; Исключение `BusinessConflictException` |
-| [archiveBlocksUpcomingOrOngoingSessionsAndIsIdempotent](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L102) | Archive blocks upcoming or ongoing sessions and is idempotent. Исключение `BusinessConflictException`; `c.getStatus() = CourseStatus.ACTIVE`; `c.getStatus() = CourseStatus.ARCHIVED` |
-| [deletionBlockedByEducationalHistory](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L115) | Deletion blocked by educational history. Исключение `BusinessConflictException`; Вызов `courses.delete()` (`never()`) |
-| [emptyCourseDeleted](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L127) | Empty course deleted. Вызов `courses.delete()`; Вызов `courses.flush()` |
-| [reassignRequiresAdminAndCompatibleSchedule](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L136) | Reassign requires admin and compatible schedule. Исключение `AccessDeniedException`; Исключение `BusinessConflictException`; `c.getTeacher() = replacement` |
+| [teacherCreatesOwnCourse](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L62) | Teacher creates own course. `response.title() = "New"`; `response.id() = 40L` |
+| [teacherCannotCreateForOtherTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L74) | Teacher cannot create for other teacher. Исключение `AccessDeniedException`; Отсутствие вызовов `courses` |
+| [inactiveTeacherOrStudentCannotBeAssigned](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L80) | Inactive teacher or student cannot be assigned. Исключение `BusinessConflictException`; Отсутствие вызовов `courses` |
+| [regularUpdateCannotChangeTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L94) | Regular update cannot change teacher. Исключение `AccessDeniedException`; Исключение `BusinessConflictException` |
+| [archiveBlocksUpcomingOrOngoingSessionsAndIsIdempotent](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L103) | Archive blocks upcoming or ongoing sessions and is idempotent. Исключение `BusinessConflictException`; `c.getStatus() = CourseStatus.ACTIVE`; `c.getStatus() = CourseStatus.ARCHIVED` |
+| [deletionBlockedByEducationalHistory](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L116) | Deletion blocked by educational history. Исключение `BusinessConflictException`; Вызов `courses.delete()` (`never()`) |
+| [emptyCourseDeleted](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L128) | Empty course deleted. Вызов `courses.delete()`; Вызов `courses.flush()` |
+| [reassignRequiresAdminAndCompatibleSchedule](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java#L137) | Reassign requires admin and compatible schedule. Исключение `AccessDeniedException`; Исключение `BusinessConflictException`; `c.getTeacher() = replacement` |
 
 #### [CourseTagServiceCoverageTest](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java)
 
@@ -665,9 +665,9 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [courseTagPageMapsTag](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java#L25) | Course tag page maps tag. `service.findCourseTags(40L, 0, 10).content().get(0).name() = "JPA"` |
-| [missingTagCannotBeAdded](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java#L34) | Missing tag cannot be added. Исключение `ResourceNotFoundException` |
-| [missingTagCannotBeRemoved](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java#L40) | Missing tag cannot be removed. Исключение `ResourceNotFoundException` |
+| [courseTagPageMapsTag](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java#L26) | Course tag page maps tag. `service.findCourseTags(40L, 0, 10).content().get(0).name() = "JPA"` |
+| [missingTagCannotBeAdded](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java#L35) | Missing tag cannot be added. Исключение `ResourceNotFoundException` |
+| [missingTagCannotBeRemoved](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java#L41) | Missing tag cannot be removed. Исключение `ResourceNotFoundException` |
 
 #### [CourseTagServiceTest](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java)
 
@@ -675,9 +675,9 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [tagLinksAreIdempotent](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L28) | Tag links are idempotent. `c.getTags() = Set.of(tag)`; `c.getTags().isEmpty()` — истина |
-| [unknownTagRejected](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L43) | Отклонение операции: unknown Tag. Исключение `ResourceNotFoundException` |
-| [unknownCourseAndInvalidPageRejected](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L51) | Отклонение операции: unknown Course And Invalid Page. Исключение `BadRequestException`; Исключение `ResourceNotFoundException` |
+| [tagLinksAreIdempotent](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L29) | Tag links are idempotent. `c.getTags() = Set.of(tag)`; `c.getTags().isEmpty()` — истина |
+| [unknownTagRejected](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L44) | Отклонение операции: unknown Tag. Исключение `ResourceNotFoundException` |
+| [unknownCourseAndInvalidPageRejected](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L52) | Отклонение операции: unknown Course And Invalid Page. Исключение `BadRequestException`; Исключение `ResourceNotFoundException` |
 
 #### [TagServiceTest](../src/test/java/org/courseflow/catalog/service/TagServiceTest.java)
 
@@ -761,10 +761,10 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [adminAndOwnerCanRead](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L34) | Admin and owner can read. Отсутствие вызовов `enrollments` |
-| [otherTeacherAndUnenrolledStudentDenied](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L43) | Other teacher and unenrolled student denied. Исключение `AccessDeniedException` |
-| [enrolledStudentReadsArchivedCourse](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L53) | Enrolled student reads archived course |
-| [lessonAccessResolvesParentCourse](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L62) | Lesson access resolves parent course. Исключение `ResourceNotFoundException`; Вызов `guard.find()` |
+| [adminAndOwnerCanRead](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L35) | Admin and owner can read. Отсутствие вызовов `enrollments` |
+| [otherTeacherAndUnenrolledStudentDenied](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L44) | Other teacher and unenrolled student denied. Исключение `AccessDeniedException` |
+| [enrolledStudentReadsArchivedCourse](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L54) | Enrolled student reads archived course |
+| [lessonAccessResolvesParentCourse](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L63) | Lesson access resolves parent course. Исключение `ResourceNotFoundException`; Вызов `guard.find()` |
 
 #### [LessonScheduleChecksTest](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java)
 
@@ -772,9 +772,9 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [lessonSessionsExist](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L16) | Lesson sessions exist. `checks.hasSessionsForLesson(60L)` — истина; `checks.hasSessionsForLesson(61L)` — ложь |
-| [unfinishedIncludesOngoing](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L23) | Unfinished includes ongoing. `checks.hasUnfinishedSessions(40L, NOW)` — истина; `checks.hasUnfinishedSessions(41L, NOW)` — ложь |
-| [overlapCountConvertedToBoolean](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L30) | Overlap count converted to boolean. `checks.hasReassignmentOverlap(40L, 20L, NOW)` — истина; `checks.hasReassignmentOverlap(40L, 20L, NOW)` — ложь |
+| [lessonSessionsExist](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L17) | Lesson sessions exist. `checks.hasSessionsForLesson(60L)` — истина; `checks.hasSessionsForLesson(61L)` — ложь |
+| [unfinishedIncludesOngoing](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L24) | Unfinished includes ongoing. `checks.hasUnfinishedSessions(40L, NOW)` — истина; `checks.hasUnfinishedSessions(41L, NOW)` — ложь |
+| [overlapCountConvertedToBoolean](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L31) | Overlap count converted to boolean. `checks.hasReassignmentOverlap(40L, 20L, NOW)` — истина; `checks.hasReassignmentOverlap(40L, 20L, NOW)` — ложь |
 
 #### [LessonServiceCoverageTest](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java)
 
@@ -782,15 +782,15 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [summaryPageUsesStableOrder](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L55) | Summary page uses stable order. `service.findByModule(40L, 50L, 0, 10, 10L, auth).content() = List.of(summary)`; Вызов `access.checkCourseAccess()` |
-| [detailIncludesContent](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L66) | Detail includes content. `service.getById(40L, 50L, 60L, 10L, auth).content() = "Content"` |
-| [missingLessonRejected](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L72) | Отказ при отсутствии урока. Исключение `ResourceNotFoundException` |
-| [deletionBlockedBySessions](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L78) | Deletion blocked by sessions. Исключение `BusinessConflictException`; Отсутствие вызовов `assignments`; Вызов `lessons.delete()` (`never()`) |
-| [deletionBlockedByAssignments](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L87) | Deletion blocked by assignments. Исключение `BusinessConflictException` |
-| [deleteRemovesChildFromParent](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L94) | Delete removes child from parent. `module.getLessons().isEmpty()` — истина; Вызов `lessons.delete()`; Вызов `lessons.flush()` |
-| [deleteTranslatesForeignKeyConflict](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L103) | Delete translates foreign key conflict. Исключение `BusinessConflictException` |
-| [positionUnchangedDoesNotFlush](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L110) | Position unchanged does not flush. `service .changePosition(40L, 50L, 60L, new ChangeLessonPositionRequest(1, 0L), 20L, false) .position() = 1`; Вызов `lessons.flush()` (`never()`) |
-| [positionShiftMovesNeighbour](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L121) | Position shift moves neighbour. `service .changePosition(40L, 50L, 60L, new ChangeLessonPositionRequest(2, 0L), 20L, false) .position() = 2`; `neighbour.getPosition() = 1`; Вызов `lessons.flush()` (`times(3)`) |
+| [summaryPageUsesStableOrder](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L57) | Summary page uses stable order. `service.findByModule(40L, 50L, 0, 10, 10L, auth).content() = List.of(summary)`; Вызов `access.checkCourseAccess()` |
+| [detailIncludesContent](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L68) | Detail includes content. `service.getById(40L, 50L, 60L, 10L, auth).content() = "Content"` |
+| [missingLessonRejected](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L74) | Отказ при отсутствии урока. Исключение `ResourceNotFoundException` |
+| [deletionBlockedBySessions](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L80) | Deletion blocked by sessions. Исключение `BusinessConflictException`; Отсутствие вызовов `assignments`; Вызов `lessons.delete()` (`never()`) |
+| [deletionBlockedByAssignments](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L89) | Deletion blocked by assignments. Исключение `BusinessConflictException` |
+| [deleteRemovesChildFromParent](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L96) | Delete removes child from parent. `module.getLessons().isEmpty()` — истина; Вызов `lessons.delete()`; Вызов `lessons.flush()` |
+| [deleteTranslatesForeignKeyConflict](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L105) | Delete translates foreign key conflict. Исключение `BusinessConflictException` |
+| [positionUnchangedDoesNotFlush](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L112) | Position unchanged does not flush. `service .changePosition(40L, 50L, 60L, new ChangeLessonPositionRequest(1, 0L), 20L, false) .position() = 1`; Вызов `lessons.flush()` (`never()`) |
+| [positionShiftMovesNeighbour](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java#L123) | Position shift moves neighbour. `service .changePosition(40L, 50L, 60L, new ChangeLessonPositionRequest(2, 0L), 20L, false) .position() = 2`; `neighbour.getPosition() = 1`; Вызов `lessons.flush()` (`times(3)`) |
 
 #### [LessonServiceTest](../src/test/java/org/courseflow/content/service/LessonServiceTest.java)
 
@@ -798,10 +798,10 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [createsLessonWithTrimmedTextAndUrl](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L50) | Creates lesson with trimmed text and url. `response.title() = "New"`; `response.content() = "Text"`; `response.videoUrl() = "https://example.test/video"` |
-| [occupiedPositionAndInvalidVideoRejected](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L68) | Отклонение операции: occupied Position And Invalid Video. Исключение `BusinessConflictException`; Исключение `BadRequestException`; Вызов `lessons.saveAndFlush()` (`never()`) |
-| [updatesLessonAndNoOpPosition](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L85) | Updates lesson and no op position. `r.title() = "New"`; `service .changePosition(40L, 50L, 60L, new ChangeLessonPositionRequest(1, 0L), 20L, false) .position() = 1`; `r.videoUrl()` — null |
-| [wrongParentRejected](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L102) | Отклонение операции: wrong Parent. Исключение `ResourceNotFoundException` |
+| [createsLessonWithTrimmedTextAndUrl](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L52) | Creates lesson with trimmed text and url. `response.title() = "New"`; `response.content() = "Text"`; `response.videoUrl() = "https://example.test/video"` |
+| [occupiedPositionAndInvalidVideoRejected](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L70) | Отклонение операции: occupied Position And Invalid Video. Исключение `BusinessConflictException`; Исключение `BadRequestException`; Вызов `lessons.saveAndFlush()` (`never()`) |
+| [updatesLessonAndNoOpPosition](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L87) | Updates lesson and no op position. `r.title() = "New"`; `service .changePosition(40L, 50L, 60L, new ChangeLessonPositionRequest(1, 0L), 20L, false) .position() = 1`; `r.videoUrl()` — null |
+| [wrongParentRejected](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L104) | Отклонение операции: wrong Parent. Исключение `ResourceNotFoundException` |
 
 #### [LessonSessionServiceCoverageTest](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java)
 
@@ -809,14 +809,14 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [findByLessonReturnsOrderedPage](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L61) | Find by lesson returns ordered page. `service.findByLesson(60L, 0, 10, 10L, auth).content().get(0).id() = 90L`; Вызов `access.checkLessonAccess()` |
-| [getByIdMapsSession](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L71) | Get by id maps session. `service.getById(60L, 90L, 10L, auth).startsAt() = NOW.plusSeconds(60)` |
-| [getMissingSessionRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L77) | Отклонение операции: get Missing Session. Исключение `ResourceNotFoundException` |
-| [updateChangesTimeAndFormat](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L83) | Update changes time and format. `result.format() = LessonSessionFormat.ONLINE`; `result.startsAt() = request.startsAt()`; `result.meetingUrl() = request.meetingUrl()` |
-| [deleteRemovesSessionFromLesson](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L101) | Delete removes session from lesson. `lesson.getSessions().isEmpty()` — истина; Вызов `sessions.delete()`; Вызов `sessions.flush()` |
-| [missingLessonCourseRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L110) | Отказ при отсутствии lesson course. Исключение `ResourceNotFoundException`; Отсутствие вызовов `sessions` |
-| [missingEditableSessionRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L116) | Отказ при отсутствии editable session. Исключение `ResourceNotFoundException` |
-| [cannotMoveToPast](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L122) | Cannot move to past. Исключение `BadRequestException`; Вызов `sessions.flush()` (`never()`) |
+| [findByLessonReturnsOrderedPage](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L62) | Find by lesson returns ordered page. `service.findByLesson(60L, 0, 10, 10L, auth).content().get(0).id() = 90L`; Вызов `access.checkLessonAccess()` |
+| [getByIdMapsSession](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L72) | Get by id maps session. `service.getById(60L, 90L, 10L, auth).startsAt() = NOW.plusSeconds(60)` |
+| [getMissingSessionRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L78) | Отклонение операции: get Missing Session. Исключение `ResourceNotFoundException` |
+| [updateChangesTimeAndFormat](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L84) | Update changes time and format. `result.format() = LessonSessionFormat.ONLINE`; `result.startsAt() = request.startsAt()`; `result.meetingUrl() = request.meetingUrl()` |
+| [deleteRemovesSessionFromLesson](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L102) | Delete removes session from lesson. `lesson.getSessions().isEmpty()` — истина; Вызов `sessions.delete()`; Вызов `sessions.flush()` |
+| [missingLessonCourseRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L111) | Отказ при отсутствии lesson course. Исключение `ResourceNotFoundException`; Отсутствие вызовов `sessions` |
+| [missingEditableSessionRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L117) | Отказ при отсутствии editable session. Исключение `ResourceNotFoundException` |
+| [cannotMoveToPast](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java#L123) | Cannot move to past. Исключение `BadRequestException`; Вызов `sessions.flush()` (`never()`) |
 
 #### [LessonSessionServiceTest](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java)
 
@@ -824,12 +824,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [onlineSessionCreatedAndTeacherLocked](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L56) | Online session created and teacher locked. `r.startsAt() = start`; `r.meetingUrl() = "https://example.test/meeting"`; Вызов `users.lockTeacherReference()` |
-| [invalidTimeIntervalOrPastStartRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L74) | Отклонение некорректного значения: time interval or past start. Исключение `BadRequestException`; Вызов `sessions.saveAndFlush()` (`never()`) |
-| [onlineRequiresUrlAndOfflineForbidsUrl](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L90) | Online requires url and offline forbids url. Исключение `BadRequestException`; Вызов `sessions.saveAndFlush()` (`never()`) |
-| [teacherOverlapRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L109) | Отклонение операции: teacher Overlap. Исключение `BusinessConflictException`; Вызов `sessions.saveAndFlush()` (`never()`) |
-| [startedSessionCannotBeDeletedOrRescheduled](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L122) | Started session cannot be deleted or rescheduled. Исключение `BusinessConflictException`; Вызов `sessions.delete()` (`never()`) |
-| [reschedulingFutureSessionPreservesFormat](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L137) | Rescheduling future session preserves format. `response.startsAt() = end`; `response.format() = LessonSessionFormat.ONLINE`; Вызов `sessions.flush()` |
+| [onlineSessionCreatedAndTeacherLocked](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L57) | Online session created and teacher locked. `r.startsAt() = start`; `r.meetingUrl() = "https://example.test/meeting"`; Вызов `users.lockTeacherReference()` |
+| [invalidTimeIntervalOrPastStartRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L75) | Отклонение некорректного значения: time interval or past start. Исключение `BadRequestException`; Вызов `sessions.saveAndFlush()` (`never()`) |
+| [onlineRequiresUrlAndOfflineForbidsUrl](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L91) | Online requires url and offline forbids url. Исключение `BadRequestException`; Вызов `sessions.saveAndFlush()` (`never()`) |
+| [teacherOverlapRejected](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L110) | Отклонение операции: teacher Overlap. Исключение `BusinessConflictException`; Вызов `sessions.saveAndFlush()` (`never()`) |
+| [startedSessionCannotBeDeletedOrRescheduled](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L123) | Started session cannot be deleted or rescheduled. Исключение `BusinessConflictException`; Вызов `sessions.delete()` (`never()`) |
+| [reschedulingFutureSessionPreservesFormat](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L138) | Rescheduling future session preserves format. `response.startsAt() = end`; `response.format() = LessonSessionFormat.ONLINE`; Вызов `sessions.flush()` |
 
 #### [ModuleServiceCoverageTest](../src/test/java/org/courseflow/content/service/ModuleServiceCoverageTest.java)
 
@@ -1044,8 +1044,8 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [activeEnrollmentRequired](../src/test/java/org/courseflow/learning/service/EnrollmentAccessTest.java#L19) | Active enrollment required. Исключение `AccessDeniedException`; `assertDoesNotThrow(() -> access.requireActive(1L, 2L, "not enrolled"))` |
-| [historyAndActiveChecksAreDifferent](../src/test/java/org/courseflow/learning/service/EnrollmentAccessTest.java#L26) | History and active checks are different. `access.hasEnrollmentHistory(2L)` — истина; `access.hasActiveEnrollments(1L)` — истина; `access.hasActiveEnrollment(1L, 2L)` — ложь |
+| [activeEnrollmentRequired](../src/test/java/org/courseflow/learning/service/EnrollmentAccessTest.java#L20) | Active enrollment required. Исключение `AccessDeniedException`; `assertDoesNotThrow(() -> access.requireActive(1L, 2L, "not enrolled"))` |
+| [historyAndActiveChecksAreDifferent](../src/test/java/org/courseflow/learning/service/EnrollmentAccessTest.java#L27) | History and active checks are different. `access.hasEnrollmentHistory(2L)` — истина; `access.hasActiveEnrollments(1L)` — истина; `access.hasActiveEnrollment(1L, 2L)` — ложь |
 
 #### [EnrollmentServiceReadTest](../src/test/java/org/courseflow/learning/service/EnrollmentServiceReadTest.java)
 
@@ -1121,13 +1121,13 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [getOwnSubmission](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L58) | Get own submission. `service.getMySubmission(70L, 10L).content() = "Work"` |
-| [missingAssignmentRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L66) | Отказ при отсутствии задания. Исключение `ResourceNotFoundException`; Отсутствие вызовов `submissions` |
-| [missingSubmissionRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L72) | Отказ при отсутствии работы. Исключение `ResourceNotFoundException` |
-| [listWithStatusAndScoreSort](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L78) | List with status and score sort. `result.content().get(0).score() = 90`; Вызов `data.setParameter()`; Вызов `count.setParameter()` |
-| [listWithoutStatusUsesIdSort](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L93) | List without status uses id sort. `service.findByAssignment(70L, 20L, false, null, 0, 10, "id", "asc").totalElements() = 1L`; Вызов `data.setParameter()` (`never()`) |
-| [listOtherSupportedSortFields](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L103) | List other supported sort fields. `service .findByAssignment(70L, 20L, false, null, 0, 10, "submittedAt", "asc") .content() .isEmpty()` — истина; `service .findByAssignment(70L, 20L, false, null, 0, 10, "status", "asc") .content() .isEmpty()` — истина |
-| [unsupportedSortRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L120) | Отклонение операции: unsupported Sort. Исключение `BadRequestException`; Отсутствие вызовов `em` |
+| [getOwnSubmission](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L59) | Get own submission. `service.getMySubmission(70L, 10L).content() = "Work"` |
+| [missingAssignmentRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L67) | Отказ при отсутствии задания. Исключение `ResourceNotFoundException`; Отсутствие вызовов `submissions` |
+| [missingSubmissionRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L73) | Отказ при отсутствии работы. Исключение `ResourceNotFoundException` |
+| [listWithStatusAndScoreSort](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L79) | List with status and score sort. `result.content().get(0).score() = 90`; Вызов `data.setParameter()`; Вызов `count.setParameter()` |
+| [listWithoutStatusUsesIdSort](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L94) | List without status uses id sort. `service.findByAssignment(70L, 20L, false, null, 0, 10, "id", "asc").totalElements() = 1L`; Вызов `data.setParameter()` (`never()`) |
+| [listOtherSupportedSortFields](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L104) | List other supported sort fields. `service .findByAssignment(70L, 20L, false, null, 0, 10, "submittedAt", "asc") .content() .isEmpty()` — истина; `service .findByAssignment(70L, 20L, false, null, 0, 10, "status", "asc") .content() .isEmpty()` — истина |
+| [unsupportedSortRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L121) | Отклонение операции: unsupported Sort. Исключение `BadRequestException`; Отсутствие вызовов `em` |
 
 #### [SubmissionServiceTest](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java)
 
@@ -1135,16 +1135,16 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [submitLocksBeforeLoadingAssignmentAndTrimsContent](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L69) | Submit locks before loading assignment and trims content. `r.content() = "Work"`; `r.status() = SubmissionStatus.SUBMITTED`; Вызов `assignments.findCourseIdByAssignmentId()` |
-| [duplicateSubmissionRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L87) | Отклонение дубликата: работы. Исключение `BusinessConflictException`; Вызов `submissions.saveAndFlush()` (`never()`) |
-| [deadlineBoundaryRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L96) | Отклонение операции: deadline Boundary. Исключение `BusinessConflictException`; Отсутствие вызовов `submissions` |
-| [ownCourseAndArchivedCourseRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L105) | Отклонение операции: own Course And Archived Course. Исключение `BusinessConflictException`; Отсутствие вызовов `submissions` |
-| [enrollmentAccessRequired](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L115) | Enrollment access required. Исключение `AccessDeniedException`; Отсутствие вызовов `submissions` |
-| [databaseConflictTranslated](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L126) | Database conflict translated. Исключение `BusinessConflictException` |
-| [missingAssignmentOrSubmissionRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L135) | Отказ при отсутствии assignment or submission. Исключение `ResourceNotFoundException` |
-| [initialGradeAndRegradeAuditPreviousValue](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L143) | Initial grade and regrade audit previous value. `work.getScore() = 80`; `work.getFeedback() = "Good"`; Вызов `audit.afterSuccessfulCommit()` |
-| [rejectedGradeDoesNotEmitAudit](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L156) | Rejected grade does not emit audit. Исключение `BadRequestException`; Исключение `OptimisticLockingFailureException`; `work.getScore()` — null |
-| [failedFlushDoesNotEmitAudit](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L171) | Failed flush does not emit audit. Исключение `DataIntegrityViolationException`; Отсутствие вызовов `audit` |
+| [submitLocksBeforeLoadingAssignmentAndTrimsContent](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L70) | Submit locks before loading assignment and trims content. `r.content() = "Work"`; `r.status() = SubmissionStatus.SUBMITTED`; Вызов `assignments.findCourseIdByAssignmentId()` |
+| [duplicateSubmissionRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L88) | Отклонение дубликата: работы. Исключение `BusinessConflictException`; Вызов `submissions.saveAndFlush()` (`never()`) |
+| [deadlineBoundaryRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L97) | Отклонение операции: deadline Boundary. Исключение `BusinessConflictException`; Отсутствие вызовов `submissions` |
+| [ownCourseAndArchivedCourseRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L106) | Отклонение операции: own Course And Archived Course. Исключение `BusinessConflictException`; Отсутствие вызовов `submissions` |
+| [enrollmentAccessRequired](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L116) | Enrollment access required. Исключение `AccessDeniedException`; Отсутствие вызовов `submissions` |
+| [databaseConflictTranslated](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L127) | Database conflict translated. Исключение `BusinessConflictException` |
+| [missingAssignmentOrSubmissionRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L136) | Отказ при отсутствии assignment or submission. Исключение `ResourceNotFoundException` |
+| [initialGradeAndRegradeAuditPreviousValue](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L144) | Initial grade and regrade audit previous value. `work.getScore() = 80`; `work.getFeedback() = "Good"`; Вызов `audit.afterSuccessfulCommit()` |
+| [rejectedGradeDoesNotEmitAudit](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L157) | Rejected grade does not emit audit. Исключение `BadRequestException`; Исключение `OptimisticLockingFailureException`; `work.getScore()` — null |
+| [failedFlushDoesNotEmitAudit](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java#L172) | Failed flush does not emit audit. Исключение `DataIntegrityViolationException`; Отсутствие вызовов `audit` |
 
 ### 8.6. Тестирование знаний (78)
 
@@ -1439,11 +1439,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [pageContentIsAnIndependentReadOnlySnapshot](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L29) | Page content is an independent read only snapshot. Исключение `UnsupportedOperationException`; `page.content() = List.of("first")` |
-| [quizRequestPreservesNullsForValidationAndCopiesNestedLists](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L38) | Quiz request preserves nulls for validation and copies nested lists. Исключение `UnsupportedOperationException`; `request.answers().size() = 1`; `answer.optionIds().size() = 1` |
-| [rolesAreCopiedWithoutDiscardingInvalidElements](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L56) | Roles are copied without discarding invalid elements. Исключение `UnsupportedOperationException`; `request.roles().size() = 2`; `request.roles().contains(UserRole.STUDENT)` — истина |
-| [logoutRejectsMissingAndMalformedSessionIdsBeforeRepositoryAccess](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L70) | Logout rejects missing and malformed session ids before repository access. Исключение `InvalidSessionException`; Отсутствие вызовов `repository` |
-| [authorityWithoutStringDoesNotMatchRole](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L81) | Authority without string does not match role. `CurrentUser.isAdmin(authentication)` — ложь |
+| [pageContentIsAnIndependentReadOnlySnapshot](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L30) | Page content is an independent read only snapshot. Исключение `UnsupportedOperationException`; `page.content() = List.of("first")` |
+| [quizRequestPreservesNullsForValidationAndCopiesNestedLists](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L39) | Quiz request preserves nulls for validation and copies nested lists. Исключение `UnsupportedOperationException`; `request.answers().size() = 1`; `answer.optionIds().size() = 1` |
+| [rolesAreCopiedWithoutDiscardingInvalidElements](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L57) | Roles are copied without discarding invalid elements. Исключение `UnsupportedOperationException`; `request.roles().size() = 2`; `request.roles().contains(UserRole.STUDENT)` — истина |
+| [logoutRejectsMissingAndMalformedSessionIdsBeforeRepositoryAccess](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L71) | Logout rejects missing and malformed session ids before repository access. Исключение `InvalidSessionException`; Отсутствие вызовов `repository` |
+| [authorityWithoutStringDoesNotMatchRole](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java#L82) | Authority without string does not match role. `CurrentUser.isAdmin(authentication)` — ложь |
 
 #### [JpqlPagesTest](../src/test/java/org/courseflow/common/api/JpqlPagesTest.java)
 
@@ -1660,12 +1660,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [validatesCurrentRolesIndependentOfTokenOrder](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L41) | Validates current roles independent of token order. `validator .validate(token("…", session.toString(), List.of("TEACHER", "STUDENT"), false)) .hasErrors()` — ложь |
-| [rejectsMissingOrMalformedSessionId](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L51) | Отклонение операции: Missing Or Malformed Session Id. `validator.validate(token("…", null, List.of("STUDENT"), false)).hasErrors()` — истина; `validator.validate(token("…", "…", List.of("STUDENT"), false)).hasErrors()` — истина; Отсутствие вызовов `sessions` |
-| [rejectsInvalidSubject](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L58) | Отклонение операции: Invalid Subject. `validator .validate(token(sub, session.toString(), List.of("STUDENT"), false)) .hasErrors()` — истина; Отсутствие вызовов `sessions` |
-| [rejectsRevokedSessionAndChangedRoles](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L69) | Отклонение операции: Revoked Session And Changed Roles. `validator.validate(token("…", session.toString(), List.of("STUDENT"), false)).hasErrors()` — истина; `validator.validate(token("…", session.toString(), null, false)).hasErrors()` — истина |
-| [passesPasswordChangeFlagToSessionLookup](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L79) | Passes password change flag to session lookup. `validator.validate(token("…", session.toString(), List.of("STUDENT"), true)).hasErrors()` — ложь; Вызов `sessions.activeRoles()` |
-| [currentUserExtractsIdAndRoles](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L88) | Current user extracts id and roles. `CurrentUser.id(jwt) = 10L`; `CurrentUser.isAdmin(auth)` — истина; `CurrentUser.hasRole(auth, "STUDENT")` — ложь |
+| [validatesCurrentRolesIndependentOfTokenOrder](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L43) | Validates current roles independent of token order. `validator .validate(token("…", session.toString(), List.of("TEACHER", "STUDENT"), false)) .hasErrors()` — ложь |
+| [rejectsMissingOrMalformedSessionId](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L53) | Отклонение операции: Missing Or Malformed Session Id. `validator.validate(token("…", null, List.of("STUDENT"), false)).hasErrors()` — истина; `validator.validate(token("…", "…", List.of("STUDENT"), false)).hasErrors()` — истина; Отсутствие вызовов `sessions` |
+| [rejectsInvalidSubject](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L60) | Отклонение операции: Invalid Subject. `validator .validate(token(sub, session.toString(), List.of("STUDENT"), false)) .hasErrors()` — истина; Отсутствие вызовов `sessions` |
+| [rejectsRevokedSessionAndChangedRoles](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L71) | Отклонение операции: Revoked Session And Changed Roles. `validator.validate(token("…", session.toString(), List.of("STUDENT"), false)).hasErrors()` — истина; `validator.validate(token("…", session.toString(), null, false)).hasErrors()` — истина |
+| [passesPasswordChangeFlagToSessionLookup](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L81) | Passes password change flag to session lookup. `validator.validate(token("…", session.toString(), List.of("STUDENT"), true)).hasErrors()` — ложь; Вызов `sessions.activeRoles()` |
+| [currentUserExtractsIdAndRoles](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java#L90) | Current user extracts id and roles. `CurrentUser.id(jwt) = 10L`; `CurrentUser.isAdmin(auth)` — истина; `CurrentUser.hasRole(auth, "STUDENT")` — ложь |
 
 #### [PublicEndpointsTest](../src/test/java/org/courseflow/security/PublicEndpointsTest.java)
 
@@ -1673,9 +1673,9 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [publicGetTemplatesAreMatchedWithoutExposingLessonContent](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L13) | Public get templates are matched without exposing lesson content. `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}")` — истина; `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}/lessons")` — ложь; `PublicEndpoints.isPublicGet("/api/users/me")` — ложь |
-| [passwordChangeRequiresAuthenticationButIsRateLimited](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L21) | Password change requires authentication but is rate limited. `PublicEndpoints.isPublicPost("/api/auth/login")` — истина; `PublicEndpoints.isPublicPost("…")` — ложь; `PublicEndpoints.isRateLimitedPost("…")` — истина |
-| [startupRunnerDelegatesSessionInvalidation](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L29) | Startup runner delegates session invalidation. Вызов `access.invalidateAllOnStartup()` |
+| [publicGetTemplatesAreMatchedWithoutExposingLessonContent](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L15) | Public get templates are matched without exposing lesson content. `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}")` — истина; `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}/lessons")` — ложь; `PublicEndpoints.isPublicGet("/api/users/me")` — ложь |
+| [passwordChangeRequiresAuthenticationButIsRateLimited](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L23) | Password change requires authentication but is rate limited. `PublicEndpoints.isPublicPost("/api/auth/login")` — истина; `PublicEndpoints.isPublicPost("…")` — ложь; `PublicEndpoints.isRateLimitedPost("…")` — истина |
+| [startupRunnerDelegatesSessionInvalidation](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L31) | Startup runner delegates session invalidation. Вызов `access.invalidateAllOnStartup()` |
 
 #### [SecurityConfigTest](../src/test/java/org/courseflow/security/SecurityConfigTest.java)
 
@@ -1712,21 +1712,21 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [allProductionModulesAreImportedAndKnown](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L130) | Все рабочие модули входят в архитектурную модель. `actual.equals(MODULE_DEPENDENCIES.keySet())` — истина |
-| [controllersCannotAccessPersistenceDirectly](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L155) | Контроллеры обращаются к данным через прикладные слои |
-| [nonWebCodeCannotDependOnControllers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L164) | Зависимости от контроллеров разрешены только web-слою |
-| [repositoriesCannotDependOnHigherLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L169) | Репозитории не зависят от верхних слоёв |
-| [repositoriesArePrivateToTheirOwningModule](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L181) | Репозитории используются в пределах своего модуля |
-| [businessServicesAndModuleApisAreIndependentOfHttp](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L189) | Сервисы и межмодульные контракты независимы от HTTP |
-| [domainModelDoesNotDependOnApplicationOrInfrastructureLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L197) | Доменная модель независима от прикладных и инфраструктурных слоёв |
-| [dtosCannotDependOnPersistenceOrBusinessServices](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L211) | DTO независимы от репозиториев и сервисов |
-| [controllersDoNotReturnJpaEntitiesEvenInsideGenericContainers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L224) | JPA-сущности отсутствуют в ответах контроллеров, включая generic-контейнеры |
-| [dtosDoNotStoreJpaEntitiesEvenInsideGenericContainers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L245) | DTO не содержат JPA-сущностей, включая generic-контейнеры |
-| [springDependenciesAreNotInjectedIntoFields](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L263) | Внедрение зависимостей через конструктор |
-| [frameworkStereotypesResideInTheAppropriateLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L290) | Spring-аннотации соответствуют слоям |
-| [crossModuleServiceDependenciesDoNotGrowWithoutReview](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L320) | Новые межмодульные зависимости сервисов требуют явного согласования |
-| [moduleDependencyDirectionsAndExistingCyclesDoNotGrow](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L332) | Контроль направлений зависимостей и существующих циклов. `newCyclicEdges.isEmpty()` — истина |
-| [springComponentConstructorDependenciesHaveNoCycles](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L362) | Отсутствие циклов конструкторных зависимостей Spring-компонентов. `cycles.isEmpty()` — истина |
+| [allProductionModulesAreImportedAndKnown](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L103) | Все рабочие модули входят в архитектурную модель. `actual.equals(MODULE_DEPENDENCIES.keySet())` — истина |
+| [controllersCannotAccessPersistenceDirectly](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L128) | Контроллеры обращаются к данным через прикладные слои |
+| [nonWebCodeCannotDependOnControllers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L137) | Зависимости от контроллеров разрешены только web-слою |
+| [repositoriesCannotDependOnHigherLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L142) | Репозитории не зависят от верхних слоёв |
+| [repositoriesArePrivateToTheirOwningModule](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L154) | Репозитории используются в пределах своего модуля |
+| [businessServicesAndModuleApisAreIndependentOfHttp](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L162) | Сервисы и межмодульные контракты независимы от HTTP |
+| [domainModelDoesNotDependOnApplicationOrInfrastructureLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L170) | Доменная модель независима от прикладных и инфраструктурных слоёв |
+| [dtosCannotDependOnPersistenceOrBusinessServices](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L184) | DTO независимы от репозиториев и сервисов |
+| [controllersDoNotReturnJpaEntitiesEvenInsideGenericContainers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L197) | JPA-сущности отсутствуют в ответах контроллеров, включая generic-контейнеры |
+| [dtosDoNotStoreJpaEntitiesEvenInsideGenericContainers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L218) | DTO не содержат JPA-сущностей, включая generic-контейнеры |
+| [springDependenciesAreNotInjectedIntoFields](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L236) | Внедрение зависимостей через конструктор |
+| [frameworkStereotypesResideInTheAppropriateLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L263) | Spring-аннотации соответствуют слоям |
+| [internalServicesArePrivateToTheirOwningModule](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L293) | Внутренние сервисы доступны только собственному модулю |
+| [moduleDependencyDirectionsAndApplicationCyclesDoNotGrow](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L303) | Контроль направлений всех зависимостей, независимости common, отсутствия обратных зависимостей от security и новых циклических рёбер прикладного графа без ORM-связей. `newCyclicEdges.isEmpty()` — истина |
+| [springComponentConstructorDependenciesHaveNoCycles](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L336) | Отсутствие циклов конструкторных зависимостей Spring-компонентов, включая реализации публичных интерфейсов. `cycles.isEmpty()` — истина |
 
 ### 8.12. Интеграционные тесты (677)
 

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.courseflow.content.api.LessonScheduleChecks;
 import org.courseflow.content.repository.LessonSessionRepository;
 import org.junit.jupiter.api.Test;
 

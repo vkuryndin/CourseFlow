@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.util.Optional;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
+import org.courseflow.identity.api.StudentAccess;
 import org.courseflow.identity.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;

@@ -14,16 +14,16 @@ import java.util.List;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.api.JpqlPages;
 import org.courseflow.dashboard.dto.StudentDashboardResponse.UpcomingDeadline;
+import org.courseflow.learning.api.ProgressQuery;
 import org.courseflow.learning.dto.CourseProgressSummaryResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
-import org.courseflow.learning.service.ProgressService;
 import org.junit.jupiter.api.Test;
 
 class StudentDashboardServiceTest {
   @Test
   void dashboardUsesTotalCourseCountAndLimitsUpcomingDeadlines() {
     EntityManager em = mock(EntityManager.class);
-    ProgressService progress = mock(ProgressService.class);
+    ProgressQuery progress = mock(ProgressQuery.class);
     UpcomingSessions sessions = mock(UpcomingSessions.class);
     var service = new StudentDashboardService(em, progress, CLOCK, sessions);
     var summary =

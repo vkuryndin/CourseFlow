@@ -9,7 +9,7 @@ import org.courseflow.assessment.dto.QuestionResponse;
 import org.courseflow.assessment.dto.QuizResponse;
 import org.courseflow.assessment.dto.UpdateQuizRequest;
 import org.courseflow.assessment.service.QuizService;
-import org.courseflow.security.CurrentUser;
+import org.courseflow.common.security.CurrentUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

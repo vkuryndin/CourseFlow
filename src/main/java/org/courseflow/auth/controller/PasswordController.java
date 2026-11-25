@@ -2,7 +2,7 @@ package org.courseflow.auth.controller;
 
 import jakarta.validation.Valid;
 import org.courseflow.auth.dto.ChangePasswordRequest;
-import org.courseflow.security.CurrentUser;
+import org.courseflow.common.security.CurrentUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

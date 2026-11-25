@@ -1,10 +1,10 @@
 package org.courseflow.identity.controller;
 
 import jakarta.validation.Valid;
+import org.courseflow.common.security.CurrentUser;
 import org.courseflow.identity.dto.ProfileResponse;
 import org.courseflow.identity.dto.UpdateProfileRequest;
 import org.courseflow.identity.service.ProfileService;
-import org.courseflow.security.CurrentUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;

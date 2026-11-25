@@ -1,10 +1,10 @@
 package org.courseflow.learning.controller;
 
 import org.courseflow.common.api.PageResponse;
+import org.courseflow.common.security.CurrentUser;
 import org.courseflow.learning.dto.EnrollmentListItemResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.service.EnrollmentService;
-import org.courseflow.security.CurrentUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;

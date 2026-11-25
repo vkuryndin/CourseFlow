@@ -1,11 +1,11 @@
 package org.courseflow.learning.controller;
 
+import org.courseflow.common.security.CurrentUser;
 import org.courseflow.learning.dto.GradebookResponse;
 import org.courseflow.learning.dto.GradebookResponse.AssessmentType;
 import org.courseflow.learning.dto.GradebookResponse.ReviewStatus;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.service.GradebookService;
-import org.courseflow.security.CurrentUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;

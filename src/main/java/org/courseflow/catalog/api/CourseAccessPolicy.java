@@ -1,4 +1,4 @@
-package org.courseflow.catalog.service;
+package org.courseflow.catalog.api;
 
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.CourseStatus;

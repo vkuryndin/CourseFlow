@@ -1,6 +1,7 @@
 package org.courseflow.auth.service;
 
 import java.time.Clock;
+import org.courseflow.auth.api.CredentialLifecycle;
 import org.courseflow.auth.dto.ChangePasswordRequest;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AccountPasswordSnapshot;

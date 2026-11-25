@@ -1,6 +1,7 @@
 package org.courseflow.catalog.service;
 
 import java.time.Clock;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.dto.CourseResponse;
 import org.courseflow.catalog.dto.CreateCourseRequest;
 import org.courseflow.catalog.dto.UpdateCourseRequest;
@@ -13,12 +14,12 @@ import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.EditVersion;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.content.api.ContentStructure;
-import org.courseflow.content.service.LessonScheduleChecks;
+import org.courseflow.content.api.LessonScheduleChecks;
 import org.courseflow.identity.api.UserDirectory;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
-import org.courseflow.learning.service.EnrollmentAccess;
+import org.courseflow.learning.api.EnrollmentAccess;
 import org.courseflow.review.api.ReviewAccess;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;

@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
+import org.courseflow.auth.api.CredentialLifecycle;
 import org.courseflow.auth.dto.ResetPasswordRequest;
 import org.courseflow.auth.entity.PasswordResetToken;
 import org.courseflow.auth.entity.UserAccount;

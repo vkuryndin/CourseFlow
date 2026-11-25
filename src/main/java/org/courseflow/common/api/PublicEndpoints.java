@@ -1,4 +1,4 @@
-package org.courseflow.security;
+package org.courseflow.common.api;
 
 import java.util.Set;
 

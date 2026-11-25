@@ -16,9 +16,9 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 import java.util.Set;
-import org.courseflow.auth.service.AccountCreator;
-import org.courseflow.auth.service.CredentialLifecycle;
-import org.courseflow.catalog.service.CourseParticipation;
+import org.courseflow.auth.api.AccountCreator;
+import org.courseflow.auth.api.CredentialLifecycle;
+import org.courseflow.catalog.api.CourseParticipation;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.identity.dto.UpdateUserRequest;
 import org.courseflow.identity.dto.UpdateUserRolesRequest;
@@ -28,7 +28,7 @@ import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
 import org.courseflow.identity.repository.ProfileRepository;
 import org.courseflow.identity.repository.UserRepository;
-import org.courseflow.learning.service.EnrollmentAccess;
+import org.courseflow.learning.api.EnrollmentAccess;
 import org.junit.jupiter.api.Test;
 
 class AdminUserServiceTest {

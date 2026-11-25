@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+import org.courseflow.auth.api.AccountCreator;
 import org.courseflow.auth.dto.LoginRequest;
 import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.auth.entity.UserAccount;

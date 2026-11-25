@@ -11,6 +11,7 @@ import org.courseflow.common.api.JpqlPages;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.BadRequestException;
+import org.courseflow.learning.api.ProgressQuery;
 import org.courseflow.learning.dto.CourseProgressResponse;
 import org.courseflow.learning.dto.CourseProgressResponse.AssignmentProgress;
 import org.courseflow.learning.dto.CourseProgressResponse.QuizProgress;
@@ -27,7 +28,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class ProgressService {
+public class ProgressService implements ProgressQuery {
   private final Clock clock;
 
   private final ProgressQueryRepository queries;
@@ -37,6 +38,7 @@ public class ProgressService {
     this.queries = queries;
   }
 
+  @Override
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
   public PageResponse<CourseProgressSummaryResponse> getDashboardProgress(
       Long studentId, int size, Instant now) {

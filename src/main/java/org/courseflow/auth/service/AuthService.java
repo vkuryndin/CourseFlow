@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.UUID;
+import org.courseflow.auth.api.AccessTokenIssuer;
+import org.courseflow.auth.api.AccountCreator;
 import org.courseflow.auth.dto.LoginRequest;
 import org.courseflow.auth.dto.LoginResponse;
 import org.courseflow.auth.dto.RegistrationRequest;
@@ -19,7 +21,6 @@ import org.courseflow.common.validation.PasswordBytes;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.identity.entity.UserStatus;
-import org.courseflow.security.JwtService;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,14 +37,14 @@ public class AuthService {
   private final UserAccountRepository userAccountRepository;
   private final AuthSessionRepository authSessionRepository;
   private final PasswordEncoder passwordEncoder;
-  private final JwtService jwtService;
+  private final AccessTokenIssuer jwtService;
   private final String dummyPasswordHash;
 
   public AuthService(
       UserAccountRepository userAccountRepository,
       AuthSessionRepository authSessionRepository,
       PasswordEncoder passwordEncoder,
-      JwtService jwtService,
+      AccessTokenIssuer jwtService,
       Clock clock,
       PlatformTransactionManager transactionManager,
       AccountCreator accountCreator) {

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Set;
+import org.courseflow.auth.api.AccountCreator;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.common.exception.BusinessConflictException;

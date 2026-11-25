@@ -18,7 +18,6 @@ import io.swagger.v3.oas.models.tags.Tag;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-import org.courseflow.security.PublicEndpoints;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.beans.factory.ObjectProvider;

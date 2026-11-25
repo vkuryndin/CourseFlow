@@ -9,9 +9,9 @@ import org.courseflow.common.api.PageResponse;
 import org.courseflow.dashboard.dto.StudentDashboardResponse;
 import org.courseflow.dashboard.dto.StudentDashboardResponse.UpcomingDeadline;
 import org.courseflow.dashboard.dto.UpcomingSession;
+import org.courseflow.learning.api.ProgressQuery;
 import org.courseflow.learning.dto.CourseProgressSummaryResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
-import org.courseflow.learning.service.ProgressService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,11 +26,11 @@ public class StudentDashboardService {
   private static final int EVENT_LIMIT = 10;
 
   private final EntityManager entityManager;
-  private final ProgressService progressService;
+  private final ProgressQuery progressService;
 
   public StudentDashboardService(
       EntityManager entityManager,
-      ProgressService progressService,
+      ProgressQuery progressService,
       Clock clock,
       UpcomingSessions upcomingSessionsService) {
     this.clock = clock;

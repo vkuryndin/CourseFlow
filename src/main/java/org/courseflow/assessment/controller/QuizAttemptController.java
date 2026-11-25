@@ -10,7 +10,7 @@ import org.courseflow.assessment.service.QuizAttemptQueryService;
 import org.courseflow.assessment.service.QuizAttemptService;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.exception.BusinessConflictException;
-import org.courseflow.security.CurrentUser;
+import org.courseflow.common.security.CurrentUser;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

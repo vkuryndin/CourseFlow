@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.entity.Tag;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.catalog.repository.TagRepository;

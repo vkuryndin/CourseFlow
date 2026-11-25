@@ -12,10 +12,10 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
+import org.courseflow.identity.api.StudentAccess;
 import org.courseflow.identity.api.UserDirectory;
-import org.courseflow.identity.service.StudentAccess;
-import org.courseflow.learning.service.EnrollmentAccess;
+import org.courseflow.learning.api.EnrollmentAccess;
 import org.courseflow.review.entity.CourseReview;
 import org.courseflow.review.repository.CourseReviewRepository;
 import org.junit.jupiter.api.Test;

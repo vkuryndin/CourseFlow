@@ -1,6 +1,7 @@
 package org.courseflow.security;
 
 import java.util.List;
+import org.courseflow.auth.api.AccessTokenIssuer;
 import org.courseflow.auth.entity.AuthSession;
 import org.courseflow.identity.entity.User;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -11,7 +12,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 @Service
-public class JwtService {
+public class JwtService implements AccessTokenIssuer {
 
   private final JwtEncoder jwtEncoder;
 
@@ -19,6 +20,7 @@ public class JwtService {
     this.jwtEncoder = jwtEncoder;
   }
 
+  @Override
   public String generateAccessToken(AuthSession session) {
     User user = session.getUserAccount().getUser();
 

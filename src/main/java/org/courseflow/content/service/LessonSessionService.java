@@ -2,8 +2,8 @@ package org.courseflow.content.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.BadRequestException;
@@ -11,6 +11,7 @@ import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.EditVersion;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.common.validation.HttpUrls;
+import org.courseflow.content.api.ContentAccessService;
 import org.courseflow.content.dto.CreateLessonSessionRequest;
 import org.courseflow.content.dto.LessonSessionResponse;
 import org.courseflow.content.dto.RescheduleLessonSessionRequest;

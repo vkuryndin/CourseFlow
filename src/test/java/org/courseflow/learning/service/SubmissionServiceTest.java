@@ -21,11 +21,12 @@ import static org.mockito.Mockito.when;
 
 import jakarta.persistence.EntityManager;
 import java.util.Optional;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
-import org.courseflow.identity.service.StudentAccess;
+import org.courseflow.identity.api.StudentAccess;
+import org.courseflow.learning.api.EnrollmentAccess;
 import org.courseflow.learning.dto.GradeSubmissionRequest;
 import org.courseflow.learning.entity.Assignment;
 import org.courseflow.learning.entity.Submission;

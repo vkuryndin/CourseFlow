@@ -1,5 +1,6 @@
 package org.courseflow.catalog.service;
 
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.dto.TagResponse;
 import org.courseflow.catalog.entity.Course;
 import org.courseflow.catalog.entity.Tag;

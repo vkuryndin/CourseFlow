@@ -6,8 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import jakarta.servlet.Filter;
 import java.util.Set;
 import java.util.UUID;
+import org.courseflow.auth.api.AccountCreator;
 import org.courseflow.auth.dto.LoginRequest;
-import org.courseflow.auth.service.AccountCreator;
 import org.courseflow.auth.service.AuthService;
 import org.courseflow.identity.entity.UserRole;
 import org.courseflow.integration.support.AbstractIntegrationTest;

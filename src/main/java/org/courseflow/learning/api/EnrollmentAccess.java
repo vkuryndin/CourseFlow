@@ -1,4 +1,4 @@
-package org.courseflow.learning.service;
+package org.courseflow.learning.api;
 
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;

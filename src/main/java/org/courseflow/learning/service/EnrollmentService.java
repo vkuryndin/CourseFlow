@@ -2,15 +2,15 @@ package org.courseflow.learning.service;
 
 import java.time.Clock;
 import java.util.Set;
+import org.courseflow.catalog.api.CourseAccessPolicy;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.entity.Course;
-import org.courseflow.catalog.service.CourseAccessPolicy;
-import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;
+import org.courseflow.identity.api.StudentAccess;
 import org.courseflow.identity.entity.User;
-import org.courseflow.identity.service.StudentAccess;
 import org.courseflow.learning.dto.EnrollmentListItemResponse;
 import org.courseflow.learning.dto.EnrollmentResponse;
 import org.courseflow.learning.entity.Enrollment;

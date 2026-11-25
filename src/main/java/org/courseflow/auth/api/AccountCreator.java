@@ -1,4 +1,4 @@
-package org.courseflow.auth.service;
+package org.courseflow.auth.api;
 
 import java.time.Clock;
 import java.util.Set;

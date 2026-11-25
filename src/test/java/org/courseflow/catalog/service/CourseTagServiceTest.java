@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 import java.util.Set;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.catalog.entity.Tag;
 import org.courseflow.catalog.repository.CourseRepository;
 import org.courseflow.catalog.repository.TagRepository;

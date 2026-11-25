@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.courseflow.learning.api.EnrollmentAccess;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.EnrollmentRepository;
 import org.junit.jupiter.api.Test;

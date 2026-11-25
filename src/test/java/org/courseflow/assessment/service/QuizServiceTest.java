@@ -17,10 +17,10 @@ import org.courseflow.assessment.dto.UpdateQuizRequest;
 import org.courseflow.assessment.entity.Quiz;
 import org.courseflow.assessment.repository.QuizRepository;
 import org.courseflow.assessment.repository.QuizSubmissionRepository;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.common.exception.BusinessConflictException;
+import org.courseflow.content.api.ContentAccessService;
 import org.courseflow.content.api.ContentStructure;
-import org.courseflow.content.service.ContentAccessService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 

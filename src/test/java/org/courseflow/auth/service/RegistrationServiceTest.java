@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Set;
 import java.util.function.Function;
+import org.courseflow.auth.api.AccountCreator;
 import org.courseflow.auth.dto.RegistrationRequest;
 import org.courseflow.auth.dto.RegistrationResponse;
 import org.courseflow.auth.repository.AuthSessionRepository;

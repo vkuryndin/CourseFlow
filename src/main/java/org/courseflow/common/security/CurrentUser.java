@@ -1,4 +1,4 @@
-package org.courseflow.security;
+package org.courseflow.common.security;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;

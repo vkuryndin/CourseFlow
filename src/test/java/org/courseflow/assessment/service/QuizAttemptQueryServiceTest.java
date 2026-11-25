@@ -24,7 +24,7 @@ import org.courseflow.assessment.entity.QuizSubmission;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.assessment.repository.QuizRepository;
 import org.courseflow.assessment.repository.QuizSubmissionRepository;
-import org.courseflow.catalog.service.CourseGuard;
+import org.courseflow.catalog.api.CourseGuard;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;

@@ -191,14 +191,14 @@
   </Match>
   <Match>
     <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
-    <Class name="org.courseflow.auth.service.CredentialLifecycle" />
+    <Class name="org.courseflow.auth.api.CredentialLifecycle" />
     <Method name="&lt;init&gt;" />
     <Field name="sessions" />
     <Bug pattern="EI_EXPOSE_REP2" />
   </Match>
   <Match>
     <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
-    <Class name="org.courseflow.auth.service.CredentialLifecycle" />
+    <Class name="org.courseflow.auth.api.CredentialLifecycle" />
     <Method name="&lt;init&gt;" />
     <Field name="tokens" />
     <Bug pattern="EI_EXPOSE_REP2" />

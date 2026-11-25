@@ -1,4 +1,4 @@
-package org.courseflow.identity.service;
+package org.courseflow.identity.api;
 
 import org.courseflow.common.exception.BusinessConflictException;
 import org.courseflow.common.exception.ResourceNotFoundException;

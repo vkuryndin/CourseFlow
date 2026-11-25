@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+import org.courseflow.auth.api.CredentialLifecycle;
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.AuthSessionRepository;
 import org.courseflow.auth.repository.PasswordResetTokenRepository;
