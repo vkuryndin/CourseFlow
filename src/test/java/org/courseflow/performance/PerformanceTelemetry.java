@@ -33,7 +33,7 @@ final class PerformanceTelemetry implements AutoCloseable {
           + "gc_count,gc_time_ms,hikari_active,hikari_idle,hikari_total,hikari_waiting,"
           + "tomcat_busy,tomcat_threads,hibernate_sql_prepared,hibernate_transactions,"
           + "hibernate_successful_transactions,pg_connections,pg_active,pg_open_transactions,"
-          + "pg_lock_waiters,pg_deadlocks,pg_commits,pg_rollbacks,observer_error\n";
+          + "pg_lock_waiters,pg_deadlocks,pg_commits,pg_rollbacks,observer_error,post_gc_heap_bytes,jvm_threads\n";
 
   private final String scenario;
   private final HikariDataSource dataSource;
@@ -53,11 +53,11 @@ final class PerformanceTelemetry implements AutoCloseable {
   private final List<String> rows = new ArrayList<>();
   private Connection observer;
   private ScheduledFuture<?> samplingTask;
-  private int pgSamples;
-  private int errors;
-  private int serverSamples;
-  private long firstDeadlocks = -1;
-  private long lastDeadlocks = -1;
+  private volatile int pgSamples;
+  private volatile int errors;
+  private volatile int serverSamples;
+  private volatile long firstDeadlocks = -1;
+  private volatile long lastDeadlocks = -1;
 
   PerformanceTelemetry(
       String scenario, HikariDataSource dataSource, Statistics statistics, Path output)
@@ -111,7 +111,7 @@ final class PerformanceTelemetry implements AutoCloseable {
     return firstDeadlocks < 0 ? -1 : lastDeadlocks - firstDeadlocks;
   }
 
-  private void sample() {
+  private synchronized void sample() {
     List<String> values = new ArrayList<>();
     values.add(scenario);
     values.add(Instant.now().toString());
@@ -183,6 +183,17 @@ final class PerformanceTelemetry implements AutoCloseable {
       closeObserver();
     }
     values.add(error);
+    long postGcHeap = 0;
+    boolean collectionUsageAvailable = false;
+    for (var memoryPool : ManagementFactory.getMemoryPoolMXBeans()) {
+      if (memoryPool.getType() == java.lang.management.MemoryType.HEAP
+          && memoryPool.getCollectionUsage() != null) {
+        postGcHeap += memoryPool.getCollectionUsage().getUsed();
+        collectionUsageAvailable = true;
+      }
+    }
+    values.add(collectionUsageAvailable ? Long.toString(postGcHeap) : "NA");
+    add(values, ManagementFactory.getThreadMXBean().getThreadCount());
     rows.add(String.join(",", values));
   }
 
@@ -266,10 +277,11 @@ final class PerformanceTelemetry implements AutoCloseable {
     if (observer != null) {
       try {
         observer.close();
-      } catch (Exception ignored) {
-        /* best effort */
+      } catch (Exception failure) {
+        throw new IllegalStateException("Failed to close PostgreSQL observer", failure);
+      } finally {
+        observer = null;
       }
-      observer = null;
     }
   }
 

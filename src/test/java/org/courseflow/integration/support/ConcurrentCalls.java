@@ -45,7 +45,9 @@ public final class ConcurrentCalls {
       start.countDown();
       for (Future<T> future : futures) future.cancel(true);
       executor.shutdownNow();
-      executor.awaitTermination(5, TimeUnit.SECONDS);
+      if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Concurrent workers did not terminate");
+      }
     }
   }
 

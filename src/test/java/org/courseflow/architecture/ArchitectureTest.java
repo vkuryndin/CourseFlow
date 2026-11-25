@@ -1,6 +1,8 @@
 package org.courseflow.architecture;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -8,6 +10,8 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,33 +64,107 @@ class ArchitectureTest {
           Map.entry("review", Set.of("catalog", "common", "identity", "learning")),
           Map.entry("security", Set.of("auth", "common", "identity")));
 
-  // Reviewed application-level cycle edges, excluding dependencies to/from entity packages.
-  // Keep this independent of MODULE_DEPENDENCIES: an allowed direction may be ORM-only
-  // or acyclic, and must not silently become part of a new application cycle.
-  private static final Set<String> REVIEWED_APPLICATION_CYCLE_EDGES =
+  // Reviewed class pairs on cyclic application-module directions only (no entity endpoints).
+  // Candidate baseline from the reviewed production source snapshot; bytecode is checked below.
+  // Deleting an existing dependency is allowed. Remove obsolete entries after review to prevent
+  // their reintroduction. Never regenerate this list from a failing test automatically.
+  private static final Set<String> REVIEWED_CYCLIC_CLASS_EDGES =
       Set.of(
-          "assessment -> catalog",
-          "assessment -> content",
-          "assessment -> identity",
-          "assessment -> learning",
-          "auth -> identity",
-          "catalog -> content",
-          "catalog -> identity",
-          "catalog -> learning",
-          "catalog -> review",
-          "content -> assessment",
-          "content -> catalog",
-          "content -> identity",
-          "content -> learning",
-          "identity -> auth",
-          "identity -> catalog",
-          "identity -> learning",
-          "learning -> catalog",
-          "learning -> content",
-          "learning -> identity",
-          "review -> catalog",
-          "review -> identity",
-          "review -> learning");
+          "org.courseflow.assessment.service.QuestionService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.assessment.service.QuestionService"
+              + " -> org.courseflow.content.api.ContentAccessService",
+          "org.courseflow.assessment.service.QuizAttemptQueryService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.assessment.service.QuizAttemptQueryService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.assessment.service.QuizAttemptService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.assessment.service.QuizAttemptService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.assessment.service.QuizAttemptService"
+              + " -> org.courseflow.identity.api.StudentAccess",
+          "org.courseflow.assessment.service.QuizAttemptService"
+              + " -> org.courseflow.learning.api.EnrollmentAccess",
+          "org.courseflow.assessment.service.QuizService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.assessment.service.QuizService -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.assessment.service.QuizService"
+              + " -> org.courseflow.content.api.ContentAccessService",
+          "org.courseflow.assessment.service.QuizService"
+              + " -> org.courseflow.content.api.ContentStructure",
+          "org.courseflow.auth.api.AccountCreator -> org.courseflow.identity.api.UserDirectory",
+          "org.courseflow.auth.service.AdminPasswordResetService"
+              + " -> org.courseflow.identity.api.UserDirectory",
+          "org.courseflow.auth.service.SystemAdminBootstrapService"
+              + " -> org.courseflow.identity.api.UserDirectory",
+          "org.courseflow.catalog.service.CourseService"
+              + " -> org.courseflow.content.api.ContentStructure",
+          "org.courseflow.catalog.service.CourseService"
+              + " -> org.courseflow.content.api.LessonScheduleChecks",
+          "org.courseflow.catalog.service.CourseService"
+              + " -> org.courseflow.identity.api.UserDirectory",
+          "org.courseflow.catalog.service.CourseService"
+              + " -> org.courseflow.learning.api.EnrollmentAccess",
+          "org.courseflow.catalog.service.CourseService -> org.courseflow.review.api.ReviewAccess",
+          "org.courseflow.content.api.ContentAccessService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.content.api.ContentAccessService"
+              + " -> org.courseflow.learning.api.EnrollmentAccess",
+          "org.courseflow.content.service.LessonService -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.content.service.LessonService"
+              + " -> org.courseflow.learning.api.AssignmentAccess",
+          "org.courseflow.content.service.LessonSessionService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.content.service.LessonSessionService"
+              + " -> org.courseflow.identity.api.UserDirectory",
+          "org.courseflow.content.service.ModuleService"
+              + " -> org.courseflow.assessment.api.QuizAccess",
+          "org.courseflow.content.service.ModuleService -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.identity.service.AdminUserService"
+              + " -> org.courseflow.auth.api.AccountCreator",
+          "org.courseflow.identity.service.AdminUserService"
+              + " -> org.courseflow.auth.api.CredentialLifecycle",
+          "org.courseflow.identity.service.AdminUserService"
+              + " -> org.courseflow.catalog.api.CourseParticipation",
+          "org.courseflow.identity.service.AdminUserService"
+              + " -> org.courseflow.learning.api.EnrollmentAccess",
+          "org.courseflow.learning.service.AssignmentService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.learning.service.AssignmentService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.learning.service.AssignmentService"
+              + " -> org.courseflow.content.api.ContentAccessService",
+          "org.courseflow.learning.service.AssignmentService"
+              + " -> org.courseflow.content.api.ContentStructure",
+          "org.courseflow.learning.service.EnrollmentService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.learning.service.EnrollmentService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.learning.service.EnrollmentService"
+              + " -> org.courseflow.identity.api.StudentAccess",
+          "org.courseflow.learning.service.GradebookService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.learning.service.GradebookService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.learning.service.GradebookService"
+              + " -> org.courseflow.content.api.ContentStructure",
+          "org.courseflow.learning.service.SubmissionService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.learning.service.SubmissionService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.learning.service.SubmissionService"
+              + " -> org.courseflow.identity.api.StudentAccess",
+          "org.courseflow.review.service.CourseReviewService"
+              + " -> org.courseflow.catalog.api.CourseAccessPolicy",
+          "org.courseflow.review.service.CourseReviewService"
+              + " -> org.courseflow.catalog.api.CourseGuard",
+          "org.courseflow.review.service.CourseReviewService"
+              + " -> org.courseflow.identity.api.StudentAccess",
+          "org.courseflow.review.service.CourseReviewService"
+              + " -> org.courseflow.identity.api.UserDirectory",
+          "org.courseflow.review.service.CourseReviewService"
+              + " -> org.courseflow.learning.api.EnrollmentAccess");
 
   private static JavaClasses classes;
 
@@ -96,6 +174,73 @@ class ArchitectureTest {
         new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages(ROOT);
+  }
+
+  @Test
+  void everyCompiledProductionClassIsImported() throws Exception {
+    Path root = Path.of(org.courseflow.CourseFlowApplication.class.getProtectionDomain()
+        .getCodeSource().getLocation().toURI());
+    Path packageRoot = root.resolve("org/courseflow");
+    assertTrue(Files.isDirectory(packageRoot), "Expected compiled production classes: " + packageRoot);
+    Set<String> expected = new TreeSet<>();
+    try (var paths = Files.walk(packageRoot)) {
+      for (Path file : paths.filter(p -> p.toString().endsWith(".class")).toList()) {
+        String name = root.relativize(file).toString().replace('\\', '/').replace('/', '.');
+        if (!name.endsWith("package-info.class")) {
+          expected.add(name.substring(0, name.length() - 6));
+        }
+      }
+    }
+    Set<String> imported = new TreeSet<>();
+    for (JavaClass type : classes) {
+      if (isProject(type)) {
+        imported.add(type.getName());
+      }
+    }
+    assertFalse(expected.isEmpty(), "No compiled classes found");
+    expected.removeAll(imported);
+    assertTrue(expected.isEmpty(), () -> "Production classes not imported: " + expected);
+  }
+
+  @Test
+  void cycleDetectorRecognizesCyclesAndIgnoresAcyclicEdges() {
+    assertEquals(Set.of("a -> b", "b -> a"), cyclicEdges(Map.of("a", Set.of("b"), "b", Set.of("a", "c"))));
+    assertTrue(cyclicEdges(Map.of("a", Set.of("b"), "b", Set.of("c"))).isEmpty());
+  }
+
+  @Test
+  void classCycleBaselineAllowsRemovalButRejectsNewCyclicPairs() {
+    String reviewed = "a.First -> b.First";
+    String reverse = "b.First -> a.First";
+    String added = "a.Second -> b.First";
+    String acyclic = "b.First -> c.First";
+    Set<String> baseline = Set.of(reviewed, reverse);
+    Map<String, Set<String>> graph = Map.of("a", Set.of("b"), "b", Set.of("a", "c"));
+
+    assertEquals(
+        Set.of(added),
+        unreviewedCyclicClassEdges(
+            graph,
+            Map.of(
+                "a -> b", Set.of(reviewed, added),
+                "b -> a", Set.of(reverse),
+                "b -> c", Set.of(acyclic)),
+            baseline));
+    assertTrue(
+        unreviewedCyclicClassEdges(
+                graph,
+                Map.of("a -> b", Set.of(reviewed), "b -> a", Set.of(reverse),
+                    "b -> c", Set.of(acyclic)),
+                Set.of(reviewed, reverse, added))
+            .isEmpty());
+    assertTrue(
+        unreviewedCyclicClassEdges(
+                Map.of("a", Set.of("b")), Map.of("a -> b", Set.of(reviewed)), baseline)
+            .isEmpty());
+    assertEquals(
+        Set.of(reviewed, reverse),
+        unreviewedCyclicClassEdges(
+            graph, Map.of("a -> b", Set.of(reviewed), "b -> a", Set.of(reverse)), Set.of()));
   }
 
   @Test
@@ -254,6 +399,15 @@ class ArchitectureTest {
         }
       }
     }
+    for (JavaClass type : classes) {
+      for (var method : type.getMethods()) {
+        for (String annotation : injectionAnnotations) {
+          if (method.isAnnotatedWith(annotation)) {
+            violations.add(method.getFullName() + " uses method injection @" + annotation);
+          }
+        }
+      }
+    }
     // @Value is deliberately not included: configuration values are not bean dependencies.
     assertNoViolations(violations);
   }
@@ -299,8 +453,11 @@ class ArchitectureTest {
   }
 
   @Test
-  void moduleDependencyDirectionsAndApplicationCyclesDoNotGrow() {
+  void moduleDependencyDirectionsAndApplicationCyclesDoNotGrow() throws Exception {
     Map<String, Set<String>> applicationGraph = new HashMap<>();
+    Map<String, Set<String>> fullGraph = new HashMap<>();
+    Set<String> classEdges = new TreeSet<>();
+    Map<String, Set<String>> applicationClassEdges = new HashMap<>();
     List<String> violations = new ArrayList<>();
     for (JavaClass type : classes) {
       if (!isProject(type)) {
@@ -313,22 +470,55 @@ class ArchitectureTest {
         }
         String from = module(type);
         String to = module(target);
+        fullGraph.computeIfAbsent(from, ignored -> new HashSet<>()).add(to);
+        String classEdge = type.getName() + " -> " + target.getName();
+        classEdges.add(classEdge);
         if (!layer(type, "entity") && !layer(target, "entity")) {
           applicationGraph.computeIfAbsent(from, ignored -> new HashSet<>()).add(to);
+          applicationClassEdges
+              .computeIfAbsent(from + " -> " + to, ignored -> new TreeSet<>())
+              .add(classEdge);
         }
         if (!MODULE_DEPENDENCIES.getOrDefault(from, Set.of()).contains(to)) {
           violations.add(dependency.getDescription());
         }
       }
     }
-    Set<String> newCyclicEdges = cyclicEdges(applicationGraph);
-    newCyclicEdges.removeAll(REVIEWED_APPLICATION_CYCLE_EDGES);
+    Path report = Path.of("build", "reports", "architecture", "bytecode-dependencies.txt");
+    Files.createDirectories(report.getParent());
+    Files.write(report, classEdges);
+    Set<String> actualCyclicClassEdges = cyclicClassEdges(applicationGraph, applicationClassEdges);
+    Files.write(report.resolveSibling("cyclic-application-dependencies.txt"), actualCyclicClassEdges);
+    System.out.println("Existing application cycle debt: " + cyclicEdges(applicationGraph));
+    System.out.println("Cyclic application class pairs: " + actualCyclicClassEdges.size());
+    System.out.println("All module cycles, including ORM: " + cyclicEdges(fullGraph));
+    Set<String> unreviewed =
+        unreviewedCyclicClassEdges(
+            applicationGraph, applicationClassEdges, REVIEWED_CYCLIC_CLASS_EDGES);
     assertAll(
         () -> assertNoViolations(violations),
         () ->
             assertTrue(
-                newCyclicEdges.isEmpty(),
-                () -> "New cyclic application module edges: " + newCyclicEdges));
+                unreviewed.isEmpty(),
+                () -> "New cyclic application class dependencies:\n" + String.join("\n", unreviewed)));
+  }
+
+  private static Set<String> cyclicClassEdges(
+      Map<String, Set<String>> graph, Map<String, Set<String>> classEdgesByDirection) {
+    Set<String> result = new TreeSet<>();
+    for (String direction : cyclicEdges(graph)) {
+      result.addAll(classEdgesByDirection.getOrDefault(direction, Set.of()));
+    }
+    return result;
+  }
+
+  private static Set<String> unreviewedCyclicClassEdges(
+      Map<String, Set<String>> graph,
+      Map<String, Set<String>> classEdgesByDirection,
+      Set<String> reviewed) {
+    Set<String> result = cyclicClassEdges(graph, classEdgesByDirection);
+    result.removeAll(reviewed);
+    return result;
   }
 
   @Test

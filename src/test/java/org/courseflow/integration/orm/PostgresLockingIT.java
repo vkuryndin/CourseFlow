@@ -168,7 +168,9 @@ class PostgresLockingIT extends AdvancedHttpTest {
     } finally {
       secondLocked.countDown();
       executor.shutdownNow();
-      executor.awaitTermination(10, TimeUnit.SECONDS);
+      if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Concurrent workers did not terminate");
+      }
     }
   }
 
@@ -384,7 +386,9 @@ class PostgresLockingIT extends AdvancedHttpTest {
       assertEquals(id, future.get(10, TimeUnit.SECONDS));
     } finally {
       executor.shutdownNow();
-      executor.awaitTermination(20, TimeUnit.SECONDS);
+      if (!executor.awaitTermination(20, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Concurrent workers did not terminate");
+      }
     }
   }
 

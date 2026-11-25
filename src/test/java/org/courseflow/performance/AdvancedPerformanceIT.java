@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -96,9 +97,11 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
     maxUsers = Integer.getInteger(PREFIX + "maxUsers", 500);
     int stageSeconds = Integer.getInteger(PREFIX + "stageSeconds", 10);
     soakSeconds = Integer.getInteger(PREFIX + "soakSeconds", 900);
-    assertTrue(maxUsers >= 100 && maxUsers <= 500, "maxUsers must be 100..500");
+    int minimumUsers = Boolean.getBoolean("courseflow.performance.smoke") ? 100 : 500;
+    assertTrue(maxUsers >= minimumUsers && maxUsers <= 500, "Invalid maxUsers for selected profile");
     assertTrue(stageSeconds >= 5 && stageSeconds <= 60, "stageSeconds must be 5..60");
-    assertTrue(soakSeconds >= 10 && soakSeconds <= 1800, "soakSeconds must be 10..1800");
+    int minimumSoak = Boolean.getBoolean("courseflow.performance.smoke") ? 10 : 300;
+    assertTrue(soakSeconds >= minimumSoak && soakSeconds <= 1800, "Invalid soakSeconds for selected profile");
     stageDuration = Duration.ofSeconds(stageSeconds);
     assertEquals("courseflow_test", jdbc.queryForObject("SELECT current_database()", String.class));
     dataSource = pooledDataSource.unwrap(HikariDataSource.class);
@@ -244,12 +247,16 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
 
   @Test
   void extendedSoak() throws Exception {
-    phase(
+    Phase soak = phase(
         "soak_100_" + soakSeconds + "s",
         100,
         Duration.ofSeconds(soakSeconds),
         Duration.ofSeconds(1),
         Policy.NORMAL);
+    if (!Boolean.getBoolean("courseflow.performance.smoke")) {
+      SoakChecks.verify(soak.result(), soakSeconds, Set.of("catalog", "lesson", "profile", "repeat_enrollment"),
+          threshold("soakMinRps", 10), threshold("p95Ms", 500), threshold("p99Ms", 1000));
+    }
     recover("soak_recovery");
   }
 
@@ -325,6 +332,17 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
     recover("auth_recovery");
   }
 
+  private Response checkedLoadResponse(Response response) {
+    if (response.status() == 503) {
+      assertEquals("SERVICE_UNAVAILABLE", field(response.body(), "code"));
+      assertEquals(503L, number(response.body(), "status"));
+      Object requestId = field(response.body(), "requestId");
+      assertTrue(requestId instanceof String id && !id.isBlank());
+      assertEquals(requestId, response.header("X-Request-Id"));
+    }
+    return response;
+  }
+
   private Phase phase(String name, int users, Duration duration, Duration pause, Policy policy)
       throws Exception {
     AtomicIntegerArray iterations = new AtomicIntegerArray(users);
@@ -348,7 +366,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
                           200,
                           () ->
                               observer.request(
-                                  () -> api("GET", catalogPath(page), actor.token(), null)),
+                                  () -> checkedLoadResponse(api("GET", catalogPath(page), actor.token(), null))),
                           Response::status,
                           r -> validateCatalog(page, r.body()));
                     }
@@ -358,7 +376,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
                             200,
                             () ->
                                 observer.request(
-                                    () -> api("GET", lessonPath(actor), actor.token(), null)),
+                                    () -> checkedLoadResponse(api("GET", lessonPath(actor), actor.token(), null))),
                             Response::status,
                             r -> validateLesson(actor, r.body()));
                     case 2 ->
@@ -367,7 +385,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
                             200,
                             () ->
                                 observer.request(
-                                    () -> api("GET", "/api/users/me", actor.token(), null)),
+                                    () -> checkedLoadResponse(api("GET", "/api/users/me", actor.token(), null))),
                             Response::status,
                             r -> validateProfile(actor, r.body()));
                     default ->
@@ -377,13 +395,13 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
                             () ->
                                 observer.request(
                                     () ->
-                                        api(
+                                        checkedLoadResponse(api(
                                             "POST",
                                             "/api/courses/"
                                                 + actor.study().course()
                                                 + "/enrollments",
                                             actor.token(),
-                                            null)),
+                                            null))),
                             Response::status,
                             r -> validateEnrollment(actor, r.body()));
                   }
@@ -397,7 +415,22 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
     checkEnrollments();
     validateProfile(
         students.get(0), expect(api("GET", "/api/users/me", students.get(0).token(), null), 200));
-    assertEquals(0, dataSource.getHikariPoolMXBean().getThreadsAwaitingConnection());
+    awaitQuiescence(name);
+  }
+
+  private void awaitQuiescence(String name) throws InterruptedException {
+    long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+    do {
+      var pool = dataSource.getHikariPoolMXBean();
+      long transactions = count("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND xact_start IS NOT NULL");
+      long waiters = count("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND wait_event_type = 'Lock'");
+      if (pool.getActiveConnections() == 0 && pool.getThreadsAwaitingConnection() == 0
+          && transactions == 0 && waiters == 0) {
+        return;
+      }
+      Thread.sleep(100);
+    } while (System.nanoTime() < deadline);
+    throw new AssertionError("Connections, transactions or lock waiters did not recover: " + name);
   }
 
   @FunctionalInterface
@@ -432,10 +465,11 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
         samples.stream().map(LoadRunner.Sample::user).distinct().count(),
         "Every user must execute a request");
     assertEquals((long) samples.size(), observer.completed(), "Missing HTTP measurements");
-    assertTrue(observer.peak() > 1, "No concurrent requests observed: " + name);
+    assertTrue(observer.peak() >= Math.max(2, users / 10),
+        "Insufficient measured HTTP concurrency: " + name + ": " + observer.peak());
     assertTrue(observer.pgSamples() >= 2, "Missing database telemetry: " + name);
-    if (policy != Policy.STRESS)
-      assertEquals(0, observer.errors(), "Database telemetry failed: " + name);
+    assertEquals(0, observer.errors(), "Database telemetry failed: " + name);
+    assertEquals(0L, observer.deadlockDelta(), "New PostgreSQL deadlocks: " + name);
     if (observer.serverSamples() == 0) System.out.println("Tomcat MBeans unavailable; CSV uses NA");
     assertEquals(
         0L,
@@ -444,8 +478,23 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
     assertTrue(
         samples.stream().anyMatch(LoadRunner.Sample::successful),
         "No successful responses: " + name);
+    Set<String> required = policy == Policy.AUTH ? Set.of("login")
+        : Set.of("catalog", "lesson", "profile", "repeat_enrollment");
+    assertEquals(required, operations.keySet(), "Workload operation coverage: " + name);
+    if (policy == Policy.STRESS) {
+      double minimumSuccess = threshold("stressMinSuccessRatio", 0.90);
+      assertTrue(minimumSuccess <= 1, "stressMinSuccessRatio must be at most 1");
+      for (var entry : operations.entrySet()) {
+        double operationRatio = entry.getValue().stream().filter(LoadRunner.Sample::successful).count()
+            / (double) entry.getValue().size();
+        assertTrue(operationRatio >= minimumSuccess,
+            "Stress success ratio: " + operationRatio + " in " + name + "/" + entry.getKey());
+      }
+      double successRatio = samples.stream().filter(LoadRunner.Sample::successful).count()
+          / (double) samples.size();
+      assertTrue(successRatio >= minimumSuccess, "Stress success ratio: " + successRatio + " in " + name);
+    }
     if (policy == Policy.NORMAL) {
-      assertEquals(0L, observer.deadlockDelta(), "New PostgreSQL deadlocks: " + name);
       double p95Limit = threshold("p95Ms", 500);
       double p99Limit = threshold("p99Ms", 1000);
       assertTrue(p99Limit >= p95Limit, "Invalid latency thresholds");
@@ -545,14 +594,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
   }
 
   private static boolean overload(LoadRunner.Sample sample) {
-    return (sample.exception().isEmpty() && (sample.status() == 500 || sample.status() == 503))
-        || (sample.status() == 0
-            && List.of(
-                    "HttpTimeoutException",
-                    "HttpConnectTimeoutException",
-                    "ConnectException",
-                    "IOException")
-                .contains(sample.exception()));
+    return LoadPolicy.controlledOverload(sample);
   }
 
   private static boolean unexpected(LoadRunner.Sample sample, Policy policy) {
@@ -672,6 +714,6 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
   }
 
   private static long number(Object body, String key) {
-    return ((Number) field(body, key)).longValue();
+    return org.courseflow.integration.support.JsonChecks.requiredInteger(body, key);
   }
 }

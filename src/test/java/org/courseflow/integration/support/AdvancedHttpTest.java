@@ -231,7 +231,7 @@ public abstract class AdvancedHttpTest extends HttpIntegrationTest {
   }
 
   protected static long number(Object response, String fieldName) {
-    return ((Number) field(response, fieldName)).longValue();
+    return JsonChecks.requiredInteger(response, fieldName);
   }
 
   protected static void statuses(List<Response> responses, int... expected) {

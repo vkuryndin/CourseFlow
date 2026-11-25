@@ -108,6 +108,9 @@ class RateLimitRegressionIT extends HttpIntegrationTest {
   private void limited(Response response) {
     Object body = expect(response, 429);
     assertEquals("RATE_LIMIT_EXCEEDED", field(body, "code"));
+    assertEquals(429L, org.courseflow.integration.support.JsonChecks.requiredInteger(body, "status"));
+    assertEquals(field(body, "requestId"), response.header("X-Request-Id"));
+    assertTrue(response.header("X-Request-Id") != null && !response.header("X-Request-Id").isBlank());
     long retry = Long.parseLong(response.header("Retry-After"));
     assertTrue(retry >= 1 && retry <= 60);
   }

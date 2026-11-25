@@ -74,7 +74,7 @@ class PerformanceIT extends AdvancedHttpTest {
     Files.writeString(
         report,
         "scenario,operation,users,seconds,requests,successes,errors,error_pct,rps,"
-            + "avg_ms,min_ms,p50_ms,p95_ms,p99_ms,max_ms,outcomes\n",
+            + "avg_ms,min_ms,p50_ms,p95_ms,p99_ms,max_ms,peak_client_in_flight,outcomes\n",
         StandardCharsets.UTF_8,
         StandardOpenOption.CREATE_NEW);
     System.out.println("Performance report: " + report);
@@ -397,11 +397,11 @@ class PerformanceIT extends AdvancedHttpTest {
             (user, probe) -> {
               int iteration = iterations.getAndIncrement(user);
               if (user < 80) {
-                studentRead(probe, user, iteration);
+                studentRead(probe, user, iteration + user);
               } else if (user < 95) {
                 int index = user - 80;
                 String token = teachers.get(index).token();
-                if (iteration % 2 == 0) {
+                if ((iteration + user) % 2 == 0) {
                   call(probe, "gradebook", 200, "GET", gradebookPath(index), token, null);
                 } else {
                   call(
@@ -415,7 +415,7 @@ class PerformanceIT extends AdvancedHttpTest {
                 }
               } else {
                 String token = admins.get(user - 95);
-                if (iteration % 2 == 0) {
+                if ((iteration + user) % 2 == 0) {
                   call(probe, "admin_users", 200, "GET", "/api/users?page=0&size=20", token, null);
                 } else {
                   call(probe, "admin_dashboard", 200, "GET", "/api/dashboard/admin", token, null);
@@ -540,7 +540,8 @@ class PerformanceIT extends AdvancedHttpTest {
   @Test
   void sustainedLoadWithFiftyStudents() throws Exception {
     int seconds = Integer.getInteger("courseflow.performance.soakSeconds", 300);
-    assertTrue(seconds >= 1 && seconds <= 1800, "soakSeconds must be in range 1..1800");
+    int minimum = Boolean.getBoolean("courseflow.performance.smoke") ? 10 : 300;
+    assertTrue(seconds >= minimum && seconds <= 1800, "Invalid soakSeconds for selected profile");
     captureStudentDashboardCourses();
     AtomicIntegerArray iterations = new AtomicIntegerArray(50);
     report(
@@ -549,7 +550,7 @@ class PerformanceIT extends AdvancedHttpTest {
             50,
             Duration.ofSeconds(seconds),
             Duration.ofSeconds(1),
-            (user, probe) -> studentRead(probe, user, iterations.getAndIncrement(user))),
+            (user, probe) -> studentRead(probe, user, iterations.getAndIncrement(user) + user)),
         50);
     assertEquals(
         100L,
@@ -853,6 +854,39 @@ class PerformanceIT extends AdvancedHttpTest {
       appendRow(scenario, entry.getKey(), result, entry.getValue());
     }
     assertTrue(samples.size() >= minimumRequests, "Too few completed requests: " + scenario);
+    assertTrue(result.peakInFlight() >= Math.max(2, result.users() / 10),
+        "Insufficient measured client concurrency: " + scenario + ": " + result.peakInFlight());
+    Set<String> required = switch (scenario) {
+      case "catalog_100" -> Set.of("catalog");
+      case "lessons_100" -> Set.of("lesson");
+      case "enrollments_50" -> Set.of("enroll");
+      case "homework_50" -> Set.of("submit_homework");
+      case "quiz_50" -> Set.of("start_quiz", "submit_quiz");
+      case "gradebook_20" -> Set.of("gradebook");
+      case "mixed_100" -> Set.of("catalog", "lesson", "progress", "student_dashboard",
+          "repeat_enrollment", "gradebook", "teacher_dashboard", "admin_users", "admin_dashboard");
+      case "mixed_writes_100" -> Set.of("submit_homework", "lesson", "grade_homework");
+      default -> {
+        assertTrue(scenario.startsWith("soak_"), "Unknown workload: " + scenario);
+        yield Set.of("catalog", "lesson", "progress", "student_dashboard", "repeat_enrollment");
+      }
+    };
+    assertEquals(required, byOperation.keySet(), "Workload operation coverage: " + scenario);
+    if (scenario.equals("quiz_50")) {
+      assertEquals(50, byOperation.get("start_quiz").size());
+      assertEquals(50, byOperation.get("submit_quiz").size());
+      for (int user = 0; user < 50; user++) {
+        final int actor = user;
+        assertEquals(Set.of("start_quiz", "submit_quiz"), samples.stream()
+            .filter(sample -> sample.user() == actor).map(LoadRunner.Sample::operation)
+            .collect(java.util.stream.Collectors.toSet()));
+      }
+    }
+    if (scenario.equals("mixed_writes_100")) {
+      assertEquals(50, byOperation.get("submit_homework").size());
+      assertEquals(30, byOperation.get("lesson").size());
+      assertEquals(20, byOperation.get("grade_homework").size());
+    }
     assertEquals(
         0L,
         samples.stream().filter(s -> !s.successful()).count(),
@@ -895,11 +929,17 @@ class PerformanceIT extends AdvancedHttpTest {
                                 || scenario.equals("lessons_100")
                                 || scenario.equals("mixed_100")
                             ? "150"
-                            : "0"));
-    assertTrue(Double.isFinite(minimumRps) && minimumRps >= 0, "Invalid minimum RPS");
+                            : "1"));
+    assertTrue(Double.isFinite(minimumRps) && minimumRps > 0, "Invalid minimum RPS");
     assertTrue(
         samples.size() / result.seconds() >= minimumRps,
         scenario + " throughput below " + minimumRps + " RPS");
+    if (scenario.startsWith("soak_50_") && !Boolean.getBoolean("courseflow.performance.smoke")) {
+      int seconds = Integer.parseInt(scenario.substring("soak_50_".length(), scenario.length() - 1));
+      SoakChecks.verify(result, seconds, required, minimumRps,
+          Long.getLong("courseflow.performance.p95Ms", 500L),
+          Long.getLong("courseflow.performance.p99Ms", 1000L));
+    }
   }
 
   private void appendRow(
@@ -921,7 +961,7 @@ class PerformanceIT extends AdvancedHttpTest {
     String row =
         String.format(
             Locale.ROOT,
-            "%s,%s,%d,%.3f,%d,%d,%d,%.3f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%s%n",
+            "%s,%s,%d,%.3f,%d,%d,%d,%.3f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%s%n",
             scenario,
             operation,
             result.users(),
@@ -937,6 +977,7 @@ class PerformanceIT extends AdvancedHttpTest {
             percentile(durations, 0.95),
             percentile(durations, 0.99),
             percentile(durations, 1),
+            result.peakInFlight(),
             outcomes.toString().replace(",", ";"));
     Files.writeString(report, row, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
     if (operation.equals("ALL")) {

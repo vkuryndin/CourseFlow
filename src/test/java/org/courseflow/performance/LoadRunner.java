@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 
@@ -25,21 +26,31 @@ final class LoadRunner {
   }
 
   record Sample(
-      int user, String operation, long nanos, int expected, int status, String exception) {
+      int user, String operation, long nanos, int expected, int status, String exception,
+      long completionOffsetNanos) {
+    Sample(int user, String operation, long nanos, int expected, int status, String exception) {
+      this(user, operation, nanos, expected, status, exception, 0);
+    }
     boolean successful() {
       return exception.isEmpty() && status == expected;
     }
   }
 
-  record Result(int users, double seconds, List<Sample> samples) {}
+  record Result(int users, double seconds, List<Sample> samples, int peakInFlight) {}
 
   static final class Probe {
     private final Queue<Sample> samples;
     private final int user;
+    private final AtomicInteger inFlight;
+    private final AtomicInteger peak;
+    private final long runStarted;
 
-    private Probe(Queue<Sample> samples, int user) {
+    private Probe(Queue<Sample> samples, int user, AtomicInteger inFlight, AtomicInteger peak, long runStarted) {
       this.samples = samples;
       this.user = user;
+      this.inFlight = inFlight;
+      this.peak = peak;
+      this.runStarted = runStarted;
     }
 
     <T> T request(
@@ -49,12 +60,19 @@ final class LoadRunner {
         ToIntFunction<T> statusCode,
         Consumer<T> validate)
         throws InterruptedException {
+      int active = inFlight.incrementAndGet();
+      peak.accumulateAndGet(active, Math::max);
       long started = System.nanoTime();
       long elapsed = -1;
       int status = 0;
       String exception = "";
       try {
-        T response = action.call();
+        T response;
+        try {
+          response = action.call();
+        } finally {
+          inFlight.decrementAndGet();
+        }
         status = statusCode.applyAsInt(response);
         elapsed = System.nanoTime() - started;
         if (status == expected) {
@@ -79,7 +97,7 @@ final class LoadRunner {
                 elapsed < 0 ? System.nanoTime() - started : elapsed,
                 expected,
                 status,
-                exception));
+                exception, System.nanoTime() - runStarted));
       }
     }
   }
@@ -106,6 +124,8 @@ final class LoadRunner {
     CountDownLatch start = new CountDownLatch(1);
     Queue<Sample> samples = new ConcurrentLinkedQueue<>();
     List<Future<Void>> futures = new ArrayList<>();
+    AtomicInteger inFlight = new AtomicInteger();
+    AtomicInteger peak = new AtomicInteger();
     long[] started = new long[1];
     long durationNanos = duration.toNanos();
     long pauseNanos = pause.toNanos();
@@ -120,7 +140,7 @@ final class LoadRunner {
                     throw new IllegalStateException("Load start timed out");
                   }
                   // CountDownLatch publishes the shared start time to every worker.
-                  Probe probe = new Probe(samples, user);
+                  Probe probe = new Probe(samples, user, inFlight, peak, started[0]);
                   do {
                     work.execute(user, probe);
                     long remaining = durationNanos - (System.nanoTime() - started[0]);
@@ -144,7 +164,10 @@ final class LoadRunner {
         future.get(Math.max(1, remaining), TimeUnit.NANOSECONDS);
       }
       double seconds = (System.nanoTime() - started[0]) / 1_000_000_000.0;
-      return new Result(users, seconds, List.copyOf(samples));
+      if (samples.stream().map(Sample::user).distinct().count() != users) {
+        throw new IllegalStateException("At least one virtual user performed no requests");
+      }
+      return new Result(users, seconds, List.copyOf(samples), peak.get());
     } finally {
       executor.shutdownNow();
       start.countDown();

@@ -63,7 +63,9 @@ class ConcurrentCleanupIT extends AdvancedHttpTest {
         } finally {
           connection.rollback();
           executor.shutdownNow();
-          executor.awaitTermination(10, TimeUnit.SECONDS);
+          if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Concurrent workers did not terminate");
+          }
         }
       } finally {
         connection.rollback();

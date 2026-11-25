@@ -64,6 +64,22 @@ class GradebookQueryRepositoryTest {
     verify(data).setParameter("moduleId", 50L);
     verify(total).setParameter("now", NOW);
     verify(em).createQuery(contains("a.dueAt <= :now"), eq(StudentProjection.class));
+    assertEquals(1L, page.total());
+    verify(data).setParameter("courseId", 40L);
+    verify(data).setParameter("enrollmentStatus", EnrollmentStatus.ACTIVE);
+    verify(data).setParameter("now", NOW);
+    verify(data).setFirstResult(0);
+    verify(data).setMaxResults(20);
+    var dataJpql = org.mockito.ArgumentCaptor.forClass(String.class);
+    var countJpql = org.mockito.ArgumentCaptor.forClass(String.class);
+    verify(em).createQuery(dataJpql.capture(), eq(StudentProjection.class));
+    verify(em).createQuery(countJpql.capture(), eq(Long.class));
+    for (String fragment : List.of("e.course.id = :courseId", "LOCATE(:search, LOWER(u.displayName))",
+        "e.status = :enrollmentStatus", "a.lesson.module.id = :moduleId", "a.dueAt <= :now")) {
+      assertTrue(dataJpql.getValue().contains(fragment), fragment);
+      assertTrue(countJpql.getValue().contains(fragment), fragment);
+    }
+    assertTrue(dataJpql.getValue().contains("ORDER BY u.displayName desc"));
   }
 
   @Test

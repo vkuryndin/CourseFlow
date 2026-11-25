@@ -43,5 +43,14 @@ class JwtConfigTest {
     assertEquals("10", decoded.getSubject());
     assertEquals(session.getId().toString(), decoded.getId());
     assertEquals("courseflow", decoded.getClaimAsString("iss"));
+    assertEquals(now.getEpochSecond(), decoded.getIssuedAt().getEpochSecond());
+    assertEquals(now.plusSeconds(3600).getEpochSecond(), decoded.getExpiresAt().getEpochSecond());
+    assertEquals(java.util.List.of("STUDENT"), decoded.getClaimAsStringList("roles"));
+    assertEquals(Boolean.FALSE, decoded.getClaimAsBoolean("passwordChangeRequired"));
+    byte[] otherBytes = new byte[32];
+    otherBytes[0] = 1;
+    var otherKey = config.jwtSigningKey(Base64.getEncoder().encodeToString(otherBytes));
+    var otherDecoder = config.jwtDecoder(otherKey, validator, Clock.systemUTC());
+    assertThrows(org.springframework.security.oauth2.jwt.JwtException.class, () -> otherDecoder.decode(token));
   }
 }

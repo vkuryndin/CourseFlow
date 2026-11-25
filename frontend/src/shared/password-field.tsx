@@ -3,7 +3,7 @@ import { Box, IconButton, InputAdornment, TextField, type OutlinedTextFieldProps
 import { Eye, EyeOff } from 'lucide-react';
 
 /** Visibility is local to each input and never persisted. The eye is part of the focus group. */
-export function PasswordField({ slotProps, ...props }: OutlinedTextFieldProps) {
+export function PasswordField({ slotProps, ...props }: Omit<OutlinedTextFieldProps, 'variant'>) {
     const [visible, setVisible] = useState(false);
     const root = useRef<HTMLDivElement>(null);
     useEffect(() => {
