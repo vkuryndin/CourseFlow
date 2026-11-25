@@ -2,7 +2,15 @@
 
 **Итоговый проект (сессионное задание). ORM-фреймворки для Java**
 
-[![CI](https://github.com/vkuryndin/CourseFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/vkuryndin/CourseFlow/actions/workflows/ci.yml) [![CodeQL](https://github.com/vkuryndin/CourseFlow/actions/workflows/codeql.yml/badge.svg)](https://github.com/vkuryndin/CourseFlow/actions/workflows/codeql.yml)
+[![Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvkuryndin%2FCourseFlow%2Fmaster%2FVERSION&search=%5B0-9%5D%2B%5C.%5B0-9%5D%2B%5C.%5B0-9%5D%2B&label=Version&color=blue)](https://github.com/vkuryndin/CourseFlow/blob/master/VERSION)
+[![CI](https://github.com/vkuryndin/CourseFlow/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/vkuryndin/CourseFlow/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/vkuryndin/CourseFlow/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/vkuryndin/CourseFlow/actions/workflows/codeql.yml)
+[![Performance Tests](https://github.com/vkuryndin/CourseFlow/actions/workflows/performance.yml/badge.svg?branch=master)](https://github.com/vkuryndin/CourseFlow/actions/workflows/performance.yml)
+[![Line Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvkuryndin%2FCourseFlow%2Fbadges%2Fline-coverage.json)](docs/TESTING.md)
+[![Branch Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvkuryndin%2FCourseFlow%2Fbadges%2Fbranch-coverage.json)](docs/TESTING.md)
+[![Java 17](https://img.shields.io/badge/Java-17-007ec6)](https://openjdk.org/projects/jdk/17/)
+[![PostgreSQL 18](https://img.shields.io/badge/PostgreSQL-18-336791)](https://www.postgresql.org/)
+[![React 18.3.1](https://img.shields.io/badge/React-18.3.1-007ec6)](https://react.dev/)
 
 ## О проекте
 
@@ -81,7 +89,7 @@ ORM-модель включает связи «один к одному», «о�
 | Архитектурные тесты frontend (`npm test`) | 3 |
 | Браузерные тесты Playwright | 29 |
 
-Количество сценариев определено по исходному коду с учётом динамических и циклически формируемых тестов. Покрытие серверного кода модульными тестами по отчёту JaCoCo: **90,10% строк и 71,53% ветвей**.
+Количество сценариев определено по исходному коду с учётом динамических и циклически формируемых тестов. Покрытие строк и ветвей серверного кода модульными тестами рассчитывается JaCoCo; актуальные показатели последнего успешного CI в ветке `master` отображаются в начале README.
 
 Spotless, SpotBugs, Checkstyle, ESLint и CodeQL используются для автоматизированного контроля качества и безопасности кода. Полный каталог тестов, команды и отчёты — в [TESTING.md](docs/TESTING.md).
 

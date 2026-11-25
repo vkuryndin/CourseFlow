@@ -86,7 +86,7 @@ jobs:
     if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v6
@@ -137,3 +137,44 @@ jobs:
           docker push "${prefix}-backend:latest"
           docker push "${prefix}-frontend:latest"
           printf '### Published Docker images — %s\n- `%s`\n- `%s`\n- Tags: `%s`, `latest`, commit SHA\n' "$version" "$backend" "$frontend" "$version" >> "$GITHUB_STEP_SUMMARY"
+      - name: Download JaCoCo report
+        uses: actions/download-artifact@v6
+        with:
+          name: backend-reports
+          path: build/reports
+      - name: Update coverage badges
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          badge_dir=$(mktemp -d)
+          trap 'rm -rf "$badge_dir"' EXIT
+          # Authenticate only this step, without saving credentials in the repository.
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.extraHeader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
+          git -C "$badge_dir" init --initial-branch=badges
+          git -C "$badge_dir" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          if git -C "$badge_dir" ls-remote --exit-code origin refs/heads/badges; then
+            git -C "$badge_dir" fetch --no-tags origin refs/heads/badges
+            git -C "$badge_dir" switch -C badges FETCH_HEAD
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then
+              exit "$status"
+            fi
+          fi
+          python3 .github/scripts/update-badges.py \
+            build/reports/jacoco/test/jacocoTestReport.xml "$badge_dir"
+          git -C "$badge_dir" add line-coverage.json branch-coverage.json
+          if git -C "$badge_dir" diff --cached --quiet; then
+            echo "Coverage badges are already up to date."
+          else
+            git -C "$badge_dir" config user.name 'github-actions[bot]'
+            git -C "$badge_dir" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git -C "$badge_dir" commit -m "Update coverage badges for $GITHUB_SHA"
+            git -C "$badge_dir" push origin HEAD:refs/heads/badges
+          fi
