@@ -1,6 +1,6 @@
-node_modules
-dist
-.env.local
-.git
-playwright-report
-test-results
+# Only the validated static build and Nginx configuration enter the image.
+**
+!Dockerfile
+!nginx.conf
+!dist/
+!dist/**

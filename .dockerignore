@@ -1,0 +1,6 @@
+# The backend image contains only the executable JAR produced by CI.
+**
+!Dockerfile
+!build/
+!build/libs/
+!build/libs/*.jar

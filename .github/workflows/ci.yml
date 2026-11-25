@@ -70,3 +70,44 @@ jobs:
           name: frontend-dist
           path: frontend/dist/
           if-no-files-found: error
+
+  publish-images:
+    name: Publish Docker images (GHCR)
+    needs: [backend, frontend]
+    if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: backend-jar
+          path: build/libs
+      - uses: actions/download-artifact@v6
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - name: Build and publish images
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          backend="${prefix}-backend:${GITHUB_SHA}"
+          frontend="${prefix}-frontend:${GITHUB_SHA}"
+          source="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          docker build --label "org.opencontainers.image.source=${source}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" -t "$backend" .
+          docker build --label "org.opencontainers.image.source=${source}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" -t "$frontend" frontend
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          docker push "$backend"
+          docker push "$frontend"
+          printf '### Published Docker images\n- `%s`\n- `%s`\n' "$backend" "$frontend" >> "$GITHUB_STEP_SUMMARY"

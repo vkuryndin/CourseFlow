@@ -46,3 +46,8 @@ bin/
 /_docs/
 
 /http-client.private.env.json
+
+# Deployment secrets
+/.env
+/.env.*
+!/.env.example

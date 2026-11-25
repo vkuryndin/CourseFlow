@@ -1,0 +1,110 @@
+name: courseflow
+
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    shm_size: 64m
+    environment:
+      POSTGRES_DB: courseflow
+      POSTGRES_USER: courseflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - work_mem=1MB
+      - -c
+      - maintenance_work_mem=16MB
+      - -c
+      - max_connections=20
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      app:
+        ipv4_address: ${COURSEFLOW_DB_IP:-172.30.253.12}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 60s
+    logging: *bounded-logging
+
+  backend:
+    image: ${COURSEFLOW_IMAGE_PREFIX:-ghcr.io/vkuryndin/courseflow}-backend:${COURSEFLOW_IMAGE_TAG:?Set COURSEFLOW_IMAGE_TAG in .env}
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      SPRING_PROFILES_ACTIVE: aws
+      SERVER_PORT: "8080"
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:+UseSerialGC -XX:ActiveProcessorCount=2 -XX:ReservedCodeCacheSize=64m -XX:+ExitOnOutOfMemoryError"
+      DB_URL: jdbc:postgresql://postgres:5432/courseflow
+      DB_USERNAME: courseflow
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:?Set JWT_SECRET_BASE64 in .env}
+      COURSEFLOW_ADMIN_EMAIL: ${COURSEFLOW_ADMIN_EMAIL:?Set COURSEFLOW_ADMIN_EMAIL in .env}
+      COURSEFLOW_ADMIN_PASSWORD: ${COURSEFLOW_ADMIN_PASSWORD:?Set COURSEFLOW_ADMIN_PASSWORD in .env}
+      MAIL_USERNAME: ${MAIL_USERNAME:?Set MAIL_USERNAME in .env}
+      MAIL_APP_PASSWORD: ${MAIL_APP_PASSWORD:?Set MAIL_APP_PASSWORD in .env}
+      COURSEFLOW_PASSWORD_RESET_URL: ${COURSEFLOW_PASSWORD_RESET_URL:-http://localhost:8081/reset-password}
+      COURSEFLOW_CORS_ALLOWED_ORIGINS: ${COURSEFLOW_CORS_ALLOWED_ORIGINS:-http://localhost:8081,http://127.0.0.1:8081}
+      COURSEFLOW_TRUSTED_PROXY_IP: ${COURSEFLOW_FRONTEND_IP:-172.30.253.10}
+      SERVER_TOMCAT_THREADS_MAX: "40"
+      SERVER_TOMCAT_THREADS_MIN_SPARE: "2"
+    volumes:
+      - demo-credentials:/home/courseflow/.courseflow
+    networks:
+      app:
+        ipv4_address: ${COURSEFLOW_BACKEND_IP:-172.30.253.11}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "5", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 15s
+      timeout: 8s
+      retries: 20
+      start_period: 180s
+    stop_grace_period: 60s
+    logging: *bounded-logging
+
+  frontend:
+    image: ${COURSEFLOW_IMAGE_PREFIX:-ghcr.io/vkuryndin/courseflow}-frontend:${COURSEFLOW_IMAGE_TAG:?Set COURSEFLOW_IMAGE_TAG in .env}
+    restart: unless-stopped
+    ports:
+      - "${COURSEFLOW_BIND_ADDRESS:-127.0.0.1}:8081:80"
+    networks:
+      app:
+        ipv4_address: ${COURSEFLOW_FRONTEND_IP:-172.30.253.10}
+    depends_on:
+      backend:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ && wget -q -O /dev/null http://127.0.0.1/actuator/health/readiness"]
+      interval: 15s
+      timeout: 8s
+      retries: 10
+      start_period: 30s
+    logging: *bounded-logging
+
+networks:
+  app:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${COURSEFLOW_SUBNET:-172.30.253.0/24}
+
+volumes:
+  postgres-data:
+  demo-credentials:
