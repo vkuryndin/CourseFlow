@@ -3,6 +3,7 @@ package org.courseflow.demo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import org.courseflow.assessment.entity.QuestionType;
@@ -17,7 +18,22 @@ public final class DemoContent {
       String title,
       String description,
       List<String> tags,
-      List<ModuleData> modules) {}
+      List<ModuleData> modules) {
+    public CourseData {
+      modules = modules == null ? null : Collections.unmodifiableList(new ArrayList<>(modules));
+      tags = tags == null ? null : Collections.unmodifiableList(new ArrayList<>(tags));
+    }
+
+    @Override
+    public List<ModuleData> modules() {
+      return modules == null ? null : Collections.unmodifiableList(modules);
+    }
+
+    @Override
+    public List<String> tags() {
+      return tags == null ? null : Collections.unmodifiableList(tags);
+    }
+  }
 
   public record ModuleData(
       String title,
@@ -25,11 +41,36 @@ public final class DemoContent {
       String assignment,
       String solution,
       List<LessonData> lessons,
-      List<QuestionData> questions) {}
+      List<QuestionData> questions) {
+    public ModuleData {
+      lessons = lessons == null ? null : Collections.unmodifiableList(new ArrayList<>(lessons));
+      questions =
+          questions == null ? null : Collections.unmodifiableList(new ArrayList<>(questions));
+    }
+
+    @Override
+    public List<LessonData> lessons() {
+      return lessons == null ? null : Collections.unmodifiableList(lessons);
+    }
+
+    @Override
+    public List<QuestionData> questions() {
+      return questions == null ? null : Collections.unmodifiableList(questions);
+    }
+  }
 
   public record LessonData(String title, String content) {}
 
-  public record QuestionData(String text, QuestionType type, List<OptionData> options) {}
+  public record QuestionData(String text, QuestionType type, List<OptionData> options) {
+    public QuestionData {
+      options = options == null ? null : Collections.unmodifiableList(new ArrayList<>(options));
+    }
+
+    @Override
+    public List<OptionData> options() {
+      return options == null ? null : Collections.unmodifiableList(options);
+    }
+  }
 
   public record OptionData(String text, boolean correct) {}
 

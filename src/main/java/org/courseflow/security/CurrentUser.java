@@ -12,7 +12,7 @@ public final class CurrentUser {
 
   public static boolean hasRole(Authentication authentication, String role) {
     return authentication.getAuthorities().stream()
-        .anyMatch(authority -> authority.getAuthority().equals("ROLE_" + role));
+        .anyMatch(authority -> ("ROLE_" + role).equals(authority.getAuthority()));
   }
 
   public static boolean isAdmin(Authentication authentication) {

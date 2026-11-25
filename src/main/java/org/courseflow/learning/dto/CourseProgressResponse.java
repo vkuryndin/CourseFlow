@@ -1,6 +1,8 @@
 package org.courseflow.learning.dto;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.learning.entity.EnrollmentStatus;
@@ -23,6 +25,31 @@ public record CourseProgressResponse(
     long totalAssignments,
     long totalQuizzes,
     long totalUpcomingDeadlines) {
+  public CourseProgressResponse {
+    assignments =
+        assignments == null ? null : Collections.unmodifiableList(new ArrayList<>(assignments));
+    quizzes = quizzes == null ? null : Collections.unmodifiableList(new ArrayList<>(quizzes));
+    upcomingDeadlines =
+        upcomingDeadlines == null
+            ? null
+            : Collections.unmodifiableList(new ArrayList<>(upcomingDeadlines));
+  }
+
+  @Override
+  public List<AssignmentProgress> assignments() {
+    return assignments == null ? null : Collections.unmodifiableList(assignments);
+  }
+
+  @Override
+  public List<QuizProgress> quizzes() {
+    return quizzes == null ? null : Collections.unmodifiableList(quizzes);
+  }
+
+  @Override
+  public List<AssignmentProgress> upcomingDeadlines() {
+    return upcomingDeadlines == null ? null : Collections.unmodifiableList(upcomingDeadlines);
+  }
+
   public record AssignmentProgress(
       Long assignmentId,
       String title,

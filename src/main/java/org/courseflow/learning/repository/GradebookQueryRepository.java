@@ -3,6 +3,8 @@ package org.courseflow.learning.repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -37,7 +39,23 @@ public class GradebookQueryRepository {
   public record QuizResult(
       Long studentId, Long quizId, Long attemptsUsed, Integer bestScore, Long activeAttempts) {}
 
-  public record ColumnRows(List<AssignmentColumn> assignments, List<QuizColumn> quizzes) {}
+  public record ColumnRows(List<AssignmentColumn> assignments, List<QuizColumn> quizzes) {
+    public ColumnRows {
+      assignments =
+          assignments == null ? null : Collections.unmodifiableList(new ArrayList<>(assignments));
+      quizzes = quizzes == null ? null : Collections.unmodifiableList(new ArrayList<>(quizzes));
+    }
+
+    @Override
+    public List<AssignmentColumn> assignments() {
+      return assignments == null ? null : Collections.unmodifiableList(assignments);
+    }
+
+    @Override
+    public List<QuizColumn> quizzes() {
+      return quizzes == null ? null : Collections.unmodifiableList(quizzes);
+    }
+  }
 
   private final EntityManager entityManager;
 

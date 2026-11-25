@@ -1,5 +1,7 @@
 package org.courseflow.assessment.dto;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import org.courseflow.assessment.entity.AnswerOption;
@@ -8,6 +10,14 @@ import org.courseflow.assessment.entity.QuestionType;
 
 public record QuestionResponse(
     Long id, String text, QuestionType type, Integer position, List<OptionResponse> options) {
+  public QuestionResponse {
+    options = options == null ? null : Collections.unmodifiableList(new ArrayList<>(options));
+  }
+
+  @Override
+  public List<OptionResponse> options() {
+    return options == null ? null : Collections.unmodifiableList(options);
+  }
 
   public record OptionResponse(Long id, String text) {}
 
@@ -19,7 +29,16 @@ public record QuestionResponse(
       String text,
       QuestionType type,
       Integer position,
-      List<ManagementOptionResponse> options) {}
+      List<ManagementOptionResponse> options) {
+    public ManagementResponse {
+      options = options == null ? null : Collections.unmodifiableList(new ArrayList<>(options));
+    }
+
+    @Override
+    public List<ManagementOptionResponse> options() {
+      return options == null ? null : Collections.unmodifiableList(options);
+    }
+  }
 
   public static QuestionResponse forStudent(Question question) {
     return new QuestionResponse(

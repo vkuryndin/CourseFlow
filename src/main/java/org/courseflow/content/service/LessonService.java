@@ -59,9 +59,8 @@ public class LessonService {
       Long currentUserId,
       boolean isAdmin) {
     // Lock the parent course to serialize content changes.
-    Course course =
-        courseGuard.lockEditable(
-            courseId, currentUserId, isAdmin, "Cannot add lessons to an archived course");
+    courseGuard.lockEditable(
+        courseId, currentUserId, isAdmin, "Cannot add lessons to an archived course");
 
     Module module = findModule(courseId, moduleId);
 

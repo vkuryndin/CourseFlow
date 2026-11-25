@@ -1,5 +1,553 @@
 <?xml version='1.0' encoding='utf-8'?>
 <FindBugsFilter>
-  <!-- Spring-managed dependencies are intentionally retained by reference. -->
-
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.controller.QuizController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="questionService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.controller.QuizController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="quizService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.AnswerOption" />
+    <Method name="&lt;init&gt;" />
+    <Field name="question" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.AnswerOption" />
+    <Method name="getQuestion" />
+    <Field name="question" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.Question" />
+    <Method name="&lt;init&gt;" />
+    <Field name="quiz" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.Question" />
+    <Method name="getQuiz" />
+    <Field name="quiz" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.Quiz" />
+    <Method name="&lt;init&gt;" />
+    <Field name="module" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.Quiz" />
+    <Method name="getModule" />
+    <Field name="module" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.QuizAnswerSelection" />
+    <Method name="&lt;init&gt;" />
+    <Field name="question" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.QuizAnswerSelection" />
+    <Method name="&lt;init&gt;" />
+    <Field name="quizSubmission" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.QuizAnswerSelection" />
+    <Method name="getQuestion" />
+    <Field name="question" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.QuizAnswerSelection" />
+    <Method name="getQuizSubmission" />
+    <Field name="quizSubmission" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.QuizSubmission" />
+    <Method name="&lt;init&gt;" />
+    <Field name="quiz" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.assessment.entity.QuizSubmission" />
+    <Method name="getQuiz" />
+    <Field name="quiz" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.service.ExpiredQuizAttemptsCleanup" />
+    <Method name="&lt;init&gt;" />
+    <Field name="jdbcTemplate" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.service.QuestionService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.service.QuestionService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="quizService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.service.QuizAttemptQueryService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.service.QuizAttemptService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.assessment.service.QuizService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.api.SessionAccess" />
+    <Method name="&lt;init&gt;" />
+    <Field name="sessions" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.controller.AuthHttpOperations" />
+    <Method name="&lt;init&gt;" />
+    <Field name="dispatcher" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.auth.entity.AuthSession" />
+    <Method name="&lt;init&gt;" />
+    <Field name="userAccount" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.auth.entity.AuthSession" />
+    <Method name="getUserAccount" />
+    <Field name="userAccount" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.auth.entity.PasswordResetToken" />
+    <Method name="&lt;init&gt;" />
+    <Field name="userAccount" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.auth.entity.PasswordResetToken" />
+    <Method name="getUserAccount" />
+    <Field name="userAccount" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.AuthService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="authSessionRepository" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.CredentialLifecycle" />
+    <Method name="&lt;init&gt;" />
+    <Field name="sessions" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.CredentialLifecycle" />
+    <Method name="&lt;init&gt;" />
+    <Field name="tokens" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.ExpiredCredentialsCleanup" />
+    <Method name="&lt;init&gt;" />
+    <Field name="sessions" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.ExpiredCredentialsCleanup" />
+    <Method name="&lt;init&gt;" />
+    <Field name="tokens" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.LogoutService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="authSessionRepository" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.PasswordResetService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="credentialLifecycle" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.PasswordResetService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="tokenRepository" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.PasswordService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="credentialLifecycle" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.PasswordService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="tokenRepository" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.auth.service.SystemAdminBootstrapService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="jdbcTemplate" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.catalog.controller.CategoryController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="categoryService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.catalog.controller.CourseController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="courseService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.catalog.controller.CourseController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="courseTagService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.catalog.controller.TagController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="tagService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.common.system.DatabaseInvariantInitializer" />
+    <Method name="&lt;init&gt;" />
+    <Field name="jdbcTemplate" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.common.system.SystemInfoService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="dataSource" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.common.system.SystemStatusService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="dataSource" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.content.controller.LessonController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="lessonService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.content.controller.LessonSessionController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="sessionService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.content.controller.ModuleController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="moduleService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.content.entity.Lesson" />
+    <Method name="&lt;init&gt;" />
+    <Field name="module" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.content.entity.Lesson" />
+    <Method name="getModule" />
+    <Field name="module" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.content.entity.LessonSession" />
+    <Method name="&lt;init&gt;" />
+    <Field name="lesson" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.content.entity.LessonSession" />
+    <Method name="getLesson" />
+    <Field name="lesson" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.content.entity.Module" />
+    <Method name="&lt;init&gt;" />
+    <Field name="course" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.content.entity.Module" />
+    <Method name="getCourse" />
+    <Field name="course" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.dashboard.service.AdminDashboardService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.dashboard.service.StudentDashboardService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.dashboard.service.TeacherDashboardService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.dashboard.service.UpcomingSessions" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.demo.DemoDataInitializer" />
+    <Method name="&lt;init&gt;" />
+    <Field name="service" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.demo.DemoDataService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="em" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.demo.DemoDataService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="jdbc" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.identity.controller.UserController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="adminUserService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.identity.service.AdminUserService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="credentialLifecycle" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.learning.controller.AssignmentController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="assignmentService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.learning.entity.Assignment" />
+    <Method name="&lt;init&gt;" />
+    <Field name="lesson" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.learning.entity.Assignment" />
+    <Method name="getLesson" />
+    <Field name="lesson" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.learning.entity.Enrollment" />
+    <Method name="getCourse" />
+    <Field name="course" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.learning.repository.GradebookQueryRepository" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.learning.repository.ProgressQueryRepository" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.learning.service.AssignmentService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.learning.service.GradebookService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="queries" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.learning.service.StudentLearningService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.learning.service.SubmissionService" />
+    <Method name="&lt;init&gt;" />
+    <Field name="entityManager" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.review.controller.CourseReviewController" />
+    <Method name="&lt;init&gt;" />
+    <Field name="courseReviewService" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.review.entity.CourseReview" />
+    <Method name="&lt;init&gt;" />
+    <Field name="course" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Intentional JPA association identity; retain managed reference, not a copy. -->
+    <Class name="org.courseflow.review.entity.CourseReview" />
+    <Method name="getCourse" />
+    <Field name="course" />
+    <Bug pattern="EI_EXPOSE_REP" />
+  </Match>
+  <Match>
+    <!-- Intentional Spring constructor injection of shared dependency; private final field. -->
+    <Class name="org.courseflow.security.SecurityExceptionHandler" />
+    <Method name="&lt;init&gt;" />
+    <Field name="jsonMapper" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <!-- Accepted residual risk: rating validation (1–5). Keep JPA proxyability and invariant checks; no untrusted JVM extension point is intended. Reassess if arbitrary in-process code is permitted. -->
+    <Class name="org.courseflow.review.entity.CourseReview" />
+    <Method name="&lt;init&gt;" params="org.courseflow.catalog.entity.Course,org.courseflow.identity.entity.User,java.lang.Integer,java.lang.String,java.time.Instant" returns="void" />
+    <Bug pattern="CT_CONSTRUCTOR_THROW" />
+  </Match>
+  <Match>
+    <!-- Accepted residual risk: positive time-limit validation. Keep JPA proxyability and invariant checks; no untrusted JVM extension point is intended. Reassess if arbitrary in-process code is permitted. -->
+    <Class name="org.courseflow.assessment.entity.Quiz" />
+    <Method name="&lt;init&gt;" params="org.courseflow.content.entity.Module,java.lang.String,java.lang.Integer" returns="void" />
+    <Bug pattern="CT_CONSTRUCTOR_THROW" />
+  </Match>
+  <Match>
+    <!-- Accepted residual risk: positive attempt number and expiry calculation. Keep JPA proxyability and invariant checks; no untrusted JVM extension point is intended. Reassess if arbitrary in-process code is permitted. -->
+    <Class name="org.courseflow.assessment.entity.QuizSubmission" />
+    <Method name="&lt;init&gt;" params="org.courseflow.assessment.entity.Quiz,org.courseflow.identity.entity.User,java.lang.Integer,java.time.Instant" returns="void" />
+    <Bug pattern="CT_CONSTRUCTOR_THROW" />
+  </Match>
 </FindBugsFilter>

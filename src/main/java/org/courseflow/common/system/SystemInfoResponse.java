@@ -1,6 +1,8 @@
 package org.courseflow.common.system;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Allowlisted, administrator-only diagnostic snapshot. No connection URLs or credentials. */
@@ -25,7 +27,28 @@ public record SystemInfoResponse(
       List<String> defaultProfiles,
       String schemaManagement,
       String buildTime,
-      String gitCommit) {}
+      String gitCommit) {
+    public Application {
+      activeProfiles =
+          activeProfiles == null
+              ? null
+              : Collections.unmodifiableList(new ArrayList<>(activeProfiles));
+      defaultProfiles =
+          defaultProfiles == null
+              ? null
+              : Collections.unmodifiableList(new ArrayList<>(defaultProfiles));
+    }
+
+    @Override
+    public List<String> activeProfiles() {
+      return activeProfiles == null ? null : Collections.unmodifiableList(activeProfiles);
+    }
+
+    @Override
+    public List<String> defaultProfiles() {
+      return defaultProfiles == null ? null : Collections.unmodifiableList(defaultProfiles);
+    }
+  }
 
   public record RuntimeInfo(
       String hostName,

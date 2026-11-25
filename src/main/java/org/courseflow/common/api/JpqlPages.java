@@ -2,6 +2,8 @@ package org.courseflow.common.api;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.PageImpl;
@@ -12,6 +14,15 @@ public final class JpqlPages {
   private JpqlPages() {}
 
   public record Result<T>(List<T> rows, long total, int page, int size) {
+    public Result {
+      rows = rows == null ? null : Collections.unmodifiableList(new ArrayList<>(rows));
+    }
+
+    @Override
+    public List<T> rows() {
+      return rows == null ? null : Collections.unmodifiableList(rows);
+    }
+
     public PageResponse<T> response() {
       return PageResponse.from(new PageImpl<>(rows, PageRequest.of(page, size), total));
     }

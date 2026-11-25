@@ -241,7 +241,7 @@ public class LessonSessionService {
   private void checkNoOverlap(
       Long teacherId, Long sessionId, java.time.Instant startsAt, java.time.Instant endsAt) {
     if (sessionRepository.countTeacherOverlaps(
-            teacherId, sessionId == null ? -1L : sessionId, startsAt, endsAt)
+            teacherId, sessionId == null ? Long.valueOf(-1L) : sessionId, startsAt, endsAt)
         > 0) {
       throw new BusinessConflictException(
           "Lesson session overlaps another session of this teacher");

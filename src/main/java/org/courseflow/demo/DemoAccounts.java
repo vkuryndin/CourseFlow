@@ -3,6 +3,8 @@ package org.courseflow.demo;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -15,6 +17,15 @@ public final class DemoAccounts {
 
   public record Account(
       String name, String email, String password, Set<UserRole> roles, String bio) {
+    public Account {
+      roles = roles == null ? null : Collections.unmodifiableSet(new LinkedHashSet<>(roles));
+    }
+
+    @Override
+    public Set<UserRole> roles() {
+      return roles == null ? null : Collections.unmodifiableSet(roles);
+    }
+
     @Override
     public String toString() {
       return "Account[email=" + email + ", roles=" + roles + ", password=[REDACTED]]";

@@ -114,18 +114,11 @@ public class DatabaseInvariantInitializer implements ApplicationRunner, Ordered 
   // Validate existing rows as well; fail rather than silently repair legacy data.
   private void addConstraint(String table, String name, String definition) {
     jdbcTemplate.execute(
-        """
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_constraint
-                        WHERE conrelid = '%s'::regclass AND conname = '%s'
-                    ) THEN
-                        ALTER TABLE %s ADD CONSTRAINT %s %s;
-                    END IF;
-                END;
-                $$
-                """
+        ("DO $$ BEGIN "
+                + "IF NOT EXISTS (SELECT 1 FROM pg_constraint "
+                + "WHERE conrelid = '%s'::regclass AND conname = '%s') THEN "
+                + "ALTER TABLE %s ADD CONSTRAINT %s %s; "
+                + "END IF; END; $$")
             .formatted(table, name, table, name, definition));
   }
 }

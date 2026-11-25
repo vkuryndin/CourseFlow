@@ -143,7 +143,7 @@ public class CourseReviewService {
     Course course = courseGuard.lockShared(courseId);
 
     // Serialize review changes and enrollment changes of the same student.
-    User student = studentAccess.lockActive(studentId);
+    studentAccess.lockActive(studentId);
 
     if (course.getTeacher().getId().equals(studentId)) {
       throw new AccessDeniedException("Teacher cannot review own course");

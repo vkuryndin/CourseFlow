@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import org.courseflow.common.validation.MaxUtf8Bytes;
 import org.courseflow.identity.entity.UserRole;
@@ -18,4 +20,13 @@ public record AdminCreateUserRequest(
             description =
                 "Require password change on first login; defaults to true for administrator-created accounts",
             defaultValue = "true")
-        Boolean passwordChangeRequired) {}
+        Boolean passwordChangeRequired) {
+  public AdminCreateUserRequest {
+    roles = roles == null ? null : Collections.unmodifiableSet(new LinkedHashSet<>(roles));
+  }
+
+  @Override
+  public Set<UserRole> roles() {
+    return roles == null ? null : Collections.unmodifiableSet(roles);
+  }
+}

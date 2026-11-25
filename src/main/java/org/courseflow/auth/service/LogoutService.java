@@ -19,7 +19,16 @@ public class LogoutService {
 
   @Transactional
   public void logout(Jwt jwt) {
-    UUID sessionId = UUID.fromString(jwt.getId());
+    String id = jwt.getId();
+    if (id == null) {
+      throw new InvalidSessionException();
+    }
+    UUID sessionId;
+    try {
+      sessionId = UUID.fromString(id);
+    } catch (IllegalArgumentException exception) {
+      throw new InvalidSessionException();
+    }
 
     AuthSession session =
         authSessionRepository.findById(sessionId).orElseThrow(InvalidSessionException::new);
