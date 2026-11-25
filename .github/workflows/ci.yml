@@ -38,6 +38,13 @@ jobs:
           name: backend-reports
           path: build/reports/
           if-no-files-found: warn
+      - name: Upload backend JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: backend-test-results
+          path: build/test-results/
+          if-no-files-found: warn
       - name: Upload JAR
         uses: actions/upload-artifact@v6
         with:
@@ -68,8 +75,29 @@ jobs:
         run: npm run lint
       - name: Unit and architecture tests
         run: npm test
+      - name: Bundle analyzer tests
+        run: npm run test:bundle
+      - name: Static API contract
+        run: npm run check:contract
       - name: Production build
         run: npm run build
+      - name: Analyze production chunks
+        run: npm run report:bundle
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Production E2E (fresh build from this job)
+        run: npx playwright test --config=playwright.production.config.ts --reporter=line,html
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+      - name: Upload browser reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-e2e-reports
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: warn
       - name: Upload frontend build
         uses: actions/upload-artifact@v6
         with:

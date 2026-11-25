@@ -8,10 +8,14 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "npm run test:architecture && vitest run",
-    "test:architecture": "node --test scripts/architecture.test.mjs",
+    "test:architecture": "node --test scripts/architecture.test.mjs scripts/structure.test.cjs",
     "test:e2e": "playwright test",
     "lint": "eslint src",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "test:bundle": "node --test scripts/bundle-report.test.cjs",
+    "check:contract": "node scripts/check-contract.cjs",
+    "report:bundle": "node scripts/bundle-report.cjs",
+    "test:e2e:production": "npm run build && playwright test --config=playwright.production.config.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

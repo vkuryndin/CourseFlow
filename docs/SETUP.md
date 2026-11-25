@@ -140,6 +140,20 @@ npm run dev
 
 Переменная `COURSEFLOW_BACKEND_URL` в `frontend/.env` определяет адрес backend для Vite. Шаблон находится в `frontend/.env.example`, значение по умолчанию — `http://localhost:8080`. Vite обслуживает frontend на порту 5173 и проксирует `/api` и `/actuator`. Команда `npm run build` создаёт каталог `frontend/dist/` для размещения в Nginx.
 
+Проверки frontend из каталога `frontend`:
+
+```bash
+npm run lint
+npm test
+npm run test:bundle
+npm run check:contract
+npx playwright install chromium
+npm run test:e2e:production
+npm run report:bundle
+```
+
+`npm test` включает все семь архитектурных проверок и Vitest. `test:e2e:production` сначала выполняет `npm run build`, затем запускает Playwright на порту 4173; при ошибке компиляции браузерные тесты не запускаются. Для Linux CI установка Chromium выполняется с `--with-deps`. `npm run test:e2e` проверяет dev-сервер на порту 5173. Оба режима используют один набор сценариев с подменой ответов API.
+
 | Назначение | Адрес |
 |---|---|
 | Интерфейс | http://localhost:5173 |
