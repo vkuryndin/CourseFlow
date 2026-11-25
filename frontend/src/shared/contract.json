@@ -3030,6 +3030,252 @@
           "type": "boolean"
         }
       }
+    },
+    "SystemInfoResponse": {
+      "type": "object",
+      "properties": {
+        "snapshot": {
+          "$ref": "#/components/schemas/Snapshot"
+        },
+        "serverEndpoint": {
+          "$ref": "#/components/schemas/ServerEndpoint"
+        },
+        "accessTokenLifetimeSeconds": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "Snapshot": {
+      "type": "object",
+      "properties": {
+        "collectedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "cacheSeconds": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "application": {
+          "$ref": "#/components/schemas/Application"
+        },
+        "runtime": {
+          "$ref": "#/components/schemas/RuntimeInfo"
+        },
+        "database": {
+          "$ref": "#/components/schemas/Database"
+        },
+        "pool": {
+          "$ref": "#/components/schemas/Pool"
+        },
+        "mail": {
+          "$ref": "#/components/schemas/Mail"
+        }
+      }
+    },
+    "Application": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "springBootVersion": {
+          "type": "string"
+        },
+        "hibernateVersion": {
+          "type": "string"
+        },
+        "activeProfiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "defaultProfiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schemaManagement": {
+          "type": "string"
+        },
+        "buildTime": {
+          "type": "string"
+        },
+        "gitCommit": {
+          "type": "string"
+        }
+      }
+    },
+    "RuntimeInfo": {
+      "type": "object",
+      "properties": {
+        "hostName": {
+          "type": "string"
+        },
+        "javaVersion": {
+          "type": "string"
+        },
+        "javaVendor": {
+          "type": "string"
+        },
+        "jvmName": {
+          "type": "string"
+        },
+        "osName": {
+          "type": "string"
+        },
+        "osVersion": {
+          "type": "string"
+        },
+        "architecture": {
+          "type": "string"
+        },
+        "availableProcessors": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalMemoryBytes": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "freeMemoryBytes": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "jvmStartedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "uptimeSeconds": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "timeZone": {
+          "type": "string"
+        }
+      }
+    },
+    "Database": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "product": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "driver": {
+          "type": "string"
+        },
+        "driverVersion": {
+          "type": "string"
+        },
+        "serverAddress": {
+          "type": "string"
+        },
+        "serverPort": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "databaseName": {
+          "type": "string"
+        },
+        "databaseUser": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "tableCount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "queryTimeMillis": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "Pool": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "minimumIdle": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maximumSize": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "connectionTimeoutMillis": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "active": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idle": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pending": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "Mail": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "startTlsEnabled": {
+          "type": "boolean"
+        },
+        "startTlsRequired": {
+          "type": "boolean"
+        },
+        "sslEnabled": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "ServerEndpoint": {
+      "type": "object",
+      "properties": {
+        "localAddress": {
+          "type": "string"
+        },
+        "localPort": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
     }
   },
   "operations": {
@@ -5580,6 +5826,10 @@
           "required": false
         }
       ]
+    },
+    "GET /api/system/info": {
+      "request": "",
+      "params": []
     }
   }
 }

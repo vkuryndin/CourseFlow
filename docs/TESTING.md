@@ -37,7 +37,24 @@ Testcontainers запускает PostgreSQL 18 в Docker и передаёт п
 
 `AdvancedPerformanceIT` добавляет пять сценариев: ступенчатое увеличение нагрузки, насыщение без пауз между запросами, резкий всплеск и восстановление, продолжительную нагрузку и интенсивную аутентификацию с действующим ограничителем запросов.
 
-Набор проверяет ожидаемые ответы, задержки, пропускную способность и сохранность данных. CSV-отчёты формируются в `build/reports/performance/`. Нагрузочные испытания проводятся в тестовой среде с PostgreSQL Testcontainers.
+Набор проверяет HTTP-статусы и содержимое ответов, задержки, пропускную способность, конкурентность, сохранность данных и восстановление после нагрузки. Расширенные сценарии контролируют также ошибки телеметрии, взаимные блокировки PostgreSQL и состояние пула соединений. Телеметрия записывается в CSV примерно каждые 2 секунды, прогресс длительных сценариев выводится примерно каждые 30 секунд. Отчёты находятся в `build/reports/performance/`. Нагрузочные испытания проводятся в тестовой среде с PostgreSQL Testcontainers, а не на AWS.
+
+### Результаты контрольного прогона 25.11.2026
+
+| Показатель | Результат |
+|---|---:|
+| Базовые / расширенные сценарии | 9 / 5 |
+| HTTP-запросы | 204 337 |
+| Успешные ответы | 204 297 |
+| Ожидаемые HTTP 429 | 40 |
+| Неожиданные ошибки | 0 |
+| Максимум виртуальных пользователей | 500 |
+| Soak, 100 пользователей, 900 секунд | 88 746 запросов |
+| Soak: среднее / P95 / P99 | 6,77 / 12,38 / 18,88 мс |
+| Ramp, 500 пользователей: RPS / P95 | 1 668,24 / 175,16 мс |
+| Spike, 500 пользователей: RPS / P95 | 1 442,18 / 445,59 мс |
+
+По данным CSV, базовый набор обработал 34 346 запросов, расширенный — 169 991. В расширенном наборе не зарегистрированы ошибки наблюдателя и прирост счётчика deadlocks; все пять проверок восстановления завершились без неожиданных ошибок. В этом прогоне метрики потоков Tomcat недоступны (`NA`). Длительная нагрузка на 500 пользователей не проверялась; 15-минутный тест выполнялся при 100 пользователях.
 
 ## 4. Контроль архитектуры и качества кода
 
@@ -50,6 +67,8 @@ Testcontainers запускает PostgreSQL 18 в Docker и передаёт п
 | JaCoCo | Отчёты покрытия модульными и архитектурными тестами задачи `test` |
 | ESLint 9.22.0 | Статический анализ TypeScript/React |
 | CodeQL | Анализ Java/Kotlin и JavaScript/TypeScript на потенциальные уязвимости |
+
+`ArchitectureTest` содержит 17 обязательных проверок. Диагностика межмодульных циклов выводится после выполнения тестов, но не является обязательной проверкой ацикличности модулей.
 
 Checkstyle формирует отчёт о предупреждениях; текущая настройка Gradle допускает предупреждения (`maxWarnings = Int.MAX_VALUE`). SpotBugs проверяет основной код в CI. JaCoCo формирует HTML и XML без заданного минимального порога покрытия.
 
@@ -96,11 +115,11 @@ python3 scripts/check-proxy.py
 
 | Набор | Число сценариев |
 |---|---:|
-| Модульные тесты backend | 612 |
-| Архитектурные тесты backend | 21 |
+| Модульные тесты backend | 614 |
+| Архитектурные тесты backend | 17 |
 | Интеграционные тесты (включая динамические и унаследованный сценарий) | 679 |
 | Нагрузочные тесты | 14 |
-| **Всего backend (по исходникам)** | **1326** |
+| **Всего backend (по исходникам)** | **1324** |
 | Модульные тесты frontend | 41 |
 | Архитектурные тесты frontend | 7 |
 | Браузерные тесты Playwright | 43 |
@@ -108,9 +127,9 @@ python3 scripts/check-proxy.py
 | **Всего frontend** | **94** |
 | Отдельные проверки реального Nginx | 6 |
 
-Подсчёт по исходникам 1.0.3: 872 метода `@Test` (633 модульных и архитектурных, 225 интеграционных, 14 нагрузочных), 394 сценария полной REST-регрессии, 59 динамических проверок rate limiting и один унаследованный интеграционный сценарий. Playwright содержит 39 объявлений тестов, два из которых разворачиваются в четыре и два сценария. Dev и production используют одинаковый набор. Проверки реального Nginx и статический анализ контракта/манифеста не входят в 94 теста frontend.
+Состав серверного набора: 870 методов `@Test` (614 модульных, 17 архитектурных, 225 интеграционных, 14 нагрузочных), 394 динамических сценария REST-регрессии, 59 динамических проверок rate limiting и один унаследованный интеграционный сценарий. Playwright содержит 39 объявлений тестов, два из которых разворачиваются в четыре и два сценария. Dev и production используют одинаковый набор. Проверки реального Nginx и статический анализ контракта/манифеста не входят в 94 теста frontend.
 
-Для версии 1.0.3 подтверждено успешное локальное выполнение всех 94 тестов frontend после исправления сборки. Число фактически исполненных, упавших и пропущенных серверных тестов определяется по JUnit XML конкретного запуска; свежий полный серверный отчёт в архиве исходников отсутствует. Для получения чисел после запуска задач Gradle можно выполнить из корня проекта в PowerShell:
+Количество выполненных, упавших и пропущенных серверных тестов определяется по JUnit XML. Сводка результатов задач Gradle (PowerShell, из корня проекта):
 
 ```powershell
 foreach ($task in 'test','integrationTest','performanceTest') {
@@ -128,7 +147,7 @@ foreach ($task in 'test','integrationTest','performanceTest') {
 }
 ```
 
-Последнее ранее зафиксированное покрытие по JaCoCo для задачи `test` (не новое измерение 1.0.3):
+Показатели покрытия JaCoCo для контрольного прогона задачи `test` приведены справочно. Текущие значения формируются при запуске `jacocoTestReport`:
 
 | Метрика | Покрыто | Всего | Покрытие |
 |---|---:|---:|---:|
@@ -161,8 +180,6 @@ foreach ($task in 'test','integrationTest','performanceTest') {
 
 #### [SessionAccessTest](../src/test/java/org/courseflow/auth/api/SessionAccessTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [rolesAreSortedAndStartupClearsSessions](../src/test/java/org/courseflow/auth/api/SessionAccessTest.java#L20) | Roles are sorted and startup clears sessions. `service.activeRoles(id, 10L, NOW, true) = List.of("STUDENT", "TEACHER")`; Вызов `repo.deleteAllInBatch()` |
@@ -177,15 +194,11 @@ foreach ($task in 'test','integrationTest','performanceTest') {
 
 #### [AdminPasswordResetControllerTest](../src/test/java/org/courseflow/auth/controller/AdminPasswordResetControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [resetPasswordDelegatesAndReturnsContract](../src/test/java/org/courseflow/auth/controller/AdminPasswordResetControllerTest.java#L21) | Делегирование сервису и соответствие HTTP-контракту: `resetPassword`. `actual.getStatusCode().value() = 202`; `actual.getBody()` — null; Вызов `passwordResetService.sendResetLink()` |
 
 #### [AuthControllerTest](../src/test/java/org/courseflow/auth/controller/AuthControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -194,8 +207,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [logoutDelegatesAndReturnsContract](../src/test/java/org/courseflow/auth/controller/AuthControllerTest.java#L50) | Делегирование сервису и соответствие HTTP-контракту: `logout`. `actual.getStatusCode().value() = 204`; `actual.getBody()` — null; Вызов `logoutService.logout()` |
 
 #### [AuthHttpOperationsTest](../src/test/java/org/courseflow/auth/controller/AuthHttpOperationsTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -208,15 +219,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [PasswordControllerTest](../src/test/java/org/courseflow/auth/controller/PasswordControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [changePasswordDelegatesAndReturnsContract](../src/test/java/org/courseflow/auth/controller/PasswordControllerTest.java#L19) | Делегирование сервису и соответствие HTTP-контракту: `changePassword`. `actual.getStatusCode().value() = 204`; `actual.getBody()` — null; Вызов `operations.changePassword()` |
 
 #### [PasswordResetControllerTest](../src/test/java/org/courseflow/auth/controller/PasswordResetControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -236,8 +243,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [AccountCreatorTest](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [rejectsExistingEmailBeforeHashing](../src/test/java/org/courseflow/auth/service/AccountCreatorTest.java#L44) | Отклонение операции: Existing Email Before Hashing. Исключение `BusinessConflictException`; Отсутствие вызовов `encoder` |
@@ -246,16 +251,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [AdminPasswordResetServiceTest](../src/test/java/org/courseflow/auth/service/AdminPasswordResetServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [activeUserReceivesResetLink](../src/test/java/org/courseflow/auth/service/AdminPasswordResetServiceTest.java#L20) | Active user receives reset link. Вызов `resets.requestReset()` |
 | [inactiveOrEmailLessUserRejected](../src/test/java/org/courseflow/auth/service/AdminPasswordResetServiceTest.java#L28) | Отклонение операции: inactive Or Email Less User. Исключение `BusinessConflictException`; Отсутствие вызовов `resets` |
 
 #### [AuthRateLimiterTest](../src/test/java/org/courseflow/auth/service/AuthRateLimiterTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -273,8 +274,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [AuthServiceTest](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [unknownEmailStillRunsPasswordCheck](../src/test/java/org/courseflow/auth/service/AuthServiceTest.java#L59) | Unknown email still runs password check. Исключение `BadCredentialsException`; Вызов `encoder.matches()`; Отсутствие вызовов `sessions` |
@@ -286,8 +285,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CredentialLifecycleTest](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [revokesSessionsByUserId](../src/test/java/org/courseflow/auth/service/CredentialLifecycleTest.java#L31) | Revokes sessions by user id. Вызов `sessions.revokeActiveSessionsByUserId()` |
@@ -297,15 +294,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ExpiredCredentialsCleanupTest](../src/test/java/org/courseflow/auth/service/ExpiredCredentialsCleanupTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [cleanupUsesOneDayRetention](../src/test/java/org/courseflow/auth/service/ExpiredCredentialsCleanupTest.java#L17) | Cleanup uses one day retention. Вызов `sessions.deleteExpiredBefore()`; Вызов `tokens.deleteExpiredBefore()` |
 
 #### [LogoutServiceTest](../src/test/java/org/courseflow/auth/service/LogoutServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -314,8 +307,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [PasswordResetDispatcherTest](../src/test/java/org/courseflow/auth/service/PasswordResetDispatcherTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [dispatchesWithoutSynchronousAccountLookupAndRestoresMdc](../src/test/java/org/courseflow/auth/service/PasswordResetDispatcherTest.java#L30) | Dispatches without synchronous account lookup and restores mdc. `MDC.get("requestId") = "request"`; `MDC.get("requestId") = "worker"`; Отсутствие вызовов `resets` |
@@ -323,8 +314,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [workerFailureRecordedWithoutEscapingRunnable](../src/test/java/org/courseflow/auth/service/PasswordResetDispatcherTest.java#L68) | Worker failure recorded without escaping runnable. Вызов `executor.execute()`; `assertDoesNotThrow(task.getValue()::run)`; Вызов `metrics.resetProcessingFailed()` |
 
 #### [PasswordResetServiceCoverageTest](../src/test/java/org/courseflow/auth/service/PasswordResetServiceCoverageTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -339,8 +328,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [PasswordResetServiceTest](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [unknownEmailDoesNotSendMail](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L76) | Unknown email does not send mail. Вызов `accounts.findAccountIdByUserEmail()`; Отсутствие вызовов `tokens` |
@@ -350,8 +337,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [resetChangesPasswordAndRevokesSessions](../src/test/java/org/courseflow/auth/service/PasswordResetServiceTest.java#L121) | Reset changes password and revokes sessions. `account.getPasswordHash() = "new-hash"`; `token.getUsedAt() = NOW`; Вызов `tokens.invalidateUnusedTokensForAccount()` |
 
 #### [PasswordServiceTest](../src/test/java/org/courseflow/auth/service/PasswordServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -363,15 +348,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [RegistrationServiceTest](../src/test/java/org/courseflow/auth/service/RegistrationServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [registrationAlwaysCreatesStudentWithoutTemporaryPassword](../src/test/java/org/courseflow/auth/service/RegistrationServiceTest.java#L40) | Registration always creates student without temporary password. `response.id() = 10L`; `response.roles() = Set.of(UserRole.STUDENT)`; `response.email() = "student@example.test"` |
 
 #### [SystemAdminBootstrapServiceTest](../src/test/java/org/courseflow/auth/service/SystemAdminBootstrapServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -388,8 +369,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [UserDirectoryCoverageTest](../src/test/java/org/courseflow/identity/api/UserDirectoryCoverageTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [requireUserReturnsRepositoryEntity](../src/test/java/org/courseflow/identity/api/UserDirectoryCoverageTest.java#L20) | Require user returns repository entity. `directory.requireUser(10L) = user` |
@@ -400,8 +379,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [UserDirectoryTest](../src/test/java/org/courseflow/identity/api/UserDirectoryTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [missingUserAndTeacherRejected](../src/test/java/org/courseflow/identity/api/UserDirectoryTest.java#L25) | Отказ при отсутствии user and teacher. Исключение `ResourceNotFoundException` |
@@ -410,8 +387,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ProfileControllerTest](../src/test/java/org/courseflow/identity/controller/ProfileControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getDelegatesAndReturnsContract](../src/test/java/org/courseflow/identity/controller/ProfileControllerTest.java#L20) | Делегирование сервису и соответствие HTTP-контракту: `get`. `actual = expected`; Вызов `profileService.getMyProfile()` |
@@ -419,16 +394,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [PublicTeacherControllerTest](../src/test/java/org/courseflow/identity/controller/PublicTeacherControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [findAllDelegatesAndReturnsPage](../src/test/java/org/courseflow/identity/controller/PublicTeacherControllerTest.java#L20) | Find all delegates and returns page. `controller.findAll(0, 20, "Tea") = expected`; Вызов `userService.findPublicTeachers()` |
 | [getDelegatesAndReturnsContract](../src/test/java/org/courseflow/identity/controller/PublicTeacherControllerTest.java#L30) | Делегирование сервису и соответствие HTTP-контракту: `get`. `actual = expected`; Вызов `userService.getPublicTeacher()` |
 
 #### [UserControllerTest](../src/test/java/org/courseflow/identity/controller/UserControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -459,8 +430,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [AdminUserServiceCoverageTest](../src/test/java/org/courseflow/identity/service/AdminUserServiceCoverageTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [systemAdminCannotLoseAdminRole](../src/test/java/org/courseflow/identity/service/AdminUserServiceCoverageTest.java#L56) | System admin cannot lose admin role. Исключение `BusinessConflictException` |
@@ -475,8 +444,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [createAllowsExplicitPasswordChangeOptOut](../src/test/java/org/courseflow/identity/service/AdminUserServiceCoverageTest.java#L138) | Create allows explicit password change opt out. Вызов `creator.create()` |
 
 #### [AdminUserServiceTest](../src/test/java/org/courseflow/identity/service/AdminUserServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -493,8 +460,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ProfileServiceTest](../src/test/java/org/courseflow/identity/service/ProfileServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [missingUserRejected](../src/test/java/org/courseflow/identity/service/ProfileServiceTest.java#L29) | Отказ при отсутствии пользователя. Исключение `ResourceNotFoundException` |
@@ -506,8 +471,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [StudentAccessTest](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [activeStudentAccepted](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L23) | Active student accepted. `access.lockActive(10L) = s`; `access.lockForEnrollment(10L) = s` |
@@ -516,8 +479,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [teacherWithoutStudentRoleRejected](../src/test/java/org/courseflow/identity/service/StudentAccessTest.java#L47) | Отклонение операции: teacher Without Student Role. Исключение `AccessDeniedException` |
 
 #### [UserServiceTest](../src/test/java/org/courseflow/identity/service/UserServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -536,8 +497,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CategoryControllerTest](../src/test/java/org/courseflow/catalog/controller/CategoryControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [createDelegatesAndReturnsContract](../src/test/java/org/courseflow/catalog/controller/CategoryControllerTest.java#L23) | Делегирование сервису и соответствие HTTP-контракту: `create`. `actual.getStatusCode().value() = 201`; `actual.getBody() = expected`; `actual.getHeaders().getLocation().toString() = "/api/categories/999"` |
@@ -548,8 +507,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [legacySearchAliasIsUsedWhenQIsAbsent](../src/test/java/org/courseflow/catalog/controller/CategoryControllerTest.java#L92) | Legacy search alias is used when Q is absent. `controller.findAll(0, 20, null, "legacy", "name", "asc") = expected` |
 
 #### [CourseControllerTest](../src/test/java/org/courseflow/catalog/controller/CourseControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -565,8 +522,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [reassignTeacherDelegatesAndReturnsContract](../src/test/java/org/courseflow/catalog/controller/CourseControllerTest.java#L190) | Делегирование сервису и соответствие HTTP-контракту: `reassignTeacher`. `actual = expected`; Вызов `courseService.reassignTeacher()` |
 
 #### [TagControllerTest](../src/test/java/org/courseflow/catalog/controller/TagControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -590,8 +545,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CategoryServiceCoverageTest](../src/test/java/org/courseflow/catalog/service/CategoryServiceCoverageTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getExistingCategory](../src/test/java/org/courseflow/catalog/service/CategoryServiceCoverageTest.java#L24) | Получение существующего объекта: категории. `service.getById(30L).name() = "Java"` |
@@ -600,8 +553,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [nullSearchListsAll](../src/test/java/org/courseflow/catalog/service/CategoryServiceCoverageTest.java#L45) | Null search lists all. `service.findAll(0, 10, null, "id", "asc").content().isEmpty()` — истина |
 
 #### [CategoryServiceTest](../src/test/java/org/courseflow/catalog/service/CategoryServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -615,8 +566,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CourseGuardTest](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [ownerAndAdminMayEditActiveCourse](../src/test/java/org/courseflow/catalog/service/CourseGuardTest.java#L25) | Owner and admin may edit active course. `guard.lockEditable(40L, 20L, false, "archived") = c`; `guard.lockEditable(40L, 99L, true, "archived") = c` |
@@ -627,16 +576,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CourseParticipationTest](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [historicalCoursesCount](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java#L18) | Historical courses count. `service.teachesAnyCourse(20L)` — истина; `service.teachesAnyCourse(10L)` — ложь |
 | [activeCoursesOnly](../src/test/java/org/courseflow/catalog/service/CourseParticipationTest.java#L25) | Active courses only. `service.teachesActiveCourse(20L)` — истина; `service.teachesActiveCourse(10L)` — ложь |
 
 #### [CourseQueryServiceTest](../src/test/java/org/courseflow/catalog/service/CourseQueryServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -651,8 +596,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CourseServiceCoverageTest](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [updatesDetailsWithoutChangingTeacher](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L57) | Updates details without changing teacher. `response.title() = "New"`; `response.description() = "Details"`; `response.duration() = 45` |
@@ -661,8 +604,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [deleteTranslatesConstraintViolation](../src/test/java/org/courseflow/catalog/service/CourseServiceCoverageTest.java#L93) | Delete translates constraint violation. Исключение `BusinessConflictException` |
 
 #### [CourseServiceTest](../src/test/java/org/courseflow/catalog/service/CourseServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -677,8 +618,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CourseTagServiceCoverageTest](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [courseTagPageMapsTag](../src/test/java/org/courseflow/catalog/service/CourseTagServiceCoverageTest.java#L27) | Course tag page maps tag. `service.findCourseTags(40L, 0, 10).content().get(0).name() = "JPA"` |
@@ -687,8 +626,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CourseTagServiceTest](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [tagLinksAreIdempotent](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L30) | Tag links are idempotent. `c.getTags() = Set.of(tag)`; `c.getTags().isEmpty()` — истина |
@@ -696,8 +633,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [unknownCourseAndInvalidPageRejected](../src/test/java/org/courseflow/catalog/service/CourseTagServiceTest.java#L53) | Отклонение операции: unknown Course And Invalid Page. Исключение `BadRequestException`; Исключение `ResourceNotFoundException` |
 
 #### [TagServiceTest](../src/test/java/org/courseflow/catalog/service/TagServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -715,16 +650,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ContentStructureTest](../src/test/java/org/courseflow/content/api/ContentStructureTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [findsModuleAndLessonOrThrowsNotFound](../src/test/java/org/courseflow/content/api/ContentStructureTest.java#L24) | Finds module and lesson or throws not found. Исключение `ResourceNotFoundException`; `content.requireModule(50L) = m`; `content.requireLesson(60L) = l` |
 | [checksParentMembershipAndChildExistence](../src/test/java/org/courseflow/content/api/ContentStructureTest.java#L36) | Checks parent membership and child existence. Исключение `ResourceNotFoundException`; `content.hasModules(40L)` — истина; `content.hasModules(41L)` — ложь |
 
 #### [LessonControllerTest](../src/test/java/org/courseflow/content/controller/LessonControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -737,8 +668,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [LessonSessionControllerTest](../src/test/java/org/courseflow/content/controller/LessonSessionControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [createDelegatesAndReturnsContract](../src/test/java/org/courseflow/content/controller/LessonSessionControllerTest.java#L28) | Делегирование сервису и соответствие HTTP-контракту: `create`. `actual.getStatusCode().value() = 201`; `actual.getBody() = expected`; `actual.getHeaders().getLocation().toString() = "/api/lessons/101/sessions/999"` |
@@ -749,8 +678,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [deleteDelegatesAndReturnsContract](../src/test/java/org/courseflow/content/controller/LessonSessionControllerTest.java#L126) | Делегирование сервису и соответствие HTTP-контракту: `delete`. `actual.getStatusCode().value() = 204`; `actual.getBody()` — null; Вызов `sessionService.delete()` |
 
 #### [ModuleControllerTest](../src/test/java/org/courseflow/content/controller/ModuleControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -773,8 +700,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ContentAccessServiceTest](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [adminAndOwnerCanRead](../src/test/java/org/courseflow/content/service/ContentAccessServiceTest.java#L36) | Admin and owner can read. Отсутствие вызовов `enrollments` |
@@ -784,8 +709,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [LessonScheduleChecksTest](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [lessonSessionsExist](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L18) | Lesson sessions exist. `checks.hasSessionsForLesson(60L)` — истина; `checks.hasSessionsForLesson(61L)` — ложь |
@@ -793,8 +716,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [overlapCountConvertedToBoolean](../src/test/java/org/courseflow/content/service/LessonScheduleChecksTest.java#L32) | Overlap count converted to boolean. `checks.hasReassignmentOverlap(40L, 20L, NOW)` — истина; `checks.hasReassignmentOverlap(40L, 20L, NOW)` — ложь |
 
 #### [LessonServiceCoverageTest](../src/test/java/org/courseflow/content/service/LessonServiceCoverageTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -810,8 +731,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [LessonServiceTest](../src/test/java/org/courseflow/content/service/LessonServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [createsLessonWithTrimmedTextAndUrl](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L53) | Creates lesson with trimmed text and url. `response.title() = "New"`; `response.content() = "Text"`; `response.videoUrl() = "https://example.test/video"` |
@@ -820,8 +739,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [wrongParentRejected](../src/test/java/org/courseflow/content/service/LessonServiceTest.java#L105) | Отклонение операции: wrong Parent. Исключение `ResourceNotFoundException` |
 
 #### [LessonSessionServiceCoverageTest](../src/test/java/org/courseflow/content/service/LessonSessionServiceCoverageTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -836,8 +753,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [LessonSessionServiceTest](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [onlineSessionCreatedAndTeacherLocked](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L58) | Online session created and teacher locked. `r.startsAt() = start`; `r.meetingUrl() = "https://example.test/meeting"`; Вызов `users.lockTeacherReference()` |
@@ -848,8 +763,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [reschedulingFutureSessionPreservesFormat](../src/test/java/org/courseflow/content/service/LessonSessionServiceTest.java#L139) | Rescheduling future session preserves format. `response.startsAt() = end`; `response.format() = LessonSessionFormat.ONLINE`; Вызов `sessions.flush()` |
 
 #### [ModuleServiceCoverageTest](../src/test/java/org/courseflow/content/service/ModuleServiceCoverageTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -862,8 +775,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ModuleServiceTest](../src/test/java/org/courseflow/content/service/ModuleServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [createsModuleInFreePosition](../src/test/java/org/courseflow/content/service/ModuleServiceTest.java#L44) | Creates module in free position. `r.title() = "New"`; `r.position() = 2` |
@@ -872,8 +783,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [missingModuleAndDeletionDependencies](../src/test/java/org/courseflow/content/service/ModuleServiceTest.java#L80) | Missing module and deletion dependencies. Исключение `ResourceNotFoundException`; Исключение `BusinessConflictException`; Вызов `repo.delete()` |
 
 #### [PositionMoverTest](../src/test/java/org/courseflow/content/service/PositionMoverTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -887,15 +796,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [AssignmentAccessTest](../src/test/java/org/courseflow/learning/api/AssignmentAccessTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [checksExistenceThroughOwningRepository](../src/test/java/org/courseflow/learning/api/AssignmentAccessTest.java#L14) | Checks existence through owning repository. `access.hasAssignments(10L)` — истина; `access.hasAssignments(11L)` — ложь; Вызов `repository.existsByLesson_Id()` |
 
 #### [AssignmentControllerTest](../src/test/java/org/courseflow/learning/controller/AssignmentControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -908,8 +813,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [EnrollmentControllerTest](../src/test/java/org/courseflow/learning/controller/EnrollmentControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getMyEnrollmentDelegatesAndReturnsContract](../src/test/java/org/courseflow/learning/controller/EnrollmentControllerTest.java#L28) | Делегирование сервису и соответствие HTTP-контракту: `getMyEnrollment`. `actual = expected`; Вызов `enrollmentService.getMyEnrollment()` |
@@ -920,23 +823,17 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [GradebookControllerTest](../src/test/java/org/courseflow/learning/controller/GradebookControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getGradebookDelegatesAndReturnsContract](../src/test/java/org/courseflow/learning/controller/GradebookControllerTest.java#L26) | Делегирование сервису и соответствие HTTP-контракту: `getGradebook`. `actual = expected`; Вызов `gradebookService.getGradebook()` |
 
 #### [MyEnrollmentControllerTest](../src/test/java/org/courseflow/learning/controller/MyEnrollmentControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getMyEnrollmentsDelegatesAndReturnsContract](../src/test/java/org/courseflow/learning/controller/MyEnrollmentControllerTest.java#L22) | Делегирование сервису и соответствие HTTP-контракту: `getMyEnrollments`. `actual = expected`; Вызов `enrollmentService.getMyEnrollments()` |
 
 #### [ProgressControllerTest](../src/test/java/org/courseflow/learning/controller/ProgressControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -945,8 +842,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [StudentLearningControllerTest](../src/test/java/org/courseflow/learning/controller/StudentLearningControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getAssignmentsDelegatesAndReturnsContract](../src/test/java/org/courseflow/learning/controller/StudentLearningControllerTest.java#L26) | Делегирование сервису и соответствие HTTP-контракту: `getAssignments`. `actual = expected`; Вызов `studentLearningService.getAssignments()` |
@@ -954,8 +849,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [getQuizAttemptsDelegatesAndReturnsContract](../src/test/java/org/courseflow/learning/controller/StudentLearningControllerTest.java#L64) | Делегирование сервису и соответствие HTTP-контракту: `getQuizAttempts`. `actual = expected`; Вызов `studentLearningService.getQuizAttempts()` |
 
 #### [SubmissionControllerTest](../src/test/java/org/courseflow/learning/controller/SubmissionControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -992,15 +885,15 @@ HTTP-контракт контроллера: делегирование, пар
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [overdueFilterBindsSearchModuleAndDeadline](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L35) | Overdue filter binds search module and deadline. `page.rows() = List.of(row)`; Вызов `data.setParameter()`; Вызов `total.setParameter()` |
-| [submittedFilterBindsSubmissionStatus](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L86) | Submitted filter binds submission status. Вызов `data.setParameter()`; Вызов `em.createQuery()` |
-| [notSubmittedFilterDoesNotRequireDeadline](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L98) | Not submitted filter does not require deadline. Вызов `em.createQuery()` |
-| [noReviewFilterAndUnsupportedSort](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L107) | No review filter and unsupported sort. Исключение `BadRequestException`; `repository .findStudents(40L, null, null, null, null, 0, 20, "studentId", "asc", NOW) .rows() .isEmpty()` — истина |
-| [countsBothAssessmentTypesWithOptionalModule](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L121) | Counts both assessment types with optional module. `repository.countColumns(40L, 50L, AssessmentType.ASSIGNMENT) = 4L`; `repository.countColumns(40L, null, AssessmentType.QUIZ) = 4L`; Вызов `query.setParameter()` |
-| [columnPageCrossesAssignmentQuizBoundary](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L131) | Column page crosses assignment quiz boundary. `rows.assignments() = List.of(assignment)`; `rows.quizzes() = List.of(quiz)`; Вызов `a.setFirstResult()` |
-| [quizOnlyPageOffsetsPastAssignmentCount](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L148) | Quiz only page offsets past assignment count. `repository.loadColumns(40L, null, 5, 2, 3, 4).assignments().isEmpty()` — истина; Вызов `q.setFirstResult()`; Вызов `q.setMaxResults()` |
-| [assignmentOnlyPageAndEmptyPageDoNotQueryQuizzes](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L156) | Assignment only page and empty page do not query quizzes. `repository.loadColumns(40L, null, 0, 1, 3, 4).quizzes().isEmpty()` — истина; `repository.loadColumns(40L, null, 8, 1, 3, 4).assignments().isEmpty()` — истина; Вызов `em.createQuery()` (`org.mockito.Mockito.never()`) |
-| [emptyResultIdsAvoidDatabaseCalls](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L166) | Empty result ids avoid database calls. `repository.findAssignmentResults(List.of(), List.of(70L)).isEmpty()` — истина; `repository.findAssignmentResults(List.of(10L), List.of()).isEmpty()` — истина; `repository.findQuizResults(List.of(), List.of(80L), NOW).isEmpty()` — истина |
-| [assessmentResultsBindOnlyRequestedStudentsAndColumns](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L175) | Assessment results bind only requested students and columns. `repository.findAssignmentResults(List.of(10L), List.of(70L)) = List.of(assignment)`; `repository.findQuizResults(List.of(10L), List.of(80L), NOW) = List.of(quiz)`; Вызов `a.setParameter()` |
+| [submittedFilterBindsSubmissionStatus](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L91) | Submitted filter binds submission status. Вызов `data.setParameter()`; Вызов `em.createQuery()` |
+| [notSubmittedFilterDoesNotRequireDeadline](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L103) | Not submitted filter does not require deadline. Вызов `em.createQuery()` |
+| [noReviewFilterAndUnsupportedSort](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L112) | No review filter and unsupported sort. Исключение `BadRequestException`; `repository .findStudents(40L, null, null, null, null, 0, 20, "studentId", "asc", NOW) .rows() .isEmpty()` — истина |
+| [countsBothAssessmentTypesWithOptionalModule](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L126) | Counts both assessment types with optional module. `repository.countColumns(40L, 50L, AssessmentType.ASSIGNMENT) = 4L`; `repository.countColumns(40L, null, AssessmentType.QUIZ) = 4L`; Вызов `query.setParameter()` |
+| [columnPageCrossesAssignmentQuizBoundary](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L136) | Column page crosses assignment quiz boundary. `rows.assignments() = List.of(assignment)`; `rows.quizzes() = List.of(quiz)`; Вызов `a.setFirstResult()` |
+| [quizOnlyPageOffsetsPastAssignmentCount](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L153) | Quiz only page offsets past assignment count. `repository.loadColumns(40L, null, 5, 2, 3, 4).assignments().isEmpty()` — истина; Вызов `q.setFirstResult()`; Вызов `q.setMaxResults()` |
+| [assignmentOnlyPageAndEmptyPageDoNotQueryQuizzes](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L161) | Assignment only page and empty page do not query quizzes. `repository.loadColumns(40L, null, 0, 1, 3, 4).quizzes().isEmpty()` — истина; `repository.loadColumns(40L, null, 8, 1, 3, 4).assignments().isEmpty()` — истина; Вызов `em.createQuery()` (`org.mockito.Mockito.never()`) |
+| [emptyResultIdsAvoidDatabaseCalls](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L171) | Empty result ids avoid database calls. `repository.findAssignmentResults(List.of(), List.of(70L)).isEmpty()` — истина; `repository.findAssignmentResults(List.of(10L), List.of()).isEmpty()` — истина; `repository.findQuizResults(List.of(), List.of(80L), NOW).isEmpty()` — истина |
+| [assessmentResultsBindOnlyRequestedStudentsAndColumns](../src/test/java/org/courseflow/learning/repository/GradebookQueryRepositoryTest.java#L180) | Assessment results bind only requested students and columns. `repository.findAssignmentResults(List.of(10L), List.of(70L)) = List.of(assignment)`; `repository.findQuizResults(List.of(10L), List.of(80L), NOW) = List.of(quiz)`; Вызов `a.setParameter()` |
 
 #### [ProgressQueryRepositoryTest](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java)
 
@@ -1009,15 +902,13 @@ HTTP-контракт контроллера: делегирование, пар
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [coursePageBindsAllOptionalFilters](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L32) | Course page binds all optional filters. `result.rows() = List.of(row)`; `result.total() = 11L`; Вызов `q.setParameter()` |
-| [coursePageWithoutFiltersAndInvalidSort](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L70) | Course page without filters and invalid sort. Исключение `BadRequestException`; `repository.findCourses(10L, null, null, null, 0, 20, "courseId", "asc").rows().isEmpty()` — истина |
-| [emptyCourseIdsDoNotQueryDatabase](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L81) | Empty course ids do not query database. `repository.aggregateAssignments(10L, List.of(), NOW).isEmpty()` — истина; `repository.aggregateQuizzes(10L, List.of()).isEmpty()` — истина; `repository.findAssignments(10L, List.of(), NOW, 0, 10, true).isEmpty()` — истина |
-| [aggregatesBindCourseIdsAndStudent](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L90) | Aggregates bind course ids and student. `repository.aggregateAssignments(10L, List.of(40L), NOW) = List.of(a)`; `repository.aggregateQuizzes(10L, List.of(40L)) = List.of(q)`; Вызов `assignments.setParameter()` |
-| [deadlinesOnlyFilterAndDetailPagination](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L104) | Deadlines only filter and detail pagination. `repository.findAssignments(10L, List.of(40L), NOW, 2, 5, true) = List.of(row)`; Вызов `q.setParameter()`; Вызов `q.setFirstResult()` |
-| [allAssignmentsAndQuizDetails](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L115) | All assignments and quiz details. Вызов `a.setParameter()` (`org.mockito.Mockito.never()`); Вызов `q.setParameter()`; Вызов `q.setFirstResult()` |
+| [coursePageWithoutFiltersAndInvalidSort](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L74) | Course page without filters and invalid sort. Исключение `BadRequestException`; `repository.findCourses(10L, null, null, null, 0, 20, "courseId", "asc").rows().isEmpty()` — истина |
+| [emptyCourseIdsDoNotQueryDatabase](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L85) | Empty course ids do not query database. `repository.aggregateAssignments(10L, List.of(), NOW).isEmpty()` — истина; `repository.aggregateQuizzes(10L, List.of()).isEmpty()` — истина; `repository.findAssignments(10L, List.of(), NOW, 0, 10, true).isEmpty()` — истина |
+| [aggregatesBindCourseIdsAndStudent](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L94) | Aggregates bind course ids and student. `repository.aggregateAssignments(10L, List.of(40L), NOW) = List.of(a)`; `repository.aggregateQuizzes(10L, List.of(40L)) = List.of(q)`; Вызов `assignments.setParameter()` |
+| [deadlinesOnlyFilterAndDetailPagination](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L108) | Deadlines only filter and detail pagination. `repository.findAssignments(10L, List.of(40L), NOW, 2, 5, true) = List.of(row)`; Вызов `q.setParameter()`; Вызов `q.setFirstResult()` |
+| [allAssignmentsAndQuizDetails](../src/test/java/org/courseflow/learning/repository/ProgressQueryRepositoryTest.java#L119) | All assignments and quiz details. Вызов `a.setParameter()` (`org.mockito.Mockito.never()`); Вызов `q.setParameter()`; Вызов `q.setFirstResult()` |
 
 #### [AssessmentStatusesTest](../src/test/java/org/courseflow/learning/service/AssessmentStatusesTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1026,8 +917,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [quizStates](../src/test/java/org/courseflow/learning/service/AssessmentStatusesTest.java#L25) | Quiz States. `AssessmentStatuses.quiz(0, 1, 0) = "COMPLETED"`; `AssessmentStatuses.quiz(null, 0, 0) = "NOT_STARTED"`; `AssessmentStatuses.quiz(null, 2, 1) = "IN_PROGRESS"` |
 
 #### [AssignmentServiceReadTest](../src/test/java/org/courseflow/learning/service/AssignmentServiceReadTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1038,8 +927,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [unsupportedSortRejected](../src/test/java/org/courseflow/learning/service/AssignmentServiceReadTest.java#L71) | Отклонение операции: unsupported Sort. Исключение `BadRequestException`; Отсутствие вызовов `repository` |
 
 #### [AssignmentServiceTest](../src/test/java/org/courseflow/learning/service/AssignmentServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1056,16 +943,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [EnrollmentAccessTest](../src/test/java/org/courseflow/learning/service/EnrollmentAccessTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [activeEnrollmentRequired](../src/test/java/org/courseflow/learning/service/EnrollmentAccessTest.java#L21) | Active enrollment required. Исключение `AccessDeniedException`; `assertDoesNotThrow(() -> access.requireActive(1L, 2L, "not enrolled"))` |
 | [historyAndActiveChecksAreDifferent](../src/test/java/org/courseflow/learning/service/EnrollmentAccessTest.java#L28) | History and active checks are different. `access.hasEnrollmentHistory(2L)` — истина; `access.hasActiveEnrollments(1L)` — истина; `access.hasActiveEnrollment(1L, 2L)` — ложь |
 
 #### [EnrollmentServiceReadTest](../src/test/java/org/courseflow/learning/service/EnrollmentServiceReadTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1075,8 +958,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [studentEnrollmentsAllStatuses](../src/test/java/org/courseflow/learning/service/EnrollmentServiceReadTest.java#L66) | Student enrollments all statuses. `service.getMyEnrollments(10L, null, 0, 10, "id", "asc").content().get(0).courseId() = 40L` |
 
 #### [EnrollmentServiceTest](../src/test/java/org/courseflow/learning/service/EnrollmentServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1091,17 +972,13 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [GradeAuditTest](../src/test/java/org/courseflow/learning/service/GradeAuditTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [auditRequiresActiveTransaction](../src/test/java/org/courseflow/learning/service/GradeAuditTest.java#L20) | Audit requires active transaction. Исключение `IllegalStateException` |
-| [registersCallbackOnlyAndCanBeInvokedAfterCommit](../src/test/java/org/courseflow/learning/service/GradeAuditTest.java#L68) | Registers callback only and can be invoked after commit. `synchronizations.size() = 1`; `assertDoesNotThrow(() -> synchronizations.get(0).afterCommit())` |
+| [registersCallbackOnlyAndCanBeInvokedAfterCommit](../src/test/java/org/courseflow/learning/service/GradeAuditTest.java#L72) | Registers callback only and can be invoked after commit. `synchronizations.size() = 1`; `assertDoesNotThrow(() -> synchronizations.get(0).afterCommit())` |
 | [committedGradeIsActuallyLoggedAndRollbackIsNot](../src/test/java/org/courseflow/learning/service/GradeAuditTest.java#L27) | Оценка журналируется после commit, но не после rollback. |
 
 #### [GradebookServiceTest](../src/test/java/org/courseflow/learning/service/GradebookServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1110,8 +987,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [rejectsForeignTeacherAndQuizReviewFilter](../src/test/java/org/courseflow/learning/service/GradebookServiceTest.java#L119) | Отклонение операции: Foreign Teacher And Quiz Review Filter. Исключение `AccessDeniedException`; Исключение `BadRequestException`; Отсутствие вызовов `queries` |
 
 #### [ProgressServiceTest](../src/test/java/org/courseflow/learning/service/ProgressServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1122,8 +997,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [StudentLearningServiceTest](../src/test/java/org/courseflow/learning/service/StudentLearningServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [assignmentsApplyActiveEnrollmentCourseAndStatusFilters](../src/test/java/org/courseflow/learning/service/StudentLearningServiceTest.java#L33) | Assignments apply active enrollment course and status filters. `result.content() = List.of(row)`; `result.totalElements() = 21L`; Вызов `data.setFirstResult()` |
@@ -1133,8 +1006,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [rejectsInvalidCourseIdBeforeQuerying](../src/test/java/org/courseflow/learning/service/StudentLearningServiceTest.java#L113) | Отклонение операции: Invalid Course Id Before Querying. Исключение `BadRequestException`; Отсутствие вызовов `em` |
 
 #### [SubmissionServiceReadTest](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1147,8 +1018,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [unsupportedSortRejected](../src/test/java/org/courseflow/learning/service/SubmissionServiceReadTest.java#L122) | Отклонение операции: unsupported Sort. Исключение `BadRequestException`; Отсутствие вызовов `em` |
 
 #### [SubmissionServiceTest](../src/test/java/org/courseflow/learning/service/SubmissionServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1167,15 +1036,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [QuizAccessTest](../src/test/java/org/courseflow/assessment/api/QuizAccessTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [checksExistenceThroughOwningRepository](../src/test/java/org/courseflow/assessment/api/QuizAccessTest.java#L14) | Checks existence through owning repository. `access.hasQuiz(10L)` — истина; `access.hasQuiz(11L)` — ложь; Вызов `repository.existsByModule_Id()` |
 
 #### [QuizAttemptControllerTest](../src/test/java/org/courseflow/assessment/controller/QuizAttemptControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1189,8 +1054,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [submitReturnsResultOrRejectsExpiredAttempt](../src/test/java/org/courseflow/assessment/controller/QuizAttemptControllerTest.java#L165) | Submit returns result or rejects expired attempt. Исключение `BusinessConflictException`; `controller.submit(1L, 2L, request, jwt) = attempt` |
 
 #### [QuizControllerTest](../src/test/java/org/courseflow/assessment/controller/QuizControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1228,15 +1091,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ExpiredQuizAttemptsCleanupTest](../src/test/java/org/courseflow/assessment/service/ExpiredQuizAttemptsCleanupTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [expiresOnlyBoundedBatchAtCurrentTime](../src/test/java/org/courseflow/assessment/service/ExpiredQuizAttemptsCleanupTest.java#L17) | Expires only bounded batch at current time. Вызов `jdbc.update()` |
 
 #### [QuestionServiceCoverageTest](../src/test/java/org/courseflow/assessment/service/QuestionServiceCoverageTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1256,8 +1115,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [QuestionServiceTest](../src/test/java/org/courseflow/assessment/service/QuestionServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [cannotCreateQuestionAfterAttempts](../src/test/java/org/courseflow/assessment/service/QuestionServiceTest.java#L54) | Cannot create question after attempts. Исключение `BusinessConflictException`; Отсутствие вызовов `em` |
@@ -1268,8 +1125,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [QuizAttemptQueryServiceTest](../src/test/java/org/courseflow/assessment/service/QuizAttemptQueryServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [expiredReadDoesNotMutateStoredAttempt](../src/test/java/org/courseflow/assessment/service/QuizAttemptQueryServiceTest.java#L47) | Expired read does not mutate stored attempt. `result.status() = QuizSubmissionStatus.EXPIRED`; `result.finishedAt() = NOW`; `attempt.getStatus() = QuizSubmissionStatus.IN_PROGRESS` |
@@ -1279,8 +1134,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [studentAndTeacherDetailsIncludeSelectedAnswers](../src/test/java/org/courseflow/assessment/service/QuizAttemptQueryServiceTest.java#L104) | Student and teacher details include selected answers. Исключение `AccessDeniedException`; `studentResult.attempt().score() = 80`; `studentResult.selectedAnswers() = List.of(answer)` |
 
 #### [QuizAttemptServiceTest](../src/test/java/org/courseflow/assessment/service/QuizAttemptServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1295,8 +1148,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [QuizGraderTest](../src/test/java/org/courseflow/assessment/service/QuizGraderTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [validatesAnswerAndScoresCorrect](../src/test/java/org/courseflow/assessment/service/QuizGraderTest.java#L31) | Validates answer and scores correct. `answers = Map.of(1L, Set.of(10L))`; `QuizGrader.score(List.of(q), answers) = 100` |
@@ -1309,8 +1160,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [omittedAnswersAndFloorRounding](../src/test/java/org/courseflow/assessment/service/QuizGraderTest.java#L97) | Omitted answers and floor rounding. `QuizGrader.score(qs, Map.of(1L, Set.of(10L), 2L, Set.of(20L))) = 66`; `QuizGrader.score(qs, Map.of()) = 0`; `QuizGrader.percentage(0, 0) = 0` |
 
 #### [QuizServiceCoverageTest](../src/test/java/org/courseflow/assessment/service/QuizServiceCoverageTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1325,8 +1174,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [QuizServiceTest](../src/test/java/org/courseflow/assessment/service/QuizServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [createsQuizWithDefaultAttempts](../src/test/java/org/courseflow/assessment/service/QuizServiceTest.java#L50) | Creates quiz with default attempts. `r.title() = "New"`; `r.timeLimit() = 5`; `r.maxAttempts() = 2` |
@@ -1338,15 +1185,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [ReviewAccessTest](../src/test/java/org/courseflow/review/api/ReviewAccessTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [checksExistenceThroughOwningRepository](../src/test/java/org/courseflow/review/api/ReviewAccessTest.java#L14) | Checks existence through owning repository. `access.hasReviews(10L)` — истина; `access.hasReviews(11L)` — ложь; Вызов `repository.existsByCourse_Id()` |
 
 #### [CourseReviewControllerTest](../src/test/java/org/courseflow/review/controller/CourseReviewControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1368,8 +1211,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CourseReviewServiceReadTest](../src/test/java/org/courseflow/review/service/CourseReviewServiceReadTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [ownReviewIncludesRating](../src/test/java/org/courseflow/review/service/CourseReviewServiceReadTest.java#L40) | Own review includes rating. `service.getMyReview(40L, 10L).rating() = 5` |
@@ -1378,8 +1219,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [emptyRatingIsNull](../src/test/java/org/courseflow/review/service/CourseReviewServiceReadTest.java#L66) | Empty rating is null. `result.reviewCount() = 0L`; `result.averageRating()` — null |
 
 #### [CourseReviewServiceTest](../src/test/java/org/courseflow/review/service/CourseReviewServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1393,15 +1232,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [AdminDashboardControllerTest](../src/test/java/org/courseflow/dashboard/controller/AdminDashboardControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getDashboardDelegatesAndReturnsContract](../src/test/java/org/courseflow/dashboard/controller/AdminDashboardControllerTest.java#L19) | Делегирование сервису и соответствие HTTP-контракту: `getDashboard`. `actual = expected`; Вызов `adminDashboardService.getDashboard()` |
 
 #### [StudentDashboardControllerTest](../src/test/java/org/courseflow/dashboard/controller/StudentDashboardControllerTest.java)
-
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1409,15 +1244,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [TeacherDashboardControllerTest](../src/test/java/org/courseflow/dashboard/controller/TeacherDashboardControllerTest.java)
 
-HTTP-контракт контроллера: делегирование, параметры, статусы и результат.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [getDashboardDelegatesAndReturnsContract](../src/test/java/org/courseflow/dashboard/controller/TeacherDashboardControllerTest.java#L21) | Делегирование сервису и соответствие HTTP-контракту: `getDashboard`. `actual = expected`; Вызов `teacherDashboardService.getDashboard()` |
 
 #### [AdminDashboardServiceTest](../src/test/java/org/courseflow/dashboard/service/AdminDashboardServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1425,15 +1256,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [StudentDashboardServiceTest](../src/test/java/org/courseflow/dashboard/service/StudentDashboardServiceTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [dashboardUsesTotalCourseCountAndLimitsUpcomingDeadlines](../src/test/java/org/courseflow/dashboard/service/StudentDashboardServiceTest.java#L24) | Dashboard uses total course count and limits upcoming deadlines. `result.activeCourseCount() = 12L`; `result.courses().content() = List.of(summary)`; `result.upcomingDeadlines() = List.of(deadline)` |
 
 #### [TeacherDashboardServiceTest](../src/test/java/org/courseflow/dashboard/service/TeacherDashboardServiceTest.java)
-
-Поведение сервиса и бизнес-правила.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1442,8 +1269,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [UpcomingSessionsTest](../src/test/java/org/courseflow/dashboard/service/UpcomingSessionsTest.java)
 
-Поведение сервиса и бизнес-правила.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [studentAndTeacherUseDifferentScopeAndMapRows](../src/test/java/org/courseflow/dashboard/service/UpcomingSessionsTest.java#L25) | Student and teacher use different scope and map rows. `service.forStudent(10L, NOW, 5).get(0).format() = "ONLINE"`; `service.forTeacher(20L, NOW, 5).size() = 1`; Вызов `query.setParameter()` |
@@ -1451,8 +1276,6 @@ HTTP-контракт контроллера: делегирование, пар
 ### 8.9. Общая инфраструктура, валидация и обработка ошибок (66)
 
 #### [SpotBugsRegressionTest](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java)
-
-Проверки компонента и его контрактов.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1464,16 +1287,12 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [JpqlPagesTest](../src/test/java/org/courseflow/common/api/JpqlPagesTest.java)
 
-Контракт межмодульного взаимодействия.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [bindsParametersAndAppliesPaginationToDataOnly](../src/test/java/org/courseflow/common/api/JpqlPagesTest.java#L25) | Binds parameters and applies pagination to data only. `r.rows() = List.of("row")`; `r.total() = 21`; `r.response().totalPages() = 3` |
 | [invalidPaginationDoesNotExecuteQueries](../src/test/java/org/courseflow/common/api/JpqlPagesTest.java#L61) | Invalid pagination does not execute queries. Исключение `BadRequestException`; Отсутствие вызовов `em` |
 
 #### [OpenApiConfigTest](../src/test/java/org/courseflow/common/api/OpenApiConfigTest.java)
-
-Контракт межмодульного взаимодействия.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1482,8 +1301,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [customizerHandlesMissingPathsOrResponsesAndPreservesExistingError](../src/test/java/org/courseflow/common/api/OpenApiConfigTest.java#L77) | Customizer handles missing paths or responses and preserves existing error. `post.getResponses().get("400").getDescription() = "Custom validation"`; `api.getComponents().getSchemas().get("ApiErrorResponse")` — значение присутствует; `post.getResponses().get("…").getHeaders().containsKey("…")` — ложь |
 
 #### [PaginationTest](../src/test/java/org/courseflow/common/api/PaginationTest.java)
-
-Контракт межмодульного взаимодействия.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1500,8 +1317,6 @@ HTTP-контракт контроллера: делегирование, пар
 | [pageResponsePreservesMetadata](../src/test/java/org/courseflow/common/api/PaginationTest.java#L87) | Page response preserves metadata. `response.content() = List.of("a", "b")`; `response.page() = 1`; `response.size() = 2` |
 
 #### [RequestIdFilterTest](../src/test/java/org/courseflow/common/api/RequestIdFilterTest.java)
-
-Контракт межмодульного взаимодействия.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1547,15 +1362,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [CourseFlowMetricsTest](../src/test/java/org/courseflow/common/system/CourseFlowMetricsTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [eachBusinessEventIncrementsItsOwnCounter](../src/test/java/org/courseflow/common/system/CourseFlowMetricsTest.java#L10) | Each business event increments its own counter. `registry.get("courseflow.auth.rate_limited").counter().count() = 2.0`; `registry.get("…" + suffix).counter().count() = 1.0`; `registry.getMeters().size() = 7` |
 
 #### [DatabaseInvariantInitializerTest](../src/test/java/org/courseflow/common/system/DatabaseInvariantInitializerTest.java)
-
-Проверки компонента и его контрактов.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1564,15 +1375,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [SystemInfoControllerTest](../src/test/java/org/courseflow/common/system/SystemInfoControllerTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [returnsLocalEndpointAndTokenLifetimeWithoutCachingHttpResponse](../src/test/java/org/courseflow/common/system/SystemInfoControllerTest.java#L14) | Returns local endpoint and token lifetime without caching http response. `response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL) = "no-store"`; `body.snapshot() = snapshot`; `body.serverEndpoint().localAddress() = "127.0.0.1"` |
 
 #### [SystemInfoServiceTest](../src/test/java/org/courseflow/common/system/SystemInfoServiceTest.java)
-
-Проверки компонента и его контрактов.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1582,15 +1389,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [SystemStatusControllerTest](../src/test/java/org/courseflow/common/system/SystemStatusControllerTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [returnsConnectedStatusAfterDatabaseCheck](../src/test/java/org/courseflow/common/system/SystemStatusControllerTest.java#L12) | Returns connected status after database check. `response.application() = "CourseFlow"`; `response.status() = "UP"`; `response.database() = "CONNECTED"` |
 
 #### [SystemStatusServiceTest](../src/test/java/org/courseflow/common/system/SystemStatusServiceTest.java)
-
-Проверки компонента и его контрактов.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1642,7 +1445,7 @@ HTTP-контракт контроллера: делегирование, пар
 | [byteLimitValidatorSupportsNullAndMultibyte](../src/test/java/org/courseflow/common/validation/ValidationUtilitiesTest.java#L46) | Byte limit validator supports null and multibyte. `validator.isValid(null, null)` — истина; `validator.isValid("\u044f\u044f", null)` — истина; `validator.isValid("\u044f\u044fa", null)` — ложь |
 | [requireFitsRejectsLongPassword](../src/test/java/org/courseflow/common/validation/ValidationUtilitiesTest.java#L60) | Require fits rejects long password. Исключение `BadRequestException`; `assertDoesNotThrow(() -> PasswordBytes.requireFits("…".repeat(72), "…"))` |
 
-#### Модульные проверки тестовой инфраструктуры (11)
+#### Модульные проверки тестовой инфраструктуры (13)
 
 Эти проверки входят в задачу `test`, а не в нагрузочный или интеграционный набор.
 
@@ -1650,11 +1453,18 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [wrongStatusIsNotSuccessful](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L16) | Ответ HTTP 500 при ожидаемом 200 учитывается как неуспешный. |
-| [failedResponseValidationIsRecorded](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L24) | Невалидное тело ответа фиксируется как INVALID_RESPONSE. |
-| [timeoutIsNotSuccessful](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L33) | Таймаут учитывается как ошибка, а не успешный запрос. |
-| [missingRequestsAndWorkerExceptionsFailRun](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L42) | Отсутствие запросов и исключения рабочих потоков приводят к ошибке прогона. |
-| [simultaneousRequestsAreMeasured](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L50) | Измеряется пиковое число одновременно выполняемых запросов. |
+| [wrongStatusIsNotSuccessful](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L18) | Ответ HTTP 500 при ожидаемом 200 учитывается как неуспешный. |
+| [failedResponseValidationIsRecorded](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L29) | Невалидное тело ответа фиксируется как INVALID_RESPONSE. |
+| [timeoutIsNotSuccessful](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L47) | Таймаут учитывается как ошибка, а не успешный запрос. |
+| [missingRequestsAndWorkerExceptionsFailRun](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L65) | Отсутствие запросов и исключения рабочих потоков приводят к ошибке прогона. |
+| [simultaneousRequestsAreMeasured](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L78) | Измеряется пиковое число одновременно выполняемых запросов. |
+| [reportsEveryValidatedSampleWithoutLosingMeasurements](../src/test/java/org/courseflow/performance/LoadRunnerTest.java#L100) | Наблюдатель получает все измерения, включая ошибки и успешные ответы; список результатов неизменяем. |
+
+**[PerformanceTelemetryTest](../src/test/java/org/courseflow/performance/PerformanceTelemetryTest.java)**
+
+| Метод | Сценарий и проверяемый результат |
+|---|---|
+| [persistsObservationsBeforeCloseAndKeepsOutcomeCounts](../src/test/java/org/courseflow/performance/PerformanceTelemetryTest.java#L22) | CSV пополняется до закрытия наблюдателя. Успешные, ожидаемые неуспешные и неожиданные ответы учитываются отдельно; недоступность JDBC фиксируется как ошибка наблюдения. |
 
 **[SoakChecksTest](../src/test/java/org/courseflow/performance/SoakChecksTest.java)**
 
@@ -1662,7 +1472,7 @@ HTTP-контракт контроллера: делегирование, пар
 |---|---|
 | [acceptsAllCompleteWindows](../src/test/java/org/courseflow/performance/SoakChecksTest.java#L14) | Полные интервалы длительной нагрузки проходят проверку. |
 | [rejectsMissingOperationInOneWindowEvenWhenOverallWorkloadContainsIt](../src/test/java/org/courseflow/performance/SoakChecksTest.java#L19) | Отсутствие операции в отдельном интервале приводит к ошибке. |
-| [rejectsLocalLatencyRegression](../src/test/java/org/courseflow/performance/SoakChecksTest.java#L26) | Локальный рост задержки приводит к ошибке проверки длительной нагрузки. |
+| [rejectsLocalLatencyRegression](../src/test/java/org/courseflow/performance/SoakChecksTest.java#L29) | Локальный рост задержки приводит к ошибке проверки длительной нагрузки. |
 
 **[LoadPolicyTest](../src/test/java/org/courseflow/performance/LoadPolicyTest.java)**
 
@@ -1686,18 +1496,14 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [EndpointAuthorizationTest](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [registersPublicHealthProtectedGradingAndDefaultDeny](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L46) | Registers public health protected grading and default deny. Вызов `registry.requestMatchers()`; Вызов `grading.hasAnyRole()`; Вызов `fallback.denyAll()` |
-| [swaggerRouteIsRegisteredOnlyWhenEnabled](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L103) | Swagger route is registered only when enabled. Вызов `docs.permitAll()` |
-| [temporaryPasswordMatcherDeniesAllExceptPasswordChangeAndLogout](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L121) | Temporary password matcher denies all except password change and logout. `matcher.matches(new MockHttpServletRequest("GET", "/api/courses"))` — ложь; `matcher.matches(new MockHttpServletRequest("GET", "/api/courses"))` — истина; `matcher.matches(new MockHttpServletRequest("GET", "…"))` — истина |
+| [swaggerRouteIsRegisteredOnlyWhenEnabled](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L108) | Swagger route is registered only when enabled. Вызов `docs.permitAll()` |
+| [temporaryPasswordMatcherDeniesAllExceptPasswordChangeAndLogout](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L126) | Temporary password matcher denies all except password change and logout. `matcher.matches(new MockHttpServletRequest("GET", "/api/courses"))` — ложь; `matcher.matches(new MockHttpServletRequest("GET", "/api/courses"))` — истина; `matcher.matches(new MockHttpServletRequest("GET", "…"))` — истина |
 | [criticalRoutesKeepTheirOwnAuthorization](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L80) | Критические маршруты сохраняют собственные ограничения авторизации. |
 
 #### [JwtConfigTest](../src/test/java/org/courseflow/security/JwtConfigTest.java)
-
-Проверки компонента и его контрактов.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1706,15 +1512,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [JwtServiceTest](../src/test/java/org/courseflow/security/JwtServiceTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [generatesTokenWithSortedRolesSessionIdAndPasswordChangeFlag](../src/test/java/org/courseflow/security/JwtServiceTest.java#L27) | Generates token with sorted roles session id and password change flag. `new JwtService(encoder).generateAccessToken(session) = "…"`; `claims.getSubject() = "10"`; `claims.getId() = sessionId.toString()` |
 
 #### [JwtSessionValidatorTest](../src/test/java/org/courseflow/security/JwtSessionValidatorTest.java)
-
-Проверки компонента и его контрактов.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1727,18 +1529,14 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [PublicEndpointsTest](../src/test/java/org/courseflow/security/PublicEndpointsTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [publicGetTemplatesAreMatchedWithoutExposingLessonContent](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L28) | Public get templates are matched without exposing lesson content. `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}")` — истина; `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}/lessons")` — ложь; `PublicEndpoints.isPublicGet("/api/users/me")` — ложь |
-| [passwordChangeRequiresAuthenticationButIsRateLimited](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L36) | Password change requires authentication but is rate limited. `PublicEndpoints.isPublicPost("/api/auth/login")` — истина; `PublicEndpoints.isPublicPost("…")` — ложь; `PublicEndpoints.isRateLimitedPost("…")` — истина |
-| [startupRunnerDelegatesSessionInvalidation](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L44) | Startup runner delegates session invalidation. Вызов `access.invalidateAllOnStartup()` |
+| [publicGetTemplatesAreMatchedWithoutExposingLessonContent](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L42) | Public get templates are matched without exposing lesson content. `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}")` — истина; `PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}/lessons")` — ложь; `PublicEndpoints.isPublicGet("/api/users/me")` — ложь |
+| [passwordChangeRequiresAuthenticationButIsRateLimited](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L50) | Password change requires authentication but is rate limited. `PublicEndpoints.isPublicPost("/api/auth/login")` — истина; `PublicEndpoints.isPublicPost("…")` — ложь; `PublicEndpoints.isRateLimitedPost("…")` — истина |
+| [startupRunnerDelegatesSessionInvalidation](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L58) | Startup runner delegates session invalidation. Вызов `access.invalidateAllOnStartup()` |
 | [publicRoutesMatchTheExplicitContract](../src/test/java/org/courseflow/security/PublicEndpointsTest.java#L15) | Публичные маршруты соответствуют явному контракту доступа. |
 
 #### [SecurityConfigTest](../src/test/java/org/courseflow/security/SecurityConfigTest.java)
-
-Проверки компонента и его контрактов.
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
@@ -1748,8 +1546,6 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [SecurityExceptionHandlerTest](../src/test/java/org/courseflow/security/SecurityExceptionHandlerTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [unauthorizedIncludesBearerChallengeAndMachineReadableError](../src/test/java/org/courseflow/security/SecurityExceptionHandlerTest.java#L19) | Unauthorized includes bearer challenge and machine readable error. `response.getStatus() = 401`; `response.getHeader("WWW-Authenticate") = "Bearer"`; `body.get("code").asText() = "AUTHENTICATION_REQUIRED"` |
@@ -1757,46 +1553,35 @@ HTTP-контракт контроллера: делегирование, пар
 
 #### [SystemInfoAuthorizationTest](../src/test/java/org/courseflow/security/SystemInfoAuthorizationTest.java)
 
-Проверки компонента и его контрактов.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
 | [registersDedicatedAdminMatcherAndPreservesStatusPolicy](../src/test/java/org/courseflow/security/SystemInfoAuthorizationTest.java#L14) | Registers dedicated admin matcher and preserves status policy. Вызов `diagnostics.hasRole()`; Вызов `status.authenticated()` |
 
-### 8.11. Архитектурные ограничения (21)
+### 8.11. Архитектурные ограничения (17)
 
 #### [ArchitectureTest](../src/test/java/org/courseflow/architecture/ArchitectureTest.java)
 
-Проверки зависимостей Java-классов средствами ArchUnit.
-
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [allProductionModulesAreImportedAndKnown](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L247) | Все рабочие модули входят в архитектурную модель. `actual.equals(MODULE_DEPENDENCIES.keySet())` — истина |
-| [controllersCannotAccessPersistenceDirectly](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L272) | Контроллеры обращаются к данным через прикладные слои |
-| [nonWebCodeCannotDependOnControllers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L281) | Зависимости от контроллеров разрешены только web-слою |
-| [repositoriesCannotDependOnHigherLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L286) | Репозитории не зависят от верхних слоёв |
-| [repositoriesArePrivateToTheirOwningModule](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L298) | Репозитории используются в пределах своего модуля |
-| [businessServicesAndModuleApisAreIndependentOfHttp](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L306) | Сервисы и межмодульные контракты независимы от HTTP |
-| [domainModelDoesNotDependOnApplicationOrInfrastructureLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L314) | Доменная модель независима от прикладных и инфраструктурных слоёв |
-| [dtosCannotDependOnPersistenceOrBusinessServices](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L328) | DTO независимы от репозиториев и сервисов |
-| [controllersDoNotReturnJpaEntitiesEvenInsideGenericContainers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L341) | JPA-сущности отсутствуют в ответах контроллеров, включая generic-контейнеры |
-| [dtosDoNotStoreJpaEntitiesEvenInsideGenericContainers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L362) | DTO не содержат JPA-сущностей, включая generic-контейнеры |
-| [springDependenciesAreNotInjectedIntoFields](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L380) | Внедрение зависимостей через конструктор |
-| [frameworkStereotypesResideInTheAppropriateLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L416) | Spring-аннотации соответствуют слоям |
-| [internalServicesArePrivateToTheirOwningModule](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L446) | Внутренние сервисы доступны только собственному модулю |
-| [moduleDependencyDirectionsAndApplicationCyclesDoNotGrow](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L456) | Контроль направлений всех зависимостей, независимости common, отсутствия обратных зависимостей от security и новых циклических рёбер прикладного графа без ORM-связей. `newCyclicEdges.isEmpty()` — истина |
-| [springComponentConstructorDependenciesHaveNoCycles](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L525) | Отсутствие циклов конструкторных зависимостей Spring-компонентов, включая реализации публичных интерфейсов. `cycles.isEmpty()` — истина |
-| [everyCompiledProductionClassIsImported](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L180) | Проверяется полнота импорта скомпилированных классов в ArchUnit. |
-| [cycleDetectorRecognizesCyclesAndIgnoresAcyclicEdges](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L206) | Детектор распознаёт циклы и не относит ациклические рёбра к циклам. |
-| [classCycleBaselineAllowsRemovalButRejectsNewCyclicPairs](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L212) | Удаление старых циклических пар допустимо, появление новых запрещено. |
+| [controllersCannotAccessPersistenceDirectly](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L107) | Контроллеры не обращаются к persistence напрямую; допускается обработка исключений доступа к данным. |
+| [nonWebCodeCannotDependOnControllers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L122) | Классы вне web-слоя не зависят от контроллеров и обработчиков HTTP-ошибок. |
+| [repositoriesCannotDependOnHigherLayers](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L131) | Репозитории не зависят от верхних слоёв. |
+| [businessServicesAndModuleApisAreIndependentOfHttp](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L140) | Сервисы и межмодульные API независимы от HTTP. |
+| [domainModelIsIndependentOfApplicationAndInfrastructure](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L149) | Доменная модель независима от прикладного и инфраструктурного слоёв. |
+| [dtosDoNotDependOnPersistenceOrBusinessServices](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L171) | DTO не зависят от persistence и бизнес-сервисов. |
+| [controllersDoNotReturnJpaEntities](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L181) | Контроллеры не возвращают JPA-сущности, в том числе в составных типах. |
+| [dtosDoNotStoreJpaEntities](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L197) | DTO не содержат JPA-сущностей, в том числе в составных типах. |
+| [internalServicesAndRepositoriesArePrivateToTheirModule](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L211) | Внутренние сервисы и репозитории используются в пределах своего модуля. |
+| [commonDoesNotDependOnApplicationModules](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L232) | Общий модуль не зависит от предметных модулей. |
+| [applicationDoesNotDependOnSecurityImplementation](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L242) | Прикладные классы не зависят от реализации security. |
+| [entitiesResideInEntityPackages](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L253) | JPA-сущности располагаются в пакетах entity. |
+| [repositoriesResideInRepositoryPackages](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L263) | Репозитории располагаются в пакетах repository. |
+| [controllersAndAdviceResideInWebPackages](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L268) | Контроллеры и обработчики исключений располагаются в предусмотренных web-пакетах. |
+| [servicesResideInServiceOrApiPackages](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L282) | Сервисы располагаются в пакетах service или api. |
+| [dependenciesAreNotInjectedIntoFieldsOrMethods](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L292) | Зависимости Spring не внедряются в поля или методы. |
+| [springComponentConstructorDependenciesHaveNoCycles](../src/test/java/org/courseflow/architecture/ArchitectureTest.java#L310) | Конструкторные зависимости Spring-компонентов не образуют циклов, в том числе через интерфейсы. |
 
-#### [SourceDependencyTest](../src/test/java/org/courseflow/architecture/SourceDependencyTest.java)
-
-| Метод | Сценарий и проверяемый результат |
-|---|---|
-| [explicitCrossModuleTypeReferencesCannotGrow](../src/test/java/org/courseflow/architecture/SourceDependencyTest.java#L23) | Явные межмодульные ссылки совпадают с согласованным списком; новые ссылки и wildcard-импорты запрещены. |
-| [detectsNewTypeWithinExistingModuleDirection](../src/test/java/org/courseflow/architecture/SourceDependencyTest.java#L53) | Обнаруживается новый тип даже в уже разрешённом направлении зависимости. |
-| [detectsQualifiedReferencesWithoutImportAndIgnoresOwnModule](../src/test/java/org/courseflow/architecture/SourceDependencyTest.java#L62) | Обнаруживаются полные имена чужих типов без импорта; ссылки внутри своего модуля игнорируются. |
+`reportModuleCycles()` выводит диагностику полного графа и графа без зависимостей пакетов `entity`. Это не отдельный тест и не критерий прохождения набора.
 
 ### 8.12. Интеграционные тесты (679)
 
@@ -2224,400 +2009,400 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Сценарий | Операция и ожидаемый результат |
 |---|---|
-| [001. Login admin — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L464) (`case001`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [002. System status (ADMIN) — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L488) (`case002`) | `GET /api/system/status`; HTTP 200 — успешное выполнение |
-| [003. Anonymous actuator health — status only](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L504) (`case003`) | `GET /actuator/health`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "status"), "UP")` (`"response.body.status === \"UP\""`); Вызов `looseEq(field(response.body(), "components"), null)` (`"Health must not disclose components"`) |
-| [004. Allow configured React CORS preflight — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L516) (`case004`) | `OPTIONS /api/users/me`; HTTP 200 — успешное выполнение |
-| [005. Reject untrusted CORS origin — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L534) (`case005`) | `OPTIONS /api/users/me`; HTTP 403 — отказ в доступе |
-| [006. Register student — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L549) (`case006`) | `POST /api/auth/register`; HTTP 201 — создание объекта |
-| [007. Duplicate registration — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L572) (`case007`) | `POST /api/auth/register`; HTTP 409 — конфликт |
-| [008. Wrong password — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L596) (`case008`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
-| [009. Login student — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L621) (`case009`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [010. Own user profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L644) (`case010`) | `GET /api/users/me`; HTTP 200 — успешное выполнение |
-| [011. Guest denied — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L656) (`case011`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [012. Invalid token denied — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L661) (`case012`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [013. Student cannot list users — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L667) (`case013`) | `GET /api/users`; HTTP 403 — отказ в доступе |
-| [014. Student cannot read another user — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L681) (`case014`) | `GET /api/users/{{admin_id}}`; HTTP 403 — отказ в доступе |
-| [015. Create teacher — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L688) (`case015`) | `POST /api/users`; HTTP 201 — создание объекта |
-| [016. Login teacher — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L719) (`case016`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [017. Create temporary account — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L742) (`case017`) | `POST /api/users`; HTTP 201 — создание объекта |
-| [018. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L772) (`case018`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [019. Admin reads user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L795) (`case019`) | `GET /api/users/{{other_id}}`; HTTP 200 — успешное выполнение |
-| [020. Admin filters and sorts users — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L808) (`case020`) | `GET /api/users?q={{run_id}}&status=ACTIVE&role=STUDENT&page=0&size=10&sortBy=displayName&direction=asc`; HTTP 200 — успешное выполнение |
-| [021. Update temporary user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L836) (`case021`) | `PUT /api/users/{{other_id}}`; HTTP 200 — успешное выполнение |
-| [022. Email change revokes previous token — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L861) (`case022`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [023. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L866) (`case023`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [024. Assign temporary teacher role — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L889) (`case024`) | `PUT /api/users/{{other_id}}/roles`; HTTP 200 — успешное выполнение |
-| [025. Role change revokes previous token — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L916) (`case025`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [026. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L921) (`case026`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [027. Reject empty roles — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L944) (`case027`) | `PUT /api/users/{{other_id}}/roles`; HTTP 400 — ошибка входных данных |
-| [028. System admin cannot be deactivated — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L961) (`case028`) | `POST /api/users/{{admin_id}}/deactivate`; HTTP 409 — конфликт |
-| [029. Change student password — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L972) (`case029`) | `POST /api/auth/change-password`; HTTP 204 — успех без тела ответа |
-| [030. Password change revokes session — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L990) (`case030`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [031. Old password rejected — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L996) (`case031`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
-| [032. Login student — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1012) (`case032`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [033. Logout student — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1035) (`case033`) | `POST /api/auth/logout`; HTTP 204 — успех без тела ответа |
-| [034. Logged out token rejected — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1041) (`case034`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [035. Login student — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1047) (`case035`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [036. Forgot password unknown email — 202](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1070) (`case036`) | `POST /api/auth/forgot-password`; HTTP 202 — запрос принят |
-| [037. Reject invalid reset token — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1085) (`case037`) | `POST /api/auth/reset-password`; HTTP 400 — ошибка входных данных |
-| [038. Admin reset nonexistent account — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1101) (`case038`) | `POST /api/users/999999999/password-reset`; HTTP 404 — ресурс не найден |
-| [039. Create category — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1112) (`case039`) | `POST /api/categories`; HTTP 201 — создание объекта |
-| [040. Duplicate category — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1134) (`case040`) | `POST /api/categories`; HTTP 409 — конфликт |
-| [041. Student cannot create category — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1152) (`case041`) | `POST /api/categories`; HTTP 403 — отказ в доступе |
-| [042. Reject blank category name — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1170) (`case042`) | `POST /api/categories`; HTTP 400 — ошибка входных данных |
-| [043. Public category list and search — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1197) (`case043`) | `GET /api/categories?search=Regression%20{{run_id}}&page=0&size=5&sortBy=name&direction=desc`; HTTP 200 — успешное выполнение |
-| [044. Public category detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1212) (`case044`) | `GET /api/categories/{{category_id}}`; HTTP 200 — успешное выполнение |
-| [045. Invalid page size — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1220) (`case045`) | `GET /api/categories?size=0`; HTTP 400 — ошибка входных данных |
-| [046. Missing category — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1225) (`case046`) | `GET /api/categories/999999999`; HTTP 404 — ресурс не найден |
-| [047. Create tag — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1239) (`case047`) | `POST /api/tags`; HTTP 201 — создание объекта |
-| [048. Update tag — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1260) (`case048`) | `PUT /api/tags/{{tag_id}}`; HTTP 200 — успешное выполнение |
-| [049. Public tag detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1280) (`case049`) | `GET /api/tags/{{tag_id}}`; HTTP 200 — успешное выполнение |
-| [050. Public tags — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1288) (`case050`) | `GET /api/tags?page=0&size=10&q=reg-updated-{{run_id}}`; HTTP 200 — успешное выполнение |
-| [051. Create main course — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1296) (`case051`) | `POST /api/courses`; HTTP 201 — создание объекта |
-| [052. Update main course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1328) (`case052`) | `PUT /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
-| [053. Public course detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1357) (`case053`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
-| [054. Course search treats percent literally — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1369) (`case054`) | `GET /api/courses?q=%25&categoryId={{category_id}}`; HTTP 200 — успешное выполнение |
-| [055. Public filtered course list — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1375) (`case055`) | `GET /api/courses?q={{run_id}}&categoryId={{category_id}}&teacherId={{teacher_id}}&status=ACTIVE&page=0&size=10`; HTTP 200 — успешное выполнение |
-| [056. Other teacher cannot edit course — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1389) (`case056`) | `PUT /api/courses/{{course_id}}`; HTTP 403 — отказ в доступе |
-| [057. Create temporary course — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1411) (`case057`) | `POST /api/courses`; HTTP 201 — создание объекта |
-| [058. Admin reassigns temporary course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1440) (`case058`) | `PUT /api/courses/{{temp_course_id}}/teacher`; HTTP 200 — успешное выполнение |
-| [059. Archive temporary course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1464) (`case059`) | `POST /api/courses/{{temp_course_id}}/archive`; HTTP 200 — успешное выполнение |
-| [060. Cannot enroll in archived course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1477) (`case060`) | `POST /api/courses/{{temp_course_id}}/enrollments`; HTTP 409 — конфликт |
-| [061. Delete empty archived course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1493) (`case061`) | `DELETE /api/courses/{{temp_course_id}}`; HTTP 204 — успех без тела ответа |
-| [062. Deleted course not found — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1504) (`case062`) | `GET /api/courses/{{temp_course_id}}`; HTTP 404 — ресурс не найден |
-| [063. Attach tag to course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1509) (`case063`) | `POST /api/courses/{{course_id}}/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
-| [064. List attached tags — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1520) (`case064`) | `GET /api/courses/{{course_id}}/tags`; HTTP 200 — успешное выполнение |
-| [065. Cannot delete attached tag — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1528) (`case065`) | `DELETE /api/tags/{{tag_id}}`; HTTP 409 — конфликт |
-| [066. Detach tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1534) (`case066`) | `DELETE /api/courses/{{course_id}}/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
-| [067. Delete unused tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1545) (`case067`) | `DELETE /api/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
-| [068. Create module — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1551) (`case068`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
-| [069. Reject duplicate module position — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1577) (`case069`) | `POST /api/courses/{{course_id}}/modules`; HTTP 409 — конфликт |
-| [070. Create temporary module — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1596) (`case070`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
-| [071. Update module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1618) (`case071`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}`; HTTP 200 — успешное выполнение |
-| [072. Reorder module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1643) (`case072`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/position`; HTTP 200 — успешное выполнение |
-| [073. Read module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1665) (`case073`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}`; HTTP 200 — успешное выполнение |
-| [074. List modules — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1677) (`case074`) | `GET /api/courses/{{course_id}}/modules`; HTTP 200 — успешное выполнение |
-| [075. Create lesson — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1699) (`case075`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
-| [076. Create temporary lesson — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1726) (`case076`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
-| [077. Update lesson — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1748) (`case077`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 200 — успешное выполнение |
-| [078. Reject unsafe video URL — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1771) (`case078`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 400 — ошибка входных данных |
-| [079. Reject oversized lesson content — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1784) (`case079`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 400 — ошибка входных данных |
-| [080. Reorder lesson — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1798) (`case080`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}/position`; HTTP 200 — успешное выполнение |
-| [081. Delete empty lesson — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1820) (`case081`) | `DELETE /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{temp_lesson_id}}`; HTTP 204 — успех без тела ответа |
-| [082. Read lesson — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1831) (`case082`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 200 — успешное выполнение |
-| [083. List lessons — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1854) (`case083`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 200 — успешное выполнение |
-| [084. Unenrolled student cannot read lessons — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1881) (`case084`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 403 — отказ в доступе |
-| [085. Create session — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1892) (`case085`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 201 — создание объекта |
-| [086. Reject overlapping session — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1919) (`case086`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 409 — конфликт |
-| [087. Update session — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1939) (`case087`) | `PUT /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
-| [088. Reschedule session — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1966) (`case088`) | `PATCH /api/lessons/{{lesson_id}}/sessions/{{session_id}}/time`; HTTP 200 — успешное выполнение |
-| [089. Session detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1991) (`case089`) | `GET /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
-| [090. List sessions — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2005) (`case090`) | `GET /api/lessons/{{lesson_id}}/sessions`; HTTP 200 — успешное выполнение |
-| [091. ONLINE session requires a link — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2022) (`case091`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
-| [092. Reject unsafe meeting link — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2035) (`case092`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
-| [093. OFFLINE session must not have link — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2048) (`case093`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
-| [094. Create temporary offline session — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2061) (`case094`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 201 — создание объекта |
-| [095. Delete temporary session — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2083) (`case095`) | `DELETE /api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}`; HTTP 204 — успех без тела ответа |
-| [096. Enroll student — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2094) (`case096`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 201 — создание объекта |
-| [097. Repeat enrollment idempotently — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2114) (`case097`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 200 — успешное выполнение |
-| [098. Teacher cannot enroll in own course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2128) (`case098`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 409 — конфликт |
-| [099. My enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2139) (`case099`) | `GET /api/courses/{{course_id}}/enrollments/me`; HTTP 200 — успешное выполнение |
-| [100. Course roster — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2153) (`case100`) | `GET /api/courses/{{course_id}}/enrollments?status=ACTIVE&page=0&size=10`; HTTP 200 — успешное выполнение |
-| [101. My enrollments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2170) (`case101`) | `GET /api/users/me/enrollments?status=ACTIVE`; HTTP 200 — успешное выполнение |
-| [102. Student reads enrolled modules — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2187) (`case102`) | `GET /api/courses/{{course_id}}/modules`; HTTP 200 — успешное выполнение |
-| [103. Student reads enrolled lessons — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2203) (`case103`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 200 — успешное выполнение |
-| [104. Student reads schedule — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2219) (`case104`) | `GET /api/lessons/{{lesson_id}}/sessions`; HTTP 200 — успешное выполнение |
-| [105. Student cannot read roster — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2236) (`case105`) | `GET /api/courses/{{course_id}}/enrollments`; HTTP 403 — отказ в доступе |
-| [106. Other teacher cannot read roster — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2247) (`case106`) | `GET /api/courses/{{course_id}}/enrollments`; HTTP 403 — отказ в доступе |
-| [107. Create assignment — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2258) (`case107`) | `POST /api/lessons/{{lesson_id}}/assignments`; HTTP 201 — создание объекта |
-| [108. Update assignment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2292) (`case108`) | `PUT /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 200 — успешное выполнение |
-| [109. Create second assignment — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2317) (`case109`) | `POST /api/lessons/{{lesson_id}}/assignments`; HTTP 201 — создание объекта |
-| [110. Create temporary assignment — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2340) (`case110`) | `POST /api/lessons/{{lesson_id}}/assignments`; HTTP 201 — создание объекта |
-| [111. Delete unused assignment — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2363) (`case111`) | `DELETE /api/lessons/{{lesson_id}}/assignments/{{temp_assignment_id}}`; HTTP 204 — успех без тела ответа |
-| [112. Read assignment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2374) (`case112`) | `GET /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 200 — успешное выполнение |
-| [113. List assignments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2388) (`case113`) | `GET /api/lessons/{{lesson_id}}/assignments`; HTTP 200 — успешное выполнение |
-| [114. Unenrolled user cannot submit — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2412) (`case114`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 403 — отказ в доступе |
-| [115. Submit homework — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2434) (`case115`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 201 — создание объекта |
-| [116. Reject duplicate homework — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2467) (`case116`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 409 — конфликт |
-| [117. Read own submission — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2498) (`case117`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
-| [118. Teacher lists pending work — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2512) (`case118`) | `GET /api/assignments/{{assignment_id}}/submissions?status=SUBMITTED`; HTTP 200 — успешное выполнение |
-| [119. Student cannot list submissions — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2529) (`case119`) | `GET /api/assignments/{{assignment_id}}/submissions`; HTTP 403 — отказ в доступе |
-| [120. Other teacher cannot list submissions — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2540) (`case120`) | `GET /api/assignments/{{assignment_id}}/submissions`; HTTP 403 — отказ в доступе |
-| [121. Reject score above maximum — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2551) (`case121`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 400 — ошибка входных данных |
-| [122. Teacher dashboard pending queue — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2573) (`case122`) | `GET /api/dashboard/teacher`; HTTP 200 — успешное выполнение |
-| [123. Grade homework — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2600) (`case123`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 200 — успешное выполнение |
-| [124. Cannot edit submitted assignment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2624) (`case124`) | `PUT /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 409 — конфликт |
-| [125. Cannot delete submitted assignment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2644) (`case125`) | `DELETE /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 409 — конфликт |
-| [126. Create quiz — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2661) (`case126`) | `POST /api/modules/{{module_id}}/quiz`; HTTP 201 — создание объекта |
-| [127. Read quiz by module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2689) (`case127`) | `GET /api/modules/{{module_id}}/quiz`; HTTP 200 — успешное выполнение |
-| [128. Update quiz settings — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2703) (`case128`) | `PUT /api/quizzes/{{quiz_id}}`; HTTP 200 — успешное выполнение |
-| [129. Read quiz — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2727) (`case129`) | `GET /api/quizzes/{{quiz_id}}`; HTTP 200 — успешное выполнение |
-| [130. Reject second quiz in same module — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2737) (`case130`) | `POST /api/modules/{{module_id}}/quiz`; HTTP 409 — конфликт |
-| [131. Create temporary quiz — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2760) (`case131`) | `POST /api/modules/{{temp_module_id}}/quiz`; HTTP 201 — создание объекта |
-| [132. Cannot start empty quiz — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2781) (`case132`) | `POST /api/quizzes/{{temp_quiz_id}}/attempts`; HTTP 409 — конфликт |
-| [133. Create single choice question — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2792) (`case133`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 201 — создание объекта |
-| [134. Create multiple choice question — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2847) (`case134`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 201 — создание объекта |
-| [135. Reject duplicate question position — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2902) (`case135`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 409 — конфликт |
-| [136. Create temporary question — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2935) (`case136`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 201 — создание объекта |
-| [137. Update temporary question — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2975) (`case137`) | `PUT /api/quizzes/{{quiz_id}}/questions/{{temp_question_id}}`; HTTP 200 — успешное выполнение |
-| [138. Delete temporary question — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3015) (`case138`) | `DELETE /api/quizzes/{{quiz_id}}/questions/{{temp_question_id}}`; HTTP 204 — успех без тела ответа |
-| [139. Create question in temporary quiz — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3026) (`case139`) | `POST /api/quizzes/{{temp_quiz_id}}/questions`; HTTP 201 — создание объекта |
-| [140. Delete unused quiz with questions — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3059) (`case140`) | `DELETE /api/quizzes/{{temp_quiz_id}}`; HTTP 204 — успех без тела ответа |
-| [141. Delete empty temporary module — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3070) (`case141`) | `DELETE /api/courses/{{course_id}}/modules/{{temp_module_id}}`; HTTP 204 — успех без тела ответа |
-| [142. Reject multiple choice without distractor — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3081) (`case142`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 400 — ошибка входных данных |
-| [143. Teacher reads questions with answers — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3094) (`case143`) | `GET /api/quizzes/{{quiz_id}}/questions/manage`; HTTP 200 — успешное выполнение |
-| [144. Questions unavailable before active attempt — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3136) (`case144`) | `GET /api/quizzes/{{quiz_id}}/questions`; HTTP 409 — конфликт |
-| [145. Student cannot read answer keys — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3147) (`case145`) | `GET /api/quizzes/{{quiz_id}}/questions/manage`; HTTP 403 — отказ в доступе |
-| [146. Start attempt 1 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3158) (`case146`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 201 — создание объекта |
-| [147. Student reads questions without correct flags — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3183) (`case147`) | `GET /api/quizzes/{{quiz_id}}/questions`; HTTP 200 — успешное выполнение |
-| [148. Progress identifies active quiz — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3210) (`case148`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [149. Gradebook identifies active quiz — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3230) (`case149`) | `GET /api/courses/{{course_id}}/gradebook`; HTTP 200 — успешное выполнение |
-| [150. Reject oversized quiz answer list — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3249) (`case150`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 400 — ошибка входных данных |
-| [151. Resume same attempt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3263) (`case151`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 200 — успешное выполнение |
-| [152. Read ongoing attempt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3277) (`case152`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}`; HTTP 200 — успешное выполнение |
-| [153. Freeze quiz after attempt starts — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3291) (`case153`) | `PUT /api/quizzes/{{quiz_id}}`; HTTP 409 — конфликт |
-| [154. Reject answer from another question — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3310) (`case154`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 400 — ошибка входных данных |
-| [155. Submit perfect attempt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3334) (`case155`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 200 — успешное выполнение |
-| [156. Reject duplicate attempt submission — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3369) (`case156`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 409 — конфликт |
-| [157. Start second attempt — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3406) (`case157`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 201 — создание объекта |
-| [158. Submit partial result — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3421) (`case158`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt2_id}}/submit`; HTTP 200 — успешное выполнение |
-| [159. Reject attempt above limit — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3453) (`case159`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 409 — конфликт |
-| [160. Student attempt history — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3469) (`case160`) | `GET /api/quizzes/{{quiz_id}}/attempts/me?status=SUBMITTED&page=0&size=10`; HTTP 200 — успешное выполнение |
-| [161. Teacher quiz results — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3493) (`case161`) | `GET /api/quizzes/{{quiz_id}}/attempts?status=SUBMITTED`; HTTP 200 — успешное выполнение |
-| [162. Own attempt detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3505) (`case162`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/result`; HTTP 200 — успешное выполнение |
-| [163. Management attempt detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3522) (`case163`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/manage`; HTTP 200 — успешное выполнение |
-| [164. Student cannot access management result — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3536) (`case164`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/manage`; HTTP 403 — отказ в доступе |
-| [165. Other student cannot read attempt — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3547) (`case165`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}`; HTTP 404 — ресурс не найден |
-| [166. Questions unavailable after final attempt — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3558) (`case166`) | `GET /api/quizzes/{{quiz_id}}/questions`; HTTP 409 — конфликт |
-| [167. Cannot delete quiz with attempts — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3569) (`case167`) | `DELETE /api/quizzes/{{quiz_id}}`; HTTP 409 — конфликт |
-| [168. Create review — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3580) (`case168`) | `POST /api/courses/{{course_id}}/reviews`; HTTP 201 — создание объекта |
-| [169. Reject duplicate review — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3607) (`case169`) | `POST /api/courses/{{course_id}}/reviews`; HTTP 409 — конфликт |
-| [170. Update own review — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3625) (`case170`) | `PUT /api/courses/{{course_id}}/reviews/me`; HTTP 200 — успешное выполнение |
-| [171. Read own review — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3644) (`case171`) | `GET /api/courses/{{course_id}}/reviews/me`; HTTP 200 — успешное выполнение |
-| [172. Public course reviews — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3658) (`case172`) | `GET /api/courses/{{course_id}}/reviews?page=0&size=10`; HTTP 200 — успешное выполнение |
-| [173. Public aggregate rating — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3672) (`case173`) | `GET /api/courses/{{course_id}}/reviews/rating`; HTTP 200 — успешное выполнение |
-| [174. Delete own review — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3679) (`case174`) | `DELETE /api/courses/{{course_id}}/reviews/me`; HTTP 204 — успех без тела ответа |
-| [175. Empty aggregate rating — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3690) (`case175`) | `GET /api/courses/{{course_id}}/reviews/rating`; HTTP 200 — успешное выполнение |
-| [176. Restore review — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3698) (`case176`) | `POST /api/courses/{{course_id}}/reviews`; HTTP 201 — создание объекта |
-| [177. Gradebook with both assessment types — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3716) (`case177`) | `GET /api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE&page=0&size=10`; HTTP 200 — успешное выполнение |
-| [178. Admin filtered gradebook — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3755) (`case178`) | `GET /api/courses/{{course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=GRADED&moduleId={{module_id}}`; HTTP 200 — успешное выполнение |
-| [179. Student cannot read gradebook — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3772) (`case179`) | `GET /api/courses/{{course_id}}/gradebook`; HTTP 403 — отказ в доступе |
-| [180. Other teacher cannot read gradebook — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3783) (`case180`) | `GET /api/courses/{{course_id}}/gradebook`; HTTP 403 — отказ в доступе |
-| [181. Student progress — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3794) (`case181`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [182. Student dashboard — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3824) (`case182`) | `GET /api/dashboard/student`; HTTP 200 — успешное выполнение |
-| [183. Teacher dashboard graded work removed — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3885) (`case183`) | `GET /api/dashboard/teacher`; HTTP 200 — успешное выполнение |
-| [184. Admin dashboard — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3930) (`case184`) | `GET /api/dashboard/admin`; HTTP 200 — успешное выполнение |
-| [185. Student cannot access admin dashboard — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3968) (`case185`) | `GET /api/dashboard/admin`; HTTP 403 — отказ в доступе |
-| [186. Student cannot access teacher dashboard — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3974) (`case186`) | `GET /api/dashboard/teacher`; HTTP 403 — отказ в доступе |
-| [187. Admin without student role denied — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3980) (`case187`) | `GET /api/dashboard/student`; HTTP 403 — отказ в доступе |
-| [188. Withdraw from course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3986) (`case188`) | `DELETE /api/courses/{{course_id}}/enrollments/me`; HTTP 204 — успех без тела ответа |
-| [189. Withdrawn student denied content — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3997) (`case189`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 403 — отказ в доступе |
-| [190. Submission history retained — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4008) (`case190`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
-| [191. Progress history retained — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4020) (`case191`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [192. Withdrawn student in gradebook — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4043) (`case192`) | `GET /api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN`; HTTP 200 — успешное выполнение |
-| [193. Dashboard excludes withdrawn course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4063) (`case193`) | `GET /api/dashboard/student`; HTTP 200 — успешное выполнение |
-| [194. Admin enrollment count updated — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4081) (`case194`) | `GET /api/dashboard/admin`; HTTP 200 — успешное выполнение |
-| [195. Restore enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4097) (`case195`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 200 — успешное выполнение |
-| [196. Restored student access — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4112) (`case196`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 200 — успешное выполнение |
-| [197. Restored admin count — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4128) (`case197`) | `GET /api/dashboard/admin`; HTTP 200 — успешное выполнение |
-| [198. Cannot remove TEACHER with assigned course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4139) (`case198`) | `PUT /api/users/{{teacher_id}}/roles`; HTTP 409 — конфликт |
-| [199. Cannot remove STUDENT with active enrollment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4152) (`case199`) | `PUT /api/users/{{student_id}}/roles`; HTTP 409 — конфликт |
-| [200. Teacher cannot submit homework in own course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4165) (`case200`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 409 — конфликт |
-| [201. Other teacher enrolls as student — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4178) (`case201`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 201 — создание объекта |
-| [202. Cannot reassign course to enrolled student — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4190) (`case202`) | `PUT /api/courses/{{course_id}}/teacher`; HTTP 409 — конфликт |
-| [203. Cannot update course with enrolled student as teacher — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4203) (`case203`) | `PUT /api/courses/{{course_id}}`; HTTP 409 — конфликт |
-| [204. Teacher cannot administratively withdraw student — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4225) (`case204`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 403 — отказ в доступе |
-| [205. Student cannot administratively withdraw student — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4236) (`case205`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 403 — отказ в доступе |
-| [206. Cannot delete course with history — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4247) (`case206`) | `DELETE /api/courses/{{course_id}}`; HTTP 409 — конфликт |
-| [207. Cannot delete active account — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4258) (`case207`) | `DELETE /api/users/{{other_id}}`; HTTP 409 — конфликт |
-| [208. Deactivate temporary account — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4265) (`case208`) | `POST /api/users/{{other_id}}/deactivate`; HTTP 200 — успешное выполнение |
-| [209. Deactivation revokes JWT — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4278) (`case209`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [210. Login other — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4283) (`case210`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
-| [211. Cannot delete inactive user with active enrollment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4299) (`case211`) | `DELETE /api/users/{{other_id}}`; HTTP 409 — конфликт |
-| [212. Admin withdraws inactive student — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4306) (`case212`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 204 — успех без тела ответа |
-| [213. Admin withdrawal is idempotent — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4317) (`case213`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 204 — успех без тела ответа |
-| [214. Admin sees withdrawn enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4328) (`case214`) | `GET /api/courses/{{course_id}}/enrollments?status=WITHDRAWN&page=0&size=10`; HTTP 200 — успешное выполнение |
-| [215. Reactivate temporary account — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4347) (`case215`) | `POST /api/users/{{other_id}}/activate`; HTTP 200 — успешное выполнение |
-| [216. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4359) (`case216`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [217. Deactivate before deletion — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4382) (`case217`) | `POST /api/users/{{other_id}}/deactivate`; HTTP 200 — успешное выполнение |
-| [218. Delete inactive account — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4393) (`case218`) | `DELETE /api/users/{{other_id}}`; HTTP 204 — успех без тела ответа |
-| [219. Deleted user preserved as archive — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4400) (`case219`) | `GET /api/users/{{other_id}}`; HTTP 200 — успешное выполнение |
-| [220. Login other — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4407) (`case220`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
-| [221. Deleted account cannot be activated — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4423) (`case221`) | `POST /api/users/{{other_id}}/activate`; HTTP 409 — конфликт |
-| [222. Final student progress — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4434) (`case222`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [223. Unknown login email — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4451) (`case223`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
-| [224. Oversized login password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4462) (`case224`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
-| [225. Oversized UTF-8 login password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4473) (`case225`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
-| [226. Oversized current password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4484) (`case226`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
-| [227. Unknown API denied — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4497) (`case227`) | `GET /api/regression-unknown-endpoint`; HTTP 403 — отказ в доступе |
-| [228. HEAD administrative dashboard denied for student — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4508) (`case228`) | HTTP 403 — отказ в доступе |
-| [229. Create mixed-case tag — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4514) (`case229`) | `POST /api/tags`; HTTP 201 — создание объекта |
-| [230. Reject case-insensitive duplicate tag — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4531) (`case230`) | `POST /api/tags`; HTTP 409 — конфликт |
-| [231. Delete invariant test tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4544) (`case231`) | `DELETE /api/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
-| [232. Update category — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4550) (`case232`) | `PUT /api/categories/{{category_id}}`; HTTP 200 — успешное выполнение |
-| [233. Student cannot update category — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4566) (`case233`) | `PUT /api/categories/{{category_id}}`; HTTP 403 — отказ в доступе |
-| [234. Cannot delete category referenced by course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4579) (`case234`) | `DELETE /api/categories/{{category_id}}`; HTTP 409 — конфликт |
-| [235. Create temporary category — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4590) (`case235`) | `POST /api/categories`; HTTP 201 — создание объекта |
-| [236. Cannot rename category to existing name — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4607) (`case236`) | `PUT /api/categories/{{temp_category_id}}`; HTTP 409 — конфликт |
-| [237. Delete unused category — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4620) (`case237`) | `DELETE /api/categories/{{temp_category_id}}`; HTTP 204 — успех без тела ответа |
-| [238. Deleted category not found — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4631) (`case238`) | `GET /api/categories/{{temp_category_id}}`; HTTP 404 — ресурс не найден |
-| [239. Read empty own profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4636) (`case239`) | `GET /api/users/me/profile`; HTTP 200 — успешное выполнение |
-| [240. Create own profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4648) (`case240`) | `PUT /api/users/me/profile`; HTTP 200 — успешное выполнение |
-| [241. Read persisted profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4664) (`case241`) | `GET /api/users/me/profile`; HTTP 200 — успешное выполнение |
-| [242. Reject unsafe avatar URL — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4676) (`case242`) | `PUT /api/users/me/profile`; HTTP 400 — ошибка входных данных |
-| [243. Teacher has separate profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4689) (`case243`) | `GET /api/users/me/profile`; HTTP 200 — успешное выполнение |
-| [244. Anonymous profile denied — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4699) (`case244`) | `GET /api/users/me/profile`; HTTP 401 — отказ в аутентификации |
-| [245. Public teacher identity — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4704) (`case245`) | `GET /api/teachers/{{teacher_id}}`; HTTP 200 — успешное выполнение |
-| [246. Non-teacher not published — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4721) (`case246`) | `GET /api/teachers/{{student_id}}`; HTTP 404 — ресурс не найден |
-| [247. My current assignments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4726) (`case247`) | `GET /api/users/me/assignments?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [248. My pending assignments filter — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4752) (`case248`) | `GET /api/users/me/assignments?status=NOT_SUBMITTED&page=0&size=1`; HTTP 200 — успешное выполнение |
-| [249. My graded submissions — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4769) (`case249`) | `GET /api/users/me/submissions?courseId={{course_id}}&status=GRADED`; HTTP 200 — успешное выполнение |
-| [250. My quiz attempt history — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4789) (`case250`) | `GET /api/users/me/quiz-attempts?courseId={{course_id}}&status=SUBMITTED&page=0&size=1`; HTTP 200 — успешное выполнение |
-| [251. Invalid page size rejected — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4812) (`case251`) | `GET /api/users/me/assignments?size=101`; HTTP 400 — ошибка входных данных |
-| [252. Admin without student role denied history — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4823) (`case252`) | `GET /api/users/me/submissions`; HTTP 403 — отказ в доступе |
-| [253. Other student cannot see submissions — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4830) (`case253`) | `GET /api/users/me/submissions?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [254. Other student cannot see quiz attempts — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4842) (`case254`) | `GET /api/users/me/quiz-attempts?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [255. Withdraw to verify global history — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4854) (`case255`) | `DELETE /api/courses/{{course_id}}/enrollments/me`; HTTP 204 — успех без тела ответа |
-| [256. Current assignments hidden after withdrawal — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4865) (`case256`) | `GET /api/users/me/assignments?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [257. Submission history survives withdrawal — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4877) (`case257`) | `GET /api/users/me/submissions?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [258. Quiz history survives withdrawal — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4892) (`case258`) | `GET /api/users/me/quiz-attempts?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
-| [259. Restore enrollment after history checks — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4904) (`case259`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 200 — успешное выполнение |
-| [260. Create course for archived dashboard check — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4915) (`case260`) | `POST /api/courses`; HTTP 201 — создание объекта |
-| [261. Create second course module for schedule test — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4931) (`case261`) | `POST /api/courses/{{temp_course_id}}/modules`; HTTP 201 — создание объекта |
-| [262. Create second course lesson for schedule test — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4947) (`case262`) | `POST /api/courses/{{temp_course_id}}/modules/{{temp_module_id}}/lessons`; HTTP 201 — создание объекта |
-| [263. Reject teacher schedule overlap across courses — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4963) (`case263`) | `POST /api/lessons/{{temp_lesson_id}}/sessions`; HTTP 409 — конфликт |
-| [264. Delete temporary schedule lesson — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4976) (`case264`) | `DELETE /api/courses/{{temp_course_id}}/modules/{{temp_module_id}}/lessons/{{temp_lesson_id}}`; HTTP 204 — успех без тела ответа |
-| [265. Delete temporary schedule module — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4987) (`case265`) | `DELETE /api/courses/{{temp_course_id}}/modules/{{temp_module_id}}`; HTTP 204 — успех без тела ответа |
-| [266. Enroll in course before archive — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4998) (`case266`) | `POST /api/courses/{{temp_course_id}}/enrollments`; HTTP 201 — создание объекта |
-| [267. Archive course with active enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5009) (`case267`) | `POST /api/courses/{{temp_course_id}}/archive`; HTTP 200 — успешное выполнение |
-| [268. Dashboard excludes archived active enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5022) (`case268`) | `GET /api/dashboard/student`; HTTP 200 — успешное выполнение |
-| [269. Withdraw from archived course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5039) (`case269`) | `DELETE /api/courses/{{temp_course_id}}/enrollments/me`; HTTP 204 — успех без тела ответа |
-| [270. OpenAPI describes every REST operation — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5050) (`case270`) | `GET /v3/api-docs`; HTTP 200 — успешное выполнение |
-| [271. Swagger UI static page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5291) (`case271`) | `GET /swagger-ui/index.html`; HTTP 200 — успешное выполнение |
-| [272. Swagger configuration — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5299) (`case272`) | `GET /v3/api-docs/swagger-config`; HTTP 200 — успешное выполнение |
-| [273. Canonical category search parameter q — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5304) (`case273`) | `GET /api/categories?q=Regression%20updated%20{{run_id}}&page=0&size=5&sortBy=name&direction=asc`; HTTP 200 — успешное выполнение |
-| [274. Reject unsupported login content type — 415](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5319) (`case274`) | `POST /api/auth/login`; HTTP 415 — неподдерживаемый формат |
-| [275. Reject malformed JSON — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5330) (`case275`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
-| [276. Admin creates account with temporary password — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5342) (`case276`) | `POST /api/users`; HTTP 201 — создание объекта |
-| [277. Login requires password change — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5355) (`case277`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [278. Restricted JWT cannot access own user endpoint — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5372) (`case278`) | `GET /api/users/me`; HTTP 403 — отказ в доступе |
-| [279. Restricted JWT cannot use STUDENT dashboard — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5378) (`case279`) | `GET /api/dashboard/student`; HTTP 403 — отказ в доступе |
-| [280. Temporary password cannot be reused — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5389) (`case280`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
-| [281. Change temporary password — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5402) (`case281`) | `POST /api/auth/change-password`; HTTP 204 — успех без тела ответа |
-| [282. Restricted JWT revoked after change — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5415) (`case282`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
-| [283. Login with new password — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5421) (`case283`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [284. Full access restored — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5438) (`case284`) | `GET /api/users/me`; HTTP 200 — успешное выполнение |
-| [285. Get current version of main course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5445) (`case285`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
-| [286. Update using current version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5456) (`case286`) | `PUT /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
-| [287. Reject stale version — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5475) (`case287`) | `PUT /api/courses/{{course_id}}`; HTTP 409 — конфликт |
-| [288. Reject missing version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5495) (`case288`) | `PUT /api/courses/{{course_id}}`; HTTP 400 — ошибка входных данных |
-| [289. Verify stale update did not overwrite course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5508) (`case289`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
-| [290. Category case-insensitive duplicate — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5516) (`case290`) | `POST /api/categories`; HTTP 409 — конфликт |
-| [291. Category stale update — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5529) (`case291`) | `PUT /api/categories/{{category_id}}`; HTTP 409 — конфликт |
-| [292. Category missing version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5545) (`case292`) | `PUT /api/categories/{{category_id}}`; HTTP 400 — ошибка входных данных |
-| [293. Category remains unchanged — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5558) (`case293`) | `GET /api/categories/{{category_id}}`; HTTP 200 — успешное выполнение |
-| [294. Create version test tag — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5569) (`case294`) | `POST /api/tags`; HTTP 201 — создание объекта |
-| [295. Tag update with valid version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5589) (`case295`) | `PUT /api/tags/{{version_test_tag_id}}`; HTTP 200 — успешное выполнение |
-| [296. Stale tag update — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5605) (`case296`) | `PUT /api/tags/{{version_test_tag_id}}`; HTTP 409 — конфликт |
-| [297. Tag update missing version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5621) (`case297`) | `PUT /api/tags/{{version_test_tag_id}}`; HTTP 400 — ошибка входных данных |
-| [298. Tag name remains unchanged — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5634) (`case298`) | `GET /api/tags/{{version_test_tag_id}}`; HTTP 200 — успешное выполнение |
-| [299. Delete version test tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5642) (`case299`) | `DELETE /api/tags/{{version_test_tag_id}}`; HTTP 204 — успех без тела ответа |
-| [300. Read quiz history sorted by effective status — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5653) (`case300`) | `GET /api/quizzes/{{quiz_id}}/attempts/me?status=SUBMITTED&sortBy=status&direction=asc&page=0&size=10`; `GET /api/quizzes/{{quiz_id}}/attempts/me?status=IN_PROGRESS&page=0&size=10`; HTTP 200 — успешное выполнение |
-| [301. Read quiz history sorted by effective finishedAt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5682) (`case301`) | `GET /api/quizzes/{{quiz_id}}/attempts/me?sortBy=finishedAt&direction=desc&page=0&size=10`; HTTP 200 — успешное выполнение |
-| [302. Cannot deactivate teacher with active courses — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5701) (`case302`) | `POST /api/users/{{teacher_id}}/deactivate`; HTTP 409 — конфликт |
-| [303. Teacher remains active — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5712) (`case303`) | `GET /api/users/{{teacher_id}}`; HTTP 200 — успешное выполнение |
-| [304. Cannot archive course with future session — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5720) (`case304`) | `POST /api/courses/{{course_id}}/archive`; HTTP 409 — конфликт |
-| [305. Course remains active — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5731) (`case305`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
-| [306. Cannot change course teacher through ordinary update — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5742) (`case306`) | `PUT /api/courses/{{course_id}}`; HTTP 409 — конфликт |
-| [307. Cannot create session in past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5758) (`case307`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
-| [308. Read session version for date validation — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5771) (`case308`) | `GET /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
-| [309. Cannot update session into past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5785) (`case309`) | `PUT /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 400 — ошибка входных данных |
-| [310. Cannot reschedule session into past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5798) (`case310`) | `PATCH /api/lessons/{{lesson_id}}/sessions/{{session_id}}/time`; HTTP 400 — ошибка входных данных |
-| [311. Rejected changes preserve session — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5811) (`case311`) | `GET /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
-| [312. Create module at position 3 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5828) (`case312`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
-| [313. Create module at position 4 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5845) (`case313`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
-| [314. Read current module position and version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5862) (`case314`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}`; HTTP 200 — успешное выполнение |
-| [315. Move module forward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5877) (`case315`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/position`; HTTP 200 — успешное выполнение |
-| [316. Check module positions after forward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5894) (`case316`) | `GET /api/courses/{{course_id}}/modules?page=0&size=100`; HTTP 200 — успешное выполнение |
-| [317. Move module backward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5929) (`case317`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/position`; HTTP 200 — успешное выполнение |
-| [318. Check module positions after backward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5946) (`case318`) | `GET /api/courses/{{course_id}}/modules?page=0&size=100`; HTTP 200 — успешное выполнение |
-| [319. Reject stale version of shifted module — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5981) (`case319`) | `PATCH /api/courses/{{course_id}}/modules/{{cf614_module3_id}}/position`; HTTP 409 — конфликт |
-| [320. Delete temporary module at position 3 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5994) (`case320`) | `DELETE /api/courses/{{course_id}}/modules/{{cf614_module3_id}}`; HTTP 204 — успех без тела ответа |
-| [321. Delete temporary module at position 4 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6005) (`case321`) | `DELETE /api/courses/{{course_id}}/modules/{{cf614_module4_id}}`; HTTP 204 — успех без тела ответа |
-| [322. Create lesson at position 3 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6016) (`case322`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
-| [323. Create lesson at position 4 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6033) (`case323`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
-| [324. Read current lesson position and version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6050) (`case324`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 200 — успешное выполнение |
-| [325. Move lesson forward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6065) (`case325`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}/position`; HTTP 200 — успешное выполнение |
-| [326. Check lesson positions after forward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6082) (`case326`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons?page=0&size=100`; HTTP 200 — успешное выполнение |
-| [327. Move lesson backward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6117) (`case327`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}/position`; HTTP 200 — успешное выполнение |
-| [328. Check lesson positions after backward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6134) (`case328`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons?page=0&size=100`; HTTP 200 — успешное выполнение |
-| [329. Reject stale version of shifted lesson — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6169) (`case329`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{cf614_lesson3_id}}/position`; HTTP 409 — конфликт |
-| [330. Delete temporary lesson at position 3 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6182) (`case330`) | `DELETE /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{cf614_lesson3_id}}`; HTTP 204 — успех без тела ответа |
-| [331. Delete temporary lesson at position 4 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6193) (`case331`) | `DELETE /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{cf614_lesson4_id}}`; HTTP 204 — успех без тела ответа |
-| [332. Gradebook first column page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6204) (`case332`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=0&columnSize=1`; HTTP 200 — успешное выполнение |
-| [333. Gradebook second column page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6239) (`case333`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=1&columnSize=1`; HTTP 200 — успешное выполнение |
-| [334. Gradebook quiz column page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6277) (`case334`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=2&columnSize=1`; HTTP 200 — успешное выполнение |
-| [335. Gradebook column page out of range — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6304) (`case335`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=3&columnSize=1`; HTTP 200 — успешное выполнение |
-| [336. Gradebook filter counts only quiz columns — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6331) (`case336`) | `GET /api/courses/{{course_id}}/gradebook?type=QUIZ&columnSize=1`; HTTP 200 — успешное выполнение |
-| [337. Reject invalid gradebook column size — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6350) (`case337`) | `GET /api/courses/{{course_id}}/gradebook?columnSize=101`; HTTP 400 — ошибка входных данных |
-| [338. Reject negative gradebook column page — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6361) (`case338`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=-1`; HTTP 400 — ошибка входных данных |
-| [339. Progress list returns summaries — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6372) (`case339`) | `GET /api/users/me/progress`; HTTP 200 — успешное выполнение |
-| [340. Progress details first page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6399) (`case340`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=0&detailSize=1`; HTTP 200 — успешное выполнение |
-| [341. Progress details second page preserves totals — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6430) (`case341`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=1&detailSize=1`; HTTP 200 — успешное выполнение |
-| [342. Progress details out of range preserve totals — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6457) (`case342`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=2&detailSize=1`; HTTP 200 — успешное выполнение |
-| [343. Progress explicit summary for course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6478) (`case343`) | `GET /api/users/me/progress?courseId={{course_id}}&includeDetails=false`; HTTP 200 — успешное выполнение |
-| [344. Reject unscoped progress details — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6498) (`case344`) | `GET /api/users/me/progress?includeDetails=true`; HTTP 400 — ошибка входных данных |
-| [345. Reject invalid progress detail size — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6509) (`case345`) | `GET /api/users/me/progress?courseId={{course_id}}&detailSize=101`; HTTP 400 — ошибка входных данных |
-| [346. Reject negative progress detail page — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6520) (`case346`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=-1`; HTTP 400 — ошибка входных данных |
-| [347. Progress detail page overflow rejected — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6531) (`case347`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=2147483647&detailSize=100`; HTTP 400 — ошибка входных данных |
-| [348. Anonymous liveness](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6542) (`case348`) | `GET /actuator/health/liveness`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "status"), "UP")` (`"response.body.status === \"UP\""`); Вызов `looseEq(field(response.body(), "components"), null)` (`"Probe must not disclose components"`) |
-| [349. Anonymous readiness](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6551) (`case349`) | `GET /actuator/health/readiness`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "status"), "UP")` (`"response.body.status === \"UP\""`); Вызов `looseEq(field(response.body(), "components"), null)` (`"Probe must not disclose components"`) |
-| [350. Health component details denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6560) (`case350`) | `GET /actuator/health/db`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 401)` (`plus("Expected 401, got ", response.status())`) |
-| [351. Anonymous metrics denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6565) (`case351`) | `GET /actuator/metrics`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 401)` (`plus("Expected 401, got ", response.status())`) |
-| [352. Student metrics denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6570) (`case352`) | `GET /actuator/metrics`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 403)` (`plus("Expected 403, got ", response.status())`) |
-| [353. Anonymous individual metric denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6576) (`case353`) | `GET /actuator/metrics/courseflow.auth.rate_limited`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 401)` (`plus("Expected 401, got ", response.status())`) |
-| [354. Admin metrics names](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6581) (`case354`) | `GET /actuator/metrics`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `truth(isArray(field(response.body(), "names")))` (`"Array.isArray(response.body.names)"`); Вызов `ge(indexOf(field(response.body(), "names"), name), 0)` (`plus("Missing ", name)`) |
-| [355. Admin counter courseflow.password.reset.requests](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6601) (`case355`) | `GET /actuator/metrics/courseflow.password.reset.requests`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "…"), "…")` (`"…"`); Вызов `((truth(count) && eq(typeOf(field(count, "value")), "number")) && ge(field(count, "value"), 1))` (`"Invalid counter"`) |
-| [356. Admin counter courseflow.password.reset.accepted](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6625) (`case356`) | `GET /actuator/metrics/courseflow.password.reset.accepted`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "…"), "…")` (`"…"`); Вызов `((truth(count) && eq(typeOf(field(count, "value")), "number")) && ge(field(count, "value"), 1))` (`"Invalid counter"`) |
-| [357. Admin counter courseflow.auth.rate_limited](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6649) (`case357`) | `GET /actuator/metrics/courseflow.auth.rate_limited`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "name"), "courseflow.auth.rate_limited")` (`"response.body.name === \"courseflow.auth.rate_limited\""`); Вызов `((truth(count) && eq(typeOf(field(count, "value")), "number")) && ge(field(count, "value"), 0))` (`"Invalid counter"`) |
-| [358. Admin environment endpoint denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6673) (`case358`) | `GET /actuator/env`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 403)` (`plus("Expected 403, got ", response.status())`) |
-| [359. Register rejects 74 UTF-8 bytes — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6678) (`case359`) | `POST /api/auth/register`; HTTP 400 — ошибка входных данных |
-| [360. Admin create rejects 74 UTF-8 bytes — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6695) (`case360`) | `POST /api/users`; HTTP 400 — ошибка входных данных |
-| [361. Login rejects 74 UTF-8 bytes — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6714) (`case361`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
-| [362. Change rejects oversized current password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6731) (`case362`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
-| [363. Change rejects oversized new password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6750) (`case363`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
-| [364. Reset rejects oversized new password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6769) (`case364`) | `POST /api/auth/reset-password`; HTTP 400 — ошибка входных данных |
-| [365. Register accepts exactly 72 UTF-8 bytes — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6786) (`case365`) | `POST /api/auth/register`; HTTP 201 — создание объекта |
-| [366. Admin cannot create same normalized email — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6810) (`case366`) | `POST /api/users`; HTTP 409 — конфликт |
-| [367. Login accepts exactly 72 UTF-8 bytes — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6826) (`case367`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [368. Deactivate UTF8 test user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6843) (`case368`) | `POST /api/users/{{cf618_user_id}}/deactivate`; HTTP 200 — успешное выполнение |
-| [369. Clean up UTF8 test user — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6856) (`case369`) | `DELETE /api/users/{{cf618_user_id}}`; HTTP 204 — успех без тела ответа |
-| [370. Missing submission filter retains existing behavior — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6867) (`case370`) | `GET /api/courses/{{course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=NOT_SUBMITTED&enrollmentStatus=ACTIVE&moduleId={{module_id}}`; HTTP 200 — успешное выполнение |
-| [371. Future unsubmitted assignments are not overdue — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6891) (`case371`) | `GET /api/courses/{{course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=OVERDUE&moduleId={{module_id}}`; HTTP 200 — успешное выполнение |
-| [372. ADMIN may filter overdue assignments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6909) (`case372`) | `GET /api/courses/{{course_id}}/gradebook?reviewStatus=OVERDUE`; HTTP 200 — успешное выполнение |
-| [373. Overdue assignment filter cannot be applied to quiz-only gradebook — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6924) (`case373`) | `GET /api/courses/{{course_id}}/gradebook?type=QUIZ&reviewStatus=OVERDUE`; HTTP 400 — ошибка входных данных |
-| [374. Student cannot use overdue gradebook filter — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6938) (`case374`) | `GET /api/courses/{{course_id}}/gradebook?reviewStatus=OVERDUE`; HTTP 403 — отказ в доступе |
-| [375. Student cannot extend deadline — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6949) (`case375`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 403 — отказ в доступе |
-| [376. Deadline extension requires version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6962) (`case376`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 400 — ошибка входных данных |
-| [377. Cannot shorten deadline — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6975) (`case377`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 400 — ошибка входных данных |
-| [378. Cannot extend into the past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6988) (`case378`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 400 — ошибка входных данных |
-| [379. Teacher extends deadline after grading — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7001) (`case379`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 200 — успешное выполнение |
-| [380. Stale deadline update rejected — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7029) (`case380`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 409 — конфликт |
-| [381. Admin extends deadline — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7042) (`case381`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 200 — успешное выполнение |
-| [382. Existing grade unchanged after deadline extension — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7062) (`case382`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
-| [383. Teacher regrades an already graded submission — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7084) (`case383`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 200 — успешное выполнение |
-| [384. Stale regrade cannot overwrite committed grade — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7107) (`case384`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 409 — конфликт |
-| [385. Student cannot regrade — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7123) (`case385`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 403 — отказ в доступе |
-| [386. Rejected grades do not modify submission — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7139) (`case386`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
-| [387. Admin restores original grade — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7157) (`case387`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 200 — успешное выполнение |
-| [388. Register temporary authorization test user — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7176) (`case388`) | `POST /api/auth/register`; HTTP 201 — создание объекта |
-| [389. Login temporary authorization test user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7190) (`case389`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
-| [390. Active user with wrong current password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7202) (`case390`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
-| [391. Deactivate temporary authorization test user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7218) (`case391`) | `POST /api/users/{{cf623_auth_id}}/deactivate`; HTTP 200 — успешное выполнение |
-| [392. Inactive user cannot change password with revoked JWT — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7231) (`case392`) | `POST /api/auth/change-password`; HTTP 401 — отказ в аутентификации |
-| [393. Inactive user cannot log in with correct password — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7250) (`case393`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
-| [394. Delete temporary authorization test user — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7264) (`case394`) | `DELETE /api/users/{{cf623_auth_id}}`; HTTP 204 — успех без тела ответа |
+| [001. Login admin — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L466) (`case001`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [002. System status (ADMIN) — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L490) (`case002`) | `GET /api/system/status`; HTTP 200 — успешное выполнение |
+| [003. Anonymous actuator health — status only](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L506) (`case003`) | `GET /actuator/health`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "status"), "UP")` (`"response.body.status === \"UP\""`); Вызов `looseEq(field(response.body(), "components"), null)` (`"Health must not disclose components"`) |
+| [004. Allow configured React CORS preflight — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L518) (`case004`) | `OPTIONS /api/users/me`; HTTP 200 — успешное выполнение |
+| [005. Reject untrusted CORS origin — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L536) (`case005`) | `OPTIONS /api/users/me`; HTTP 403 — отказ в доступе |
+| [006. Register student — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L551) (`case006`) | `POST /api/auth/register`; HTTP 201 — создание объекта |
+| [007. Duplicate registration — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L574) (`case007`) | `POST /api/auth/register`; HTTP 409 — конфликт |
+| [008. Wrong password — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L606) (`case008`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
+| [009. Login student — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L631) (`case009`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [010. Own user profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L654) (`case010`) | `GET /api/users/me`; HTTP 200 — успешное выполнение |
+| [011. Guest denied — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L666) (`case011`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [012. Invalid token denied — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L671) (`case012`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [013. Student cannot list users — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L677) (`case013`) | `GET /api/users`; HTTP 403 — отказ в доступе |
+| [014. Student cannot read another user — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L691) (`case014`) | `GET /api/users/{{admin_id}}`; HTTP 403 — отказ в доступе |
+| [015. Create teacher — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L698) (`case015`) | `POST /api/users`; HTTP 201 — создание объекта |
+| [016. Login teacher — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L729) (`case016`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [017. Create temporary account — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L752) (`case017`) | `POST /api/users`; HTTP 201 — создание объекта |
+| [018. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L782) (`case018`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [019. Admin reads user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L805) (`case019`) | `GET /api/users/{{other_id}}`; HTTP 200 — успешное выполнение |
+| [020. Admin filters and sorts users — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L818) (`case020`) | `GET /api/users?q={{run_id}}&status=ACTIVE&role=STUDENT&page=0&size=10&sortBy=displayName&direction=asc`; HTTP 200 — успешное выполнение |
+| [021. Update temporary user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L846) (`case021`) | `PUT /api/users/{{other_id}}`; HTTP 200 — успешное выполнение |
+| [022. Email change revokes previous token — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L871) (`case022`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [023. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L876) (`case023`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [024. Assign temporary teacher role — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L899) (`case024`) | `PUT /api/users/{{other_id}}/roles`; HTTP 200 — успешное выполнение |
+| [025. Role change revokes previous token — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L926) (`case025`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [026. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L931) (`case026`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [027. Reject empty roles — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L954) (`case027`) | `PUT /api/users/{{other_id}}/roles`; HTTP 400 — ошибка входных данных |
+| [028. System admin cannot be deactivated — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L971) (`case028`) | `POST /api/users/{{admin_id}}/deactivate`; HTTP 409 — конфликт |
+| [029. Change student password — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L982) (`case029`) | `POST /api/auth/change-password`; HTTP 204 — успех без тела ответа |
+| [030. Password change revokes session — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1000) (`case030`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [031. Old password rejected — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1006) (`case031`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
+| [032. Login student — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1022) (`case032`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [033. Logout student — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1045) (`case033`) | `POST /api/auth/logout`; HTTP 204 — успех без тела ответа |
+| [034. Logged out token rejected — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1051) (`case034`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [035. Login student — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1057) (`case035`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [036. Forgot password unknown email — 202](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1080) (`case036`) | `POST /api/auth/forgot-password`; HTTP 202 — запрос принят |
+| [037. Reject invalid reset token — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1095) (`case037`) | `POST /api/auth/reset-password`; HTTP 400 — ошибка входных данных |
+| [038. Admin reset nonexistent account — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1111) (`case038`) | `POST /api/users/999999999/password-reset`; HTTP 404 — ресурс не найден |
+| [039. Create category — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1122) (`case039`) | `POST /api/categories`; HTTP 201 — создание объекта |
+| [040. Duplicate category — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1144) (`case040`) | `POST /api/categories`; HTTP 409 — конфликт |
+| [041. Student cannot create category — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1162) (`case041`) | `POST /api/categories`; HTTP 403 — отказ в доступе |
+| [042. Reject blank category name — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1180) (`case042`) | `POST /api/categories`; HTTP 400 — ошибка входных данных |
+| [043. Public category list and search — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1207) (`case043`) | `GET /api/categories?search=Regression%20{{run_id}}&page=0&size=5&sortBy=name&direction=desc`; HTTP 200 — успешное выполнение |
+| [044. Public category detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1222) (`case044`) | `GET /api/categories/{{category_id}}`; HTTP 200 — успешное выполнение |
+| [045. Invalid page size — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1230) (`case045`) | `GET /api/categories?size=0`; HTTP 400 — ошибка входных данных |
+| [046. Missing category — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1235) (`case046`) | `GET /api/categories/999999999`; HTTP 404 — ресурс не найден |
+| [047. Create tag — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1249) (`case047`) | `POST /api/tags`; HTTP 201 — создание объекта |
+| [048. Update tag — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1270) (`case048`) | `PUT /api/tags/{{tag_id}}`; HTTP 200 — успешное выполнение |
+| [049. Public tag detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1290) (`case049`) | `GET /api/tags/{{tag_id}}`; HTTP 200 — успешное выполнение |
+| [050. Public tags — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1298) (`case050`) | `GET /api/tags?page=0&size=10&q=reg-updated-{{run_id}}`; HTTP 200 — успешное выполнение |
+| [051. Create main course — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1306) (`case051`) | `POST /api/courses`; HTTP 201 — создание объекта |
+| [052. Update main course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1338) (`case052`) | `PUT /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
+| [053. Public course detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1367) (`case053`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
+| [054. Course search treats percent literally — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1379) (`case054`) | `GET /api/courses?q=%25&categoryId={{category_id}}`; HTTP 200 — успешное выполнение |
+| [055. Public filtered course list — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1385) (`case055`) | `GET /api/courses?q={{run_id}}&categoryId={{category_id}}&teacherId={{teacher_id}}&status=ACTIVE&page=0&size=10`; HTTP 200 — успешное выполнение |
+| [056. Other teacher cannot edit course — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1399) (`case056`) | `PUT /api/courses/{{course_id}}`; HTTP 403 — отказ в доступе |
+| [057. Create temporary course — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1421) (`case057`) | `POST /api/courses`; HTTP 201 — создание объекта |
+| [058. Admin reassigns temporary course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1450) (`case058`) | `PUT /api/courses/{{temp_course_id}}/teacher`; HTTP 200 — успешное выполнение |
+| [059. Archive temporary course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1474) (`case059`) | `POST /api/courses/{{temp_course_id}}/archive`; HTTP 200 — успешное выполнение |
+| [060. Cannot enroll in archived course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1487) (`case060`) | `POST /api/courses/{{temp_course_id}}/enrollments`; HTTP 409 — конфликт |
+| [061. Delete empty archived course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1513) (`case061`) | `DELETE /api/courses/{{temp_course_id}}`; HTTP 204 — успех без тела ответа |
+| [062. Deleted course not found — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1524) (`case062`) | `GET /api/courses/{{temp_course_id}}`; HTTP 404 — ресурс не найден |
+| [063. Attach tag to course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1529) (`case063`) | `POST /api/courses/{{course_id}}/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
+| [064. List attached tags — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1540) (`case064`) | `GET /api/courses/{{course_id}}/tags`; HTTP 200 — успешное выполнение |
+| [065. Cannot delete attached tag — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1548) (`case065`) | `DELETE /api/tags/{{tag_id}}`; HTTP 409 — конфликт |
+| [066. Detach tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1554) (`case066`) | `DELETE /api/courses/{{course_id}}/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
+| [067. Delete unused tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1565) (`case067`) | `DELETE /api/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
+| [068. Create module — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1571) (`case068`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
+| [069. Reject duplicate module position — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1597) (`case069`) | `POST /api/courses/{{course_id}}/modules`; HTTP 409 — конфликт |
+| [070. Create temporary module — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1616) (`case070`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
+| [071. Update module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1638) (`case071`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}`; HTTP 200 — успешное выполнение |
+| [072. Reorder module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1663) (`case072`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/position`; HTTP 200 — успешное выполнение |
+| [073. Read module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1685) (`case073`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}`; HTTP 200 — успешное выполнение |
+| [074. List modules — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1697) (`case074`) | `GET /api/courses/{{course_id}}/modules`; HTTP 200 — успешное выполнение |
+| [075. Create lesson — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1719) (`case075`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
+| [076. Create temporary lesson — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1746) (`case076`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
+| [077. Update lesson — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1768) (`case077`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 200 — успешное выполнение |
+| [078. Reject unsafe video URL — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1791) (`case078`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 400 — ошибка входных данных |
+| [079. Reject oversized lesson content — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1804) (`case079`) | `PUT /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 400 — ошибка входных данных |
+| [080. Reorder lesson — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1818) (`case080`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}/position`; HTTP 200 — успешное выполнение |
+| [081. Delete empty lesson — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1840) (`case081`) | `DELETE /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{temp_lesson_id}}`; HTTP 204 — успех без тела ответа |
+| [082. Read lesson — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1851) (`case082`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 200 — успешное выполнение |
+| [083. List lessons — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1874) (`case083`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 200 — успешное выполнение |
+| [084. Unenrolled student cannot read lessons — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1901) (`case084`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 403 — отказ в доступе |
+| [085. Create session — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1912) (`case085`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 201 — создание объекта |
+| [086. Reject overlapping session — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1939) (`case086`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 409 — конфликт |
+| [087. Update session — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1959) (`case087`) | `PUT /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
+| [088. Reschedule session — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L1986) (`case088`) | `PATCH /api/lessons/{{lesson_id}}/sessions/{{session_id}}/time`; HTTP 200 — успешное выполнение |
+| [089. Session detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2011) (`case089`) | `GET /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
+| [090. List sessions — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2025) (`case090`) | `GET /api/lessons/{{lesson_id}}/sessions`; HTTP 200 — успешное выполнение |
+| [091. ONLINE session requires a link — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2042) (`case091`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
+| [092. Reject unsafe meeting link — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2055) (`case092`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
+| [093. OFFLINE session must not have link — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2068) (`case093`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
+| [094. Create temporary offline session — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2081) (`case094`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 201 — создание объекта |
+| [095. Delete temporary session — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2103) (`case095`) | `DELETE /api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}`; HTTP 204 — успех без тела ответа |
+| [096. Enroll student — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2114) (`case096`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 201 — создание объекта |
+| [097. Repeat enrollment idempotently — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2134) (`case097`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 200 — успешное выполнение |
+| [098. Teacher cannot enroll in own course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2148) (`case098`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 409 — конфликт |
+| [099. My enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2159) (`case099`) | `GET /api/courses/{{course_id}}/enrollments/me`; HTTP 200 — успешное выполнение |
+| [100. Course roster — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2173) (`case100`) | `GET /api/courses/{{course_id}}/enrollments?status=ACTIVE&page=0&size=10`; HTTP 200 — успешное выполнение |
+| [101. My enrollments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2190) (`case101`) | `GET /api/users/me/enrollments?status=ACTIVE`; HTTP 200 — успешное выполнение |
+| [102. Student reads enrolled modules — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2207) (`case102`) | `GET /api/courses/{{course_id}}/modules`; HTTP 200 — успешное выполнение |
+| [103. Student reads enrolled lessons — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2223) (`case103`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 200 — успешное выполнение |
+| [104. Student reads schedule — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2239) (`case104`) | `GET /api/lessons/{{lesson_id}}/sessions`; HTTP 200 — успешное выполнение |
+| [105. Student cannot read roster — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2256) (`case105`) | `GET /api/courses/{{course_id}}/enrollments`; HTTP 403 — отказ в доступе |
+| [106. Other teacher cannot read roster — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2267) (`case106`) | `GET /api/courses/{{course_id}}/enrollments`; HTTP 403 — отказ в доступе |
+| [107. Create assignment — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2278) (`case107`) | `POST /api/lessons/{{lesson_id}}/assignments`; HTTP 201 — создание объекта |
+| [108. Update assignment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2312) (`case108`) | `PUT /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 200 — успешное выполнение |
+| [109. Create second assignment — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2337) (`case109`) | `POST /api/lessons/{{lesson_id}}/assignments`; HTTP 201 — создание объекта |
+| [110. Create temporary assignment — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2360) (`case110`) | `POST /api/lessons/{{lesson_id}}/assignments`; HTTP 201 — создание объекта |
+| [111. Delete unused assignment — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2383) (`case111`) | `DELETE /api/lessons/{{lesson_id}}/assignments/{{temp_assignment_id}}`; HTTP 204 — успех без тела ответа |
+| [112. Read assignment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2394) (`case112`) | `GET /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 200 — успешное выполнение |
+| [113. List assignments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2408) (`case113`) | `GET /api/lessons/{{lesson_id}}/assignments`; HTTP 200 — успешное выполнение |
+| [114. Unenrolled user cannot submit — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2432) (`case114`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 403 — отказ в доступе |
+| [115. Submit homework — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2466) (`case115`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 201 — создание объекта |
+| [116. Reject duplicate homework — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2499) (`case116`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 409 — конфликт |
+| [117. Read own submission — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2538) (`case117`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
+| [118. Teacher lists pending work — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2552) (`case118`) | `GET /api/assignments/{{assignment_id}}/submissions?status=SUBMITTED`; HTTP 200 — успешное выполнение |
+| [119. Student cannot list submissions — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2569) (`case119`) | `GET /api/assignments/{{assignment_id}}/submissions`; HTTP 403 — отказ в доступе |
+| [120. Other teacher cannot list submissions — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2580) (`case120`) | `GET /api/assignments/{{assignment_id}}/submissions`; HTTP 403 — отказ в доступе |
+| [121. Reject score above maximum — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2591) (`case121`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 400 — ошибка входных данных |
+| [122. Teacher dashboard pending queue — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2615) (`case122`) | `GET /api/dashboard/teacher`; HTTP 200 — успешное выполнение |
+| [123. Grade homework — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2642) (`case123`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 200 — успешное выполнение |
+| [124. Cannot edit submitted assignment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2666) (`case124`) | `PUT /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 409 — конфликт |
+| [125. Cannot delete submitted assignment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2686) (`case125`) | `DELETE /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`; HTTP 409 — конфликт |
+| [126. Create quiz — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2711) (`case126`) | `POST /api/modules/{{module_id}}/quiz`; HTTP 201 — создание объекта |
+| [127. Read quiz by module — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2739) (`case127`) | `GET /api/modules/{{module_id}}/quiz`; HTTP 200 — успешное выполнение |
+| [128. Update quiz settings — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2753) (`case128`) | `PUT /api/quizzes/{{quiz_id}}`; HTTP 200 — успешное выполнение |
+| [129. Read quiz — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2777) (`case129`) | `GET /api/quizzes/{{quiz_id}}`; HTTP 200 — успешное выполнение |
+| [130. Reject second quiz in same module — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2787) (`case130`) | `POST /api/modules/{{module_id}}/quiz`; HTTP 409 — конфликт |
+| [131. Create temporary quiz — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2813) (`case131`) | `POST /api/modules/{{temp_module_id}}/quiz`; HTTP 201 — создание объекта |
+| [132. Cannot start empty quiz — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2834) (`case132`) | `POST /api/quizzes/{{temp_quiz_id}}/attempts`; HTTP 409 — конфликт |
+| [133. Create single choice question — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2845) (`case133`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 201 — создание объекта |
+| [134. Create multiple choice question — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2900) (`case134`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 201 — создание объекта |
+| [135. Reject duplicate question position — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2955) (`case135`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 409 — конфликт |
+| [136. Create temporary question — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L2988) (`case136`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 201 — создание объекта |
+| [137. Update temporary question — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3028) (`case137`) | `PUT /api/quizzes/{{quiz_id}}/questions/{{temp_question_id}}`; HTTP 200 — успешное выполнение |
+| [138. Delete temporary question — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3068) (`case138`) | `DELETE /api/quizzes/{{quiz_id}}/questions/{{temp_question_id}}`; HTTP 204 — успех без тела ответа |
+| [139. Create question in temporary quiz — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3079) (`case139`) | `POST /api/quizzes/{{temp_quiz_id}}/questions`; HTTP 201 — создание объекта |
+| [140. Delete unused quiz with questions — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3112) (`case140`) | `DELETE /api/quizzes/{{temp_quiz_id}}`; HTTP 204 — успех без тела ответа |
+| [141. Delete empty temporary module — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3123) (`case141`) | `DELETE /api/courses/{{course_id}}/modules/{{temp_module_id}}`; HTTP 204 — успех без тела ответа |
+| [142. Reject multiple choice without distractor — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3134) (`case142`) | `POST /api/quizzes/{{quiz_id}}/questions`; HTTP 400 — ошибка входных данных |
+| [143. Teacher reads questions with answers — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3147) (`case143`) | `GET /api/quizzes/{{quiz_id}}/questions/manage`; HTTP 200 — успешное выполнение |
+| [144. Questions unavailable before active attempt — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3189) (`case144`) | `GET /api/quizzes/{{quiz_id}}/questions`; HTTP 409 — конфликт |
+| [145. Student cannot read answer keys — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3200) (`case145`) | `GET /api/quizzes/{{quiz_id}}/questions/manage`; HTTP 403 — отказ в доступе |
+| [146. Start attempt 1 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3211) (`case146`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 201 — создание объекта |
+| [147. Student reads questions without correct flags — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3236) (`case147`) | `GET /api/quizzes/{{quiz_id}}/questions`; HTTP 200 — успешное выполнение |
+| [148. Progress identifies active quiz — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3263) (`case148`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [149. Gradebook identifies active quiz — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3283) (`case149`) | `GET /api/courses/{{course_id}}/gradebook`; HTTP 200 — успешное выполнение |
+| [150. Reject oversized quiz answer list — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3302) (`case150`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 400 — ошибка входных данных |
+| [151. Resume same attempt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3316) (`case151`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 200 — успешное выполнение |
+| [152. Read ongoing attempt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3330) (`case152`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}`; HTTP 200 — успешное выполнение |
+| [153. Freeze quiz after attempt starts — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3344) (`case153`) | `PUT /api/quizzes/{{quiz_id}}`; HTTP 409 — конфликт |
+| [154. Reject answer from another question — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3363) (`case154`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 400 — ошибка входных данных |
+| [155. Submit perfect attempt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3387) (`case155`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 200 — успешное выполнение |
+| [156. Reject duplicate attempt submission — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3422) (`case156`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/submit`; HTTP 409 — конфликт |
+| [157. Start second attempt — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3469) (`case157`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 201 — создание объекта |
+| [158. Submit partial result — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3484) (`case158`) | `POST /api/quizzes/{{quiz_id}}/attempts/{{attempt2_id}}/submit`; HTTP 200 — успешное выполнение |
+| [159. Reject attempt above limit — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3516) (`case159`) | `POST /api/quizzes/{{quiz_id}}/attempts`; HTTP 409 — конфликт |
+| [160. Student attempt history — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3542) (`case160`) | `GET /api/quizzes/{{quiz_id}}/attempts/me?status=SUBMITTED&page=0&size=10`; HTTP 200 — успешное выполнение |
+| [161. Teacher quiz results — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3566) (`case161`) | `GET /api/quizzes/{{quiz_id}}/attempts?status=SUBMITTED`; HTTP 200 — успешное выполнение |
+| [162. Own attempt detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3578) (`case162`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/result`; HTTP 200 — успешное выполнение |
+| [163. Management attempt detail — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3595) (`case163`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/manage`; HTTP 200 — успешное выполнение |
+| [164. Student cannot access management result — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3609) (`case164`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}/manage`; HTTP 403 — отказ в доступе |
+| [165. Other student cannot read attempt — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3620) (`case165`) | `GET /api/quizzes/{{quiz_id}}/attempts/{{attempt1_id}}`; HTTP 404 — ресурс не найден |
+| [166. Questions unavailable after final attempt — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3631) (`case166`) | `GET /api/quizzes/{{quiz_id}}/questions`; HTTP 409 — конфликт |
+| [167. Cannot delete quiz with attempts — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3642) (`case167`) | `DELETE /api/quizzes/{{quiz_id}}`; HTTP 409 — конфликт |
+| [168. Create review — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3653) (`case168`) | `POST /api/courses/{{course_id}}/reviews`; HTTP 201 — создание объекта |
+| [169. Reject duplicate review — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3680) (`case169`) | `POST /api/courses/{{course_id}}/reviews`; HTTP 409 — конфликт |
+| [170. Update own review — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3698) (`case170`) | `PUT /api/courses/{{course_id}}/reviews/me`; HTTP 200 — успешное выполнение |
+| [171. Read own review — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3717) (`case171`) | `GET /api/courses/{{course_id}}/reviews/me`; HTTP 200 — успешное выполнение |
+| [172. Public course reviews — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3731) (`case172`) | `GET /api/courses/{{course_id}}/reviews?page=0&size=10`; HTTP 200 — успешное выполнение |
+| [173. Public aggregate rating — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3745) (`case173`) | `GET /api/courses/{{course_id}}/reviews/rating`; HTTP 200 — успешное выполнение |
+| [174. Delete own review — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3752) (`case174`) | `DELETE /api/courses/{{course_id}}/reviews/me`; HTTP 204 — успех без тела ответа |
+| [175. Empty aggregate rating — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3763) (`case175`) | `GET /api/courses/{{course_id}}/reviews/rating`; HTTP 200 — успешное выполнение |
+| [176. Restore review — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3771) (`case176`) | `POST /api/courses/{{course_id}}/reviews`; HTTP 201 — создание объекта |
+| [177. Gradebook with both assessment types — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3789) (`case177`) | `GET /api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE&page=0&size=10`; HTTP 200 — успешное выполнение |
+| [178. Admin filtered gradebook — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3828) (`case178`) | `GET /api/courses/{{course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=GRADED&moduleId={{module_id}}`; HTTP 200 — успешное выполнение |
+| [179. Student cannot read gradebook — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3845) (`case179`) | `GET /api/courses/{{course_id}}/gradebook`; HTTP 403 — отказ в доступе |
+| [180. Other teacher cannot read gradebook — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3856) (`case180`) | `GET /api/courses/{{course_id}}/gradebook`; HTTP 403 — отказ в доступе |
+| [181. Student progress — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3867) (`case181`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [182. Student dashboard — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3897) (`case182`) | `GET /api/dashboard/student`; HTTP 200 — успешное выполнение |
+| [183. Teacher dashboard graded work removed — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L3958) (`case183`) | `GET /api/dashboard/teacher`; HTTP 200 — успешное выполнение |
+| [184. Admin dashboard — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4003) (`case184`) | `GET /api/dashboard/admin`; HTTP 200 — успешное выполнение |
+| [185. Student cannot access admin dashboard — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4041) (`case185`) | `GET /api/dashboard/admin`; HTTP 403 — отказ в доступе |
+| [186. Student cannot access teacher dashboard — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4047) (`case186`) | `GET /api/dashboard/teacher`; HTTP 403 — отказ в доступе |
+| [187. Admin without student role denied — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4053) (`case187`) | `GET /api/dashboard/student`; HTTP 403 — отказ в доступе |
+| [188. Withdraw from course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4059) (`case188`) | `DELETE /api/courses/{{course_id}}/enrollments/me`; HTTP 204 — успех без тела ответа |
+| [189. Withdrawn student denied content — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4070) (`case189`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 403 — отказ в доступе |
+| [190. Submission history retained — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4081) (`case190`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
+| [191. Progress history retained — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4093) (`case191`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [192. Withdrawn student in gradebook — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4116) (`case192`) | `GET /api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN`; HTTP 200 — успешное выполнение |
+| [193. Dashboard excludes withdrawn course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4136) (`case193`) | `GET /api/dashboard/student`; HTTP 200 — успешное выполнение |
+| [194. Admin enrollment count updated — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4154) (`case194`) | `GET /api/dashboard/admin`; HTTP 200 — успешное выполнение |
+| [195. Restore enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4170) (`case195`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 200 — успешное выполнение |
+| [196. Restored student access — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4185) (`case196`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 200 — успешное выполнение |
+| [197. Restored admin count — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4201) (`case197`) | `GET /api/dashboard/admin`; HTTP 200 — успешное выполнение |
+| [198. Cannot remove TEACHER with assigned course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4212) (`case198`) | `PUT /api/users/{{teacher_id}}/roles`; HTTP 409 — конфликт |
+| [199. Cannot remove STUDENT with active enrollment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4225) (`case199`) | `PUT /api/users/{{student_id}}/roles`; HTTP 409 — конфликт |
+| [200. Teacher cannot submit homework in own course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4238) (`case200`) | `POST /api/assignments/{{assignment_id}}/submissions`; HTTP 409 — конфликт |
+| [201. Other teacher enrolls as student — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4251) (`case201`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 201 — создание объекта |
+| [202. Cannot reassign course to enrolled student — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4263) (`case202`) | `PUT /api/courses/{{course_id}}/teacher`; HTTP 409 — конфликт |
+| [203. Cannot update course with enrolled student as teacher — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4276) (`case203`) | `PUT /api/courses/{{course_id}}`; HTTP 409 — конфликт |
+| [204. Teacher cannot administratively withdraw student — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4298) (`case204`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 403 — отказ в доступе |
+| [205. Student cannot administratively withdraw student — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4309) (`case205`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 403 — отказ в доступе |
+| [206. Cannot delete course with history — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4320) (`case206`) | `DELETE /api/courses/{{course_id}}`; HTTP 409 — конфликт |
+| [207. Cannot delete active account — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4331) (`case207`) | `DELETE /api/users/{{other_id}}`; HTTP 409 — конфликт |
+| [208. Deactivate temporary account — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4338) (`case208`) | `POST /api/users/{{other_id}}/deactivate`; HTTP 200 — успешное выполнение |
+| [209. Deactivation revokes JWT — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4351) (`case209`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [210. Login other — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4356) (`case210`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
+| [211. Cannot delete inactive user with active enrollment — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4372) (`case211`) | `DELETE /api/users/{{other_id}}`; HTTP 409 — конфликт |
+| [212. Admin withdraws inactive student — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4379) (`case212`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 204 — успех без тела ответа |
+| [213. Admin withdrawal is idempotent — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4390) (`case213`) | `DELETE /api/courses/{{course_id}}/enrollments/students/{{other_id}}`; HTTP 204 — успех без тела ответа |
+| [214. Admin sees withdrawn enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4401) (`case214`) | `GET /api/courses/{{course_id}}/enrollments?status=WITHDRAWN&page=0&size=10`; HTTP 200 — успешное выполнение |
+| [215. Reactivate temporary account — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4420) (`case215`) | `POST /api/users/{{other_id}}/activate`; HTTP 200 — успешное выполнение |
+| [216. Login other — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4432) (`case216`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [217. Deactivate before deletion — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4455) (`case217`) | `POST /api/users/{{other_id}}/deactivate`; HTTP 200 — успешное выполнение |
+| [218. Delete inactive account — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4466) (`case218`) | `DELETE /api/users/{{other_id}}`; HTTP 204 — успех без тела ответа |
+| [219. Deleted user preserved as archive — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4473) (`case219`) | `GET /api/users/{{other_id}}`; HTTP 200 — успешное выполнение |
+| [220. Login other — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4480) (`case220`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
+| [221. Deleted account cannot be activated — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4496) (`case221`) | `POST /api/users/{{other_id}}/activate`; HTTP 409 — конфликт |
+| [222. Final student progress — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4507) (`case222`) | `GET /api/users/me/progress?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [223. Unknown login email — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4524) (`case223`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
+| [224. Oversized login password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4535) (`case224`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
+| [225. Oversized UTF-8 login password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4546) (`case225`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
+| [226. Oversized current password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4557) (`case226`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
+| [227. Unknown API denied — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4570) (`case227`) | `GET /api/regression-unknown-endpoint`; HTTP 403 — отказ в доступе |
+| [228. HEAD administrative dashboard denied for student — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4581) (`case228`) | HTTP 403 — отказ в доступе |
+| [229. Create mixed-case tag — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4587) (`case229`) | `POST /api/tags`; HTTP 201 — создание объекта |
+| [230. Reject case-insensitive duplicate tag — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4604) (`case230`) | `POST /api/tags`; HTTP 409 — конфликт |
+| [231. Delete invariant test tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4617) (`case231`) | `DELETE /api/tags/{{tag_id}}`; HTTP 204 — успех без тела ответа |
+| [232. Update category — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4623) (`case232`) | `PUT /api/categories/{{category_id}}`; HTTP 200 — успешное выполнение |
+| [233. Student cannot update category — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4639) (`case233`) | `PUT /api/categories/{{category_id}}`; HTTP 403 — отказ в доступе |
+| [234. Cannot delete category referenced by course — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4652) (`case234`) | `DELETE /api/categories/{{category_id}}`; HTTP 409 — конфликт |
+| [235. Create temporary category — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4663) (`case235`) | `POST /api/categories`; HTTP 201 — создание объекта |
+| [236. Cannot rename category to existing name — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4680) (`case236`) | `PUT /api/categories/{{temp_category_id}}`; HTTP 409 — конфликт |
+| [237. Delete unused category — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4693) (`case237`) | `DELETE /api/categories/{{temp_category_id}}`; HTTP 204 — успех без тела ответа |
+| [238. Deleted category not found — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4704) (`case238`) | `GET /api/categories/{{temp_category_id}}`; HTTP 404 — ресурс не найден |
+| [239. Read empty own profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4709) (`case239`) | `GET /api/users/me/profile`; HTTP 200 — успешное выполнение |
+| [240. Create own profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4721) (`case240`) | `PUT /api/users/me/profile`; HTTP 200 — успешное выполнение |
+| [241. Read persisted profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4737) (`case241`) | `GET /api/users/me/profile`; HTTP 200 — успешное выполнение |
+| [242. Reject unsafe avatar URL — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4749) (`case242`) | `PUT /api/users/me/profile`; HTTP 400 — ошибка входных данных |
+| [243. Teacher has separate profile — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4762) (`case243`) | `GET /api/users/me/profile`; HTTP 200 — успешное выполнение |
+| [244. Anonymous profile denied — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4772) (`case244`) | `GET /api/users/me/profile`; HTTP 401 — отказ в аутентификации |
+| [245. Public teacher identity — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4777) (`case245`) | `GET /api/teachers/{{teacher_id}}`; HTTP 200 — успешное выполнение |
+| [246. Non-teacher not published — 404](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4794) (`case246`) | `GET /api/teachers/{{student_id}}`; HTTP 404 — ресурс не найден |
+| [247. My current assignments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4799) (`case247`) | `GET /api/users/me/assignments?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [248. My pending assignments filter — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4825) (`case248`) | `GET /api/users/me/assignments?status=NOT_SUBMITTED&page=0&size=1`; HTTP 200 — успешное выполнение |
+| [249. My graded submissions — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4842) (`case249`) | `GET /api/users/me/submissions?courseId={{course_id}}&status=GRADED`; HTTP 200 — успешное выполнение |
+| [250. My quiz attempt history — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4862) (`case250`) | `GET /api/users/me/quiz-attempts?courseId={{course_id}}&status=SUBMITTED&page=0&size=1`; HTTP 200 — успешное выполнение |
+| [251. Invalid page size rejected — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4885) (`case251`) | `GET /api/users/me/assignments?size=101`; HTTP 400 — ошибка входных данных |
+| [252. Admin without student role denied history — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4896) (`case252`) | `GET /api/users/me/submissions`; HTTP 403 — отказ в доступе |
+| [253. Other student cannot see submissions — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4903) (`case253`) | `GET /api/users/me/submissions?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [254. Other student cannot see quiz attempts — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4915) (`case254`) | `GET /api/users/me/quiz-attempts?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [255. Withdraw to verify global history — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4927) (`case255`) | `DELETE /api/courses/{{course_id}}/enrollments/me`; HTTP 204 — успех без тела ответа |
+| [256. Current assignments hidden after withdrawal — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4938) (`case256`) | `GET /api/users/me/assignments?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [257. Submission history survives withdrawal — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4950) (`case257`) | `GET /api/users/me/submissions?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [258. Quiz history survives withdrawal — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4965) (`case258`) | `GET /api/users/me/quiz-attempts?courseId={{course_id}}`; HTTP 200 — успешное выполнение |
+| [259. Restore enrollment after history checks — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4977) (`case259`) | `POST /api/courses/{{course_id}}/enrollments`; HTTP 200 — успешное выполнение |
+| [260. Create course for archived dashboard check — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L4988) (`case260`) | `POST /api/courses`; HTTP 201 — создание объекта |
+| [261. Create second course module for schedule test — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5004) (`case261`) | `POST /api/courses/{{temp_course_id}}/modules`; HTTP 201 — создание объекта |
+| [262. Create second course lesson for schedule test — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5020) (`case262`) | `POST /api/courses/{{temp_course_id}}/modules/{{temp_module_id}}/lessons`; HTTP 201 — создание объекта |
+| [263. Reject teacher schedule overlap across courses — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5036) (`case263`) | `POST /api/lessons/{{temp_lesson_id}}/sessions`; HTTP 409 — конфликт |
+| [264. Delete temporary schedule lesson — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5049) (`case264`) | `DELETE /api/courses/{{temp_course_id}}/modules/{{temp_module_id}}/lessons/{{temp_lesson_id}}`; HTTP 204 — успех без тела ответа |
+| [265. Delete temporary schedule module — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5060) (`case265`) | `DELETE /api/courses/{{temp_course_id}}/modules/{{temp_module_id}}`; HTTP 204 — успех без тела ответа |
+| [266. Enroll in course before archive — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5071) (`case266`) | `POST /api/courses/{{temp_course_id}}/enrollments`; HTTP 201 — создание объекта |
+| [267. Archive course with active enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5082) (`case267`) | `POST /api/courses/{{temp_course_id}}/archive`; HTTP 200 — успешное выполнение |
+| [268. Dashboard excludes archived active enrollment — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5095) (`case268`) | `GET /api/dashboard/student`; HTTP 200 — успешное выполнение |
+| [269. Withdraw from archived course — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5112) (`case269`) | `DELETE /api/courses/{{temp_course_id}}/enrollments/me`; HTTP 204 — успех без тела ответа |
+| [270. OpenAPI describes every REST operation — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5123) (`case270`) | `GET /v3/api-docs`; HTTP 200 — успешное выполнение |
+| [271. Swagger UI static page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5364) (`case271`) | `GET /swagger-ui/index.html`; HTTP 200 — успешное выполнение |
+| [272. Swagger configuration — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5372) (`case272`) | `GET /v3/api-docs/swagger-config`; HTTP 200 — успешное выполнение |
+| [273. Canonical category search parameter q — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5377) (`case273`) | `GET /api/categories?q=Regression%20updated%20{{run_id}}&page=0&size=5&sortBy=name&direction=asc`; HTTP 200 — успешное выполнение |
+| [274. Reject unsupported login content type — 415](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5392) (`case274`) | `POST /api/auth/login`; HTTP 415 — неподдерживаемый формат |
+| [275. Reject malformed JSON — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5403) (`case275`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
+| [276. Admin creates account with temporary password — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5415) (`case276`) | `POST /api/users`; HTTP 201 — создание объекта |
+| [277. Login requires password change — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5428) (`case277`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [278. Restricted JWT cannot access own user endpoint — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5445) (`case278`) | `GET /api/users/me`; HTTP 403 — отказ в доступе |
+| [279. Restricted JWT cannot use STUDENT dashboard — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5451) (`case279`) | `GET /api/dashboard/student`; HTTP 403 — отказ в доступе |
+| [280. Temporary password cannot be reused — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5462) (`case280`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
+| [281. Change temporary password — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5475) (`case281`) | `POST /api/auth/change-password`; HTTP 204 — успех без тела ответа |
+| [282. Restricted JWT revoked after change — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5488) (`case282`) | `GET /api/users/me`; HTTP 401 — отказ в аутентификации |
+| [283. Login with new password — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5494) (`case283`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [284. Full access restored — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5511) (`case284`) | `GET /api/users/me`; HTTP 200 — успешное выполнение |
+| [285. Get current version of main course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5518) (`case285`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
+| [286. Update using current version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5529) (`case286`) | `PUT /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
+| [287. Reject stale version — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5548) (`case287`) | `PUT /api/courses/{{course_id}}`; HTTP 409 — конфликт |
+| [288. Reject missing version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5570) (`case288`) | `PUT /api/courses/{{course_id}}`; HTTP 400 — ошибка входных данных |
+| [289. Verify stale update did not overwrite course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5583) (`case289`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
+| [290. Category case-insensitive duplicate — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5591) (`case290`) | `POST /api/categories`; HTTP 409 — конфликт |
+| [291. Category stale update — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5604) (`case291`) | `PUT /api/categories/{{category_id}}`; HTTP 409 — конфликт |
+| [292. Category missing version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5620) (`case292`) | `PUT /api/categories/{{category_id}}`; HTTP 400 — ошибка входных данных |
+| [293. Category remains unchanged — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5633) (`case293`) | `GET /api/categories/{{category_id}}`; HTTP 200 — успешное выполнение |
+| [294. Create version test tag — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5644) (`case294`) | `POST /api/tags`; HTTP 201 — создание объекта |
+| [295. Tag update with valid version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5664) (`case295`) | `PUT /api/tags/{{version_test_tag_id}}`; HTTP 200 — успешное выполнение |
+| [296. Stale tag update — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5680) (`case296`) | `PUT /api/tags/{{version_test_tag_id}}`; HTTP 409 — конфликт |
+| [297. Tag update missing version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5696) (`case297`) | `PUT /api/tags/{{version_test_tag_id}}`; HTTP 400 — ошибка входных данных |
+| [298. Tag name remains unchanged — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5709) (`case298`) | `GET /api/tags/{{version_test_tag_id}}`; HTTP 200 — успешное выполнение |
+| [299. Delete version test tag — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5717) (`case299`) | `DELETE /api/tags/{{version_test_tag_id}}`; HTTP 204 — успех без тела ответа |
+| [300. Read quiz history sorted by effective status — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5728) (`case300`) | `GET /api/quizzes/{{quiz_id}}/attempts/me?status=SUBMITTED&sortBy=status&direction=asc&page=0&size=10`; `GET /api/quizzes/{{quiz_id}}/attempts/me?status=IN_PROGRESS&page=0&size=10`; HTTP 200 — успешное выполнение |
+| [301. Read quiz history sorted by effective finishedAt — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5757) (`case301`) | `GET /api/quizzes/{{quiz_id}}/attempts/me?sortBy=finishedAt&direction=desc&page=0&size=10`; HTTP 200 — успешное выполнение |
+| [302. Cannot deactivate teacher with active courses — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5776) (`case302`) | `POST /api/users/{{teacher_id}}/deactivate`; HTTP 409 — конфликт |
+| [303. Teacher remains active — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5787) (`case303`) | `GET /api/users/{{teacher_id}}`; HTTP 200 — успешное выполнение |
+| [304. Cannot archive course with future session — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5795) (`case304`) | `POST /api/courses/{{course_id}}/archive`; HTTP 409 — конфликт |
+| [305. Course remains active — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5806) (`case305`) | `GET /api/courses/{{course_id}}`; HTTP 200 — успешное выполнение |
+| [306. Cannot change course teacher through ordinary update — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5817) (`case306`) | `PUT /api/courses/{{course_id}}`; HTTP 409 — конфликт |
+| [307. Cannot create session in past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5833) (`case307`) | `POST /api/lessons/{{lesson_id}}/sessions`; HTTP 400 — ошибка входных данных |
+| [308. Read session version for date validation — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5846) (`case308`) | `GET /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
+| [309. Cannot update session into past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5860) (`case309`) | `PUT /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 400 — ошибка входных данных |
+| [310. Cannot reschedule session into past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5873) (`case310`) | `PATCH /api/lessons/{{lesson_id}}/sessions/{{session_id}}/time`; HTTP 400 — ошибка входных данных |
+| [311. Rejected changes preserve session — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5886) (`case311`) | `GET /api/lessons/{{lesson_id}}/sessions/{{session_id}}`; HTTP 200 — успешное выполнение |
+| [312. Create module at position 3 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5903) (`case312`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
+| [313. Create module at position 4 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5920) (`case313`) | `POST /api/courses/{{course_id}}/modules`; HTTP 201 — создание объекта |
+| [314. Read current module position and version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5937) (`case314`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}`; HTTP 200 — успешное выполнение |
+| [315. Move module forward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5952) (`case315`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/position`; HTTP 200 — успешное выполнение |
+| [316. Check module positions after forward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L5969) (`case316`) | `GET /api/courses/{{course_id}}/modules?page=0&size=100`; HTTP 200 — успешное выполнение |
+| [317. Move module backward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6004) (`case317`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/position`; HTTP 200 — успешное выполнение |
+| [318. Check module positions after backward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6021) (`case318`) | `GET /api/courses/{{course_id}}/modules?page=0&size=100`; HTTP 200 — успешное выполнение |
+| [319. Reject stale version of shifted module — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6056) (`case319`) | `PATCH /api/courses/{{course_id}}/modules/{{cf614_module3_id}}/position`; HTTP 409 — конфликт |
+| [320. Delete temporary module at position 3 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6069) (`case320`) | `DELETE /api/courses/{{course_id}}/modules/{{cf614_module3_id}}`; HTTP 204 — успех без тела ответа |
+| [321. Delete temporary module at position 4 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6080) (`case321`) | `DELETE /api/courses/{{course_id}}/modules/{{cf614_module4_id}}`; HTTP 204 — успех без тела ответа |
+| [322. Create lesson at position 3 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6091) (`case322`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
+| [323. Create lesson at position 4 — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6108) (`case323`) | `POST /api/courses/{{course_id}}/modules/{{module_id}}/lessons`; HTTP 201 — создание объекта |
+| [324. Read current lesson position and version — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6125) (`case324`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`; HTTP 200 — успешное выполнение |
+| [325. Move lesson forward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6140) (`case325`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}/position`; HTTP 200 — успешное выполнение |
+| [326. Check lesson positions after forward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6157) (`case326`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons?page=0&size=100`; HTTP 200 — успешное выполнение |
+| [327. Move lesson backward with shift — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6192) (`case327`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}/position`; HTTP 200 — успешное выполнение |
+| [328. Check lesson positions after backward move — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6209) (`case328`) | `GET /api/courses/{{course_id}}/modules/{{module_id}}/lessons?page=0&size=100`; HTTP 200 — успешное выполнение |
+| [329. Reject stale version of shifted lesson — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6244) (`case329`) | `PATCH /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{cf614_lesson3_id}}/position`; HTTP 409 — конфликт |
+| [330. Delete temporary lesson at position 3 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6257) (`case330`) | `DELETE /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{cf614_lesson3_id}}`; HTTP 204 — успех без тела ответа |
+| [331. Delete temporary lesson at position 4 — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6268) (`case331`) | `DELETE /api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{cf614_lesson4_id}}`; HTTP 204 — успех без тела ответа |
+| [332. Gradebook first column page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6279) (`case332`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=0&columnSize=1`; HTTP 200 — успешное выполнение |
+| [333. Gradebook second column page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6314) (`case333`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=1&columnSize=1`; HTTP 200 — успешное выполнение |
+| [334. Gradebook quiz column page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6352) (`case334`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=2&columnSize=1`; HTTP 200 — успешное выполнение |
+| [335. Gradebook column page out of range — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6379) (`case335`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=3&columnSize=1`; HTTP 200 — успешное выполнение |
+| [336. Gradebook filter counts only quiz columns — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6406) (`case336`) | `GET /api/courses/{{course_id}}/gradebook?type=QUIZ&columnSize=1`; HTTP 200 — успешное выполнение |
+| [337. Reject invalid gradebook column size — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6425) (`case337`) | `GET /api/courses/{{course_id}}/gradebook?columnSize=101`; HTTP 400 — ошибка входных данных |
+| [338. Reject negative gradebook column page — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6436) (`case338`) | `GET /api/courses/{{course_id}}/gradebook?columnPage=-1`; HTTP 400 — ошибка входных данных |
+| [339. Progress list returns summaries — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6447) (`case339`) | `GET /api/users/me/progress`; HTTP 200 — успешное выполнение |
+| [340. Progress details first page — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6474) (`case340`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=0&detailSize=1`; HTTP 200 — успешное выполнение |
+| [341. Progress details second page preserves totals — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6505) (`case341`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=1&detailSize=1`; HTTP 200 — успешное выполнение |
+| [342. Progress details out of range preserve totals — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6532) (`case342`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=2&detailSize=1`; HTTP 200 — успешное выполнение |
+| [343. Progress explicit summary for course — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6553) (`case343`) | `GET /api/users/me/progress?courseId={{course_id}}&includeDetails=false`; HTTP 200 — успешное выполнение |
+| [344. Reject unscoped progress details — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6573) (`case344`) | `GET /api/users/me/progress?includeDetails=true`; HTTP 400 — ошибка входных данных |
+| [345. Reject invalid progress detail size — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6584) (`case345`) | `GET /api/users/me/progress?courseId={{course_id}}&detailSize=101`; HTTP 400 — ошибка входных данных |
+| [346. Reject negative progress detail page — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6595) (`case346`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=-1`; HTTP 400 — ошибка входных данных |
+| [347. Progress detail page overflow rejected — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6606) (`case347`) | `GET /api/users/me/progress?courseId={{course_id}}&detailPage=2147483647&detailSize=100`; HTTP 400 — ошибка входных данных |
+| [348. Anonymous liveness](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6617) (`case348`) | `GET /actuator/health/liveness`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "status"), "UP")` (`"response.body.status === \"UP\""`); Вызов `looseEq(field(response.body(), "components"), null)` (`"Probe must not disclose components"`) |
+| [349. Anonymous readiness](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6626) (`case349`) | `GET /actuator/health/readiness`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "status"), "UP")` (`"response.body.status === \"UP\""`); Вызов `looseEq(field(response.body(), "components"), null)` (`"Probe must not disclose components"`) |
+| [350. Health component details denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6635) (`case350`) | `GET /actuator/health/db`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 401)` (`plus("Expected 401, got ", response.status())`) |
+| [351. Anonymous metrics denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6640) (`case351`) | `GET /actuator/metrics`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 401)` (`plus("Expected 401, got ", response.status())`) |
+| [352. Student metrics denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6645) (`case352`) | `GET /actuator/metrics`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 403)` (`plus("Expected 403, got ", response.status())`) |
+| [353. Anonymous individual metric denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6651) (`case353`) | `GET /actuator/metrics/courseflow.auth.rate_limited`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 401)` (`plus("Expected 401, got ", response.status())`) |
+| [354. Admin metrics names](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6656) (`case354`) | `GET /actuator/metrics`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `truth(isArray(field(response.body(), "names")))` (`"Array.isArray(response.body.names)"`); Вызов `ge(indexOf(field(response.body(), "names"), name), 0)` (`plus("Missing ", name)`) |
+| [355. Admin counter courseflow.password.reset.requests](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6676) (`case355`) | `GET /actuator/metrics/courseflow.password.reset.requests`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "…"), "…")` (`"…"`); Вызов `((truth(count) && eq(typeOf(field(count, "value")), "number")) && ge(field(count, "value"), 1))` (`"Invalid counter"`) |
+| [356. Admin counter courseflow.password.reset.accepted](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6700) (`case356`) | `GET /actuator/metrics/courseflow.password.reset.accepted`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "…"), "…")` (`"…"`); Вызов `((truth(count) && eq(typeOf(field(count, "value")), "number")) && ge(field(count, "value"), 1))` (`"Invalid counter"`) |
+| [357. Admin counter courseflow.auth.rate_limited](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6724) (`case357`) | `GET /actuator/metrics/courseflow.auth.rate_limited`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 200)` (`plus("Expected 200, got ", response.status())`); Вызов `eq(field(response.body(), "name"), "courseflow.auth.rate_limited")` (`"response.body.name === \"courseflow.auth.rate_limited\""`); Вызов `((truth(count) && eq(typeOf(field(count, "value")), "number")) && ge(field(count, "value"), 0))` (`"Invalid counter"`) |
+| [358. Admin environment endpoint denied](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6748) (`case358`) | `GET /actuator/env`; Проверка контракта и состояния ответа; Вызов `eq(response.status(), 403)` (`plus("Expected 403, got ", response.status())`) |
+| [359. Register rejects 74 UTF-8 bytes — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6753) (`case359`) | `POST /api/auth/register`; HTTP 400 — ошибка входных данных |
+| [360. Admin create rejects 74 UTF-8 bytes — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6770) (`case360`) | `POST /api/users`; HTTP 400 — ошибка входных данных |
+| [361. Login rejects 74 UTF-8 bytes — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6789) (`case361`) | `POST /api/auth/login`; HTTP 400 — ошибка входных данных |
+| [362. Change rejects oversized current password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6806) (`case362`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
+| [363. Change rejects oversized new password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6825) (`case363`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
+| [364. Reset rejects oversized new password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6844) (`case364`) | `POST /api/auth/reset-password`; HTTP 400 — ошибка входных данных |
+| [365. Register accepts exactly 72 UTF-8 bytes — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6861) (`case365`) | `POST /api/auth/register`; HTTP 201 — создание объекта |
+| [366. Admin cannot create same normalized email — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6885) (`case366`) | `POST /api/users`; HTTP 409 — конфликт |
+| [367. Login accepts exactly 72 UTF-8 bytes — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6901) (`case367`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [368. Deactivate UTF8 test user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6918) (`case368`) | `POST /api/users/{{cf618_user_id}}/deactivate`; HTTP 200 — успешное выполнение |
+| [369. Clean up UTF8 test user — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6931) (`case369`) | `DELETE /api/users/{{cf618_user_id}}`; HTTP 204 — успех без тела ответа |
+| [370. Missing submission filter retains existing behavior — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6942) (`case370`) | `GET /api/courses/{{course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=NOT_SUBMITTED&enrollmentStatus=ACTIVE&moduleId={{module_id}}`; HTTP 200 — успешное выполнение |
+| [371. Future unsubmitted assignments are not overdue — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6966) (`case371`) | `GET /api/courses/{{course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=OVERDUE&moduleId={{module_id}}`; HTTP 200 — успешное выполнение |
+| [372. ADMIN may filter overdue assignments — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6984) (`case372`) | `GET /api/courses/{{course_id}}/gradebook?reviewStatus=OVERDUE`; HTTP 200 — успешное выполнение |
+| [373. Overdue assignment filter cannot be applied to quiz-only gradebook — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L6999) (`case373`) | `GET /api/courses/{{course_id}}/gradebook?type=QUIZ&reviewStatus=OVERDUE`; HTTP 400 — ошибка входных данных |
+| [374. Student cannot use overdue gradebook filter — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7013) (`case374`) | `GET /api/courses/{{course_id}}/gradebook?reviewStatus=OVERDUE`; HTTP 403 — отказ в доступе |
+| [375. Student cannot extend deadline — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7024) (`case375`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 403 — отказ в доступе |
+| [376. Deadline extension requires version — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7037) (`case376`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 400 — ошибка входных данных |
+| [377. Cannot shorten deadline — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7050) (`case377`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 400 — ошибка входных данных |
+| [378. Cannot extend into the past — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7063) (`case378`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 400 — ошибка входных данных |
+| [379. Teacher extends deadline after grading — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7076) (`case379`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 200 — успешное выполнение |
+| [380. Stale deadline update rejected — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7104) (`case380`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 409 — конфликт |
+| [381. Admin extends deadline — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7117) (`case381`) | `PATCH /api/lessons/{{lesson_id}}/assignments/{{assignment_id}}/deadline`; HTTP 200 — успешное выполнение |
+| [382. Existing grade unchanged after deadline extension — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7137) (`case382`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
+| [383. Teacher regrades an already graded submission — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7159) (`case383`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 200 — успешное выполнение |
+| [384. Stale regrade cannot overwrite committed grade — 409](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7182) (`case384`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 409 — конфликт |
+| [385. Student cannot regrade — 403](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7198) (`case385`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 403 — отказ в доступе |
+| [386. Rejected grades do not modify submission — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7214) (`case386`) | `GET /api/assignments/{{assignment_id}}/submissions/me`; HTTP 200 — успешное выполнение |
+| [387. Admin restores original grade — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7232) (`case387`) | `PUT /api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`; HTTP 200 — успешное выполнение |
+| [388. Register temporary authorization test user — 201](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7251) (`case388`) | `POST /api/auth/register`; HTTP 201 — создание объекта |
+| [389. Login temporary authorization test user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7265) (`case389`) | `POST /api/auth/login`; HTTP 200 — успешное выполнение |
+| [390. Active user with wrong current password — 400](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7277) (`case390`) | `POST /api/auth/change-password`; HTTP 400 — ошибка входных данных |
+| [391. Deactivate temporary authorization test user — 200](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7293) (`case391`) | `POST /api/users/{{cf623_auth_id}}/deactivate`; HTTP 200 — успешное выполнение |
+| [392. Inactive user cannot change password with revoked JWT — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7306) (`case392`) | `POST /api/auth/change-password`; HTTP 401 — отказ в аутентификации |
+| [393. Inactive user cannot log in with correct password — 401](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7325) (`case393`) | `POST /api/auth/login`; HTTP 401 — отказ в аутентификации |
+| [394. Delete temporary authorization test user — 204](../src/test/java/org/courseflow/integration/regression/CourseFlowRegressionIT.java#L7339) (`case394`) | `DELETE /api/users/{{cf623_auth_id}}`; HTTP 204 — успех без тела ответа |
 
 #### [RateLimitRegressionIT](../src/test/java/org/courseflow/integration/regression/RateLimitRegressionIT.java) — 59 динамических сценариев
 
@@ -2700,11 +2485,11 @@ HTTP-контракт контроллера: делегирование, пар
 
 | Метод | Сценарий и проверяемый результат |
 |---|---|
-| [steppedRampUp](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L217) | Ступенчатый рост нагрузки |
-| [saturationWithoutThinkTime](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L233) | Насыщение системы запросами без пауз |
-| [stagedSpikeAndRecovery](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L241) | Резкий всплеск нагрузки и восстановление |
-| [extendedSoak](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L249) | Продолжительное нагрузочное испытание |
-| [authenticationBurstExercisesRealRateLimiter](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L264) | Всплеск аутентификации с действующим ограничителем запросов. HTTP 200; `field(response.body(), "code") = "RATE_LIMIT_EXCEEDED"`; `number(response.body(), "status") = 429L` |
+| [steppedRampUp](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L220) | Ступенчатый рост нагрузки |
+| [saturationWithoutThinkTime](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L236) | Насыщение системы запросами без пауз |
+| [stagedSpikeAndRecovery](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L244) | Резкий всплеск нагрузки и восстановление |
+| [extendedSoak](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L252) | Продолжительное нагрузочное испытание |
+| [authenticationBurstExercisesRealRateLimiter](../src/test/java/org/courseflow/performance/AdvancedPerformanceIT.java#L273) | Всплеск аутентификации с действующим ограничителем запросов. HTTP 200; `field(response.body(), "code") = "RATE_LIMIT_EXCEEDED"`; `number(response.body(), "status") = 429L` |
 
 #### [PerformanceIT](../src/test/java/org/courseflow/performance/PerformanceIT.java)
 

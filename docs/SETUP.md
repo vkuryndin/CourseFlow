@@ -26,13 +26,14 @@ cd CourseFlow
 
 ## 2. Подготовка PostgreSQL
 
-Для локальной разработки создайте базу `courseflow` и роль с правами владельца базы. Пример SQL для нового экземпляра PostgreSQL:
+Для локальной разработки создайте базу `courseflow` и роль с правами владельца базы. Пример команд для клиента `psql`, запущенного от имени администратора PostgreSQL:
 
 ```sql
 CREATE ROLE appuser LOGIN;
-\password appuser
 CREATE DATABASE courseflow OWNER appuser;
 ```
+
+Пароль новой роли задаётся командой `\password appuser` в `psql`. Если роль уже существует, достаточно создать базу с нужным владельцем.
 
 Для подключения с другой машины настройте прослушивание сетевого интерфейса PostgreSQL, правила `pg_hba.conf` и доступ к порту 5432. Hibernate формирует таблицы автоматически при запуске. Для интеграционных и нагрузочных тестов PostgreSQL создаётся автоматически средствами Testcontainers.
 
@@ -52,7 +53,7 @@ CREATE DATABASE courseflow OWNER appuser;
 | Переменная | Назначение и пример |
 |---|---|
 | `SPRING_PROFILES_ACTIVE` | `dev` или `aws` |
-| `DB_URL` | JDBC-адрес: `jdbc:postgresql://localhost:5432/courseflow`; для VM — `jdbc:postgresql://192.168.179.129:5432/courseflow` |
+| `DB_URL` | JDBC-адрес: `jdbc:postgresql://localhost:5432/courseflow`; для отдельного сервера — `jdbc:postgresql://<db-host>:5432/courseflow` |
 | `DB_USERNAME` | Роль PostgreSQL, например `appuser` |
 | `DB_PASSWORD` | Пароль роли PostgreSQL |
 | `JWT_SECRET_BASE64` | Ключ подписи JWT в Base64, минимум 32 байта до кодирования |
@@ -89,7 +90,7 @@ $env:MAIL_APP_PASSWORD = '<gmail-app-password>'
 
 ## 4. IntelliJ IDEA и Testcontainers
 
-В проекте предусмотрены три конфигурации запуска. Используется Java 17; переменные окружения передаются из локальных настроек IDE или среды процесса.
+Для запуска из IntelliJ IDEA используются три конфигурации с Java 17. Переменные окружения задаются в настройках запуска или в среде процесса. Каталог `.idea/` исключён из Git. Конфигурации запуска хранятся локально; на каждой рабочей станции они создаются с собственными параметрами подключения.
 
 | Параметр | CourseFlowApplication | CourseFlow Integration Tests | CourseFlow Performance Tests |
 |---|---|---|---|
@@ -210,7 +211,7 @@ docker compose ps
 
 ## 7. Развёртывание в AWS
 
-Демонстрационная среда размещена на EC2 t3.micro: 2 vCPU, 1 ГиБ RAM, Ubuntu 24.04, EBS 40 ГБ, swap 4,5 ГиБ. Входящие соединения: SSH — 22, интерфейс приложения — 8081. Backend и PostgreSQL доступны внутри Compose.
+Демонстрационная среда размещена на EC2 t3.micro: 2 vCPU, 1 ГиБ RAM, Ubuntu 24.04, EBS 40 ГБ, swap 4,5 ГиБ. Входящие соединения: SSH — 22, интерфейс приложения — 8081. Backend и PostgreSQL доступны внутри Compose. Демонстрационная среда работает по HTTP, без TLS, и предназначена для учебных данных.
 
 На сервере с установленными Git, Docker и Compose:
 
@@ -264,4 +265,4 @@ vmstat 1 5
 | Ошибка доставки | GitHub Secrets, сетевой доступ, ревизии образов, состояние контейнеров |
 | HTTP 429 при сборке Gradle | Ограничение запросов Maven Central; повторный запуск неудачного job |
 
-Настройки с рабочими паролями и ключами хранятся локально либо в секретах среды. Команды тестирования приведены в [TESTING.md](TESTING.md).
+Команды тестирования приведены в [TESTING.md](TESTING.md).
