@@ -208,14 +208,17 @@ final class OpenApiFields {
           "TagRequest");
 
   static void describe(String schemaName, Schema<?> schema) {
-    if (schema.getProperties() == null) return;
+    if (schema.getProperties() == null) {
+      return;
+    }
     schema
         .getProperties()
         .forEach(
             (name, property) -> {
               String description = DESCRIPTIONS.get(name);
-              if (description != null)
+              if (description != null) {
                 property.setDescription(description(schemaName, name, description));
+              }
               if (schemaName.endsWith("Request")
                   && !("version".equals(name) && CREATE_OR_UPDATE.contains(schemaName))) {
                 addExample(name, property);
@@ -227,14 +230,27 @@ final class OpenApiFields {
     if ("version".equals(field) && CREATE_OR_UPDATE.contains(schemaName)) {
       return "Версия объекта: обязательна при PUT, не передаётся при POST.";
     }
-    if ("version".equals(field) && schemaName.equals("Application")) return "Версия приложения";
-    if ("version".equals(field) && schemaName.equals("Database")) return "Версия СУБД";
-    if ("active".equals(field) && schemaName.equals("Pool")) return "Занятые соединения";
-    if ("content".equals(field) && schemaName.startsWith("PageResponse"))
+    if ("version".equals(field) && schemaName.equals("Application")) {
+      return "Версия приложения";
+    }
+    if ("version".equals(field) && schemaName.equals("Database")) {
+      return "Версия СУБД";
+    }
+    if ("active".equals(field) && schemaName.equals("Pool")) {
+      return "Занятые соединения";
+    }
+    if ("content".equals(field) && schemaName.startsWith("PageResponse")) {
       return "Элементы страницы";
-    if ("content".equals(field) && (schemaName.contains("Lesson"))) return "Материал урока";
-    if ("content".equals(field) && schemaName.contains("Submission")) return "Ответ студента";
-    if ("score".equals(field) && schemaName.contains("Quiz")) return "Результат теста, %";
+    }
+    if ("content".equals(field) && (schemaName.contains("Lesson"))) {
+      return "Материал урока";
+    }
+    if ("content".equals(field) && schemaName.contains("Submission")) {
+      return "Ответ студента";
+    }
+    if ("score".equals(field) && schemaName.contains("Quiz")) {
+      return "Результат теста, %";
+    }
     if ("password".equals(field) && !schemaName.equals("LoginRequest")) {
       return "Пароль (8–72 символа, до 72 байт UTF-8)";
     }
@@ -248,7 +264,9 @@ final class OpenApiFields {
   }
 
   private static void addExample(String field, Schema<?> property) {
-    if (property.getExample() != null || property.get$ref() != null) return;
+    if (property.getExample() != null || property.get$ref() != null) {
+      return;
+    }
     switch (field) {
       case "email" -> property.setExample("student@example.com");
       case "password", "currentPassword" -> property.setExample("ExamplePassword2026!");

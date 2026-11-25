@@ -47,8 +47,12 @@ public class AuthRateLimiter {
    * reservation belongs to exactly one window, even if a request finishes much later.
    */
   public synchronized void completeLogin(LoginReservation reservation, boolean invalidCredentials) {
-    if (reservation.owner != this) throw new IllegalArgumentException("Foreign login reservation");
-    if (reservation.completed) return;
+    if (reservation.owner != this) {
+      throw new IllegalArgumentException("Foreign login reservation");
+    }
+    if (reservation.completed) {
+      return;
+    }
     reservation.completed = true;
     if (!invalidCredentials) {
       loginEmailFailures.refund(reservation.key, reservation.window, ticker.getAsLong());
@@ -147,7 +151,9 @@ public class AuthRateLimiter {
 
     void refund(String key, Window reserved, long now) {
       Window current = current(key, now);
-      if (current == reserved && --current.count == 0) entries.remove(key);
+      if (current == reserved && --current.count == 0) {
+        entries.remove(key);
+      }
     }
 
     void consume(String key, int limit, long now) {

@@ -82,7 +82,7 @@ public class SubmissionService {
       throw new BusinessConflictException("Teacher cannot submit work for own course");
     }
 
-    User student = studentAccess.lockActive(studentId);
+    final User student = studentAccess.lockActive(studentId);
 
     enrollmentAccess.requireActive(
         studentId, courseId, "Active enrollment is required to submit work");
@@ -168,7 +168,9 @@ public class SubmissionService {
 
     Map<String, Object> parameters = new java.util.HashMap<>();
     parameters.put("assignmentId", assignmentId);
-    if (status != null) parameters.put("status", status);
+    if (status != null) {
+      parameters.put("status", status);
+    }
     var result =
         JpqlPages.findPage(
             entityManager,

@@ -64,7 +64,7 @@ public class ProgressQueryRepository {
       int size,
       String sortBy,
       String direction) {
-    String orderBy = buildOrderBy(sortBy, direction);
+    final String orderBy = buildOrderBy(sortBy, direction);
 
     Map<String, Object> parameters = new HashMap<>();
 
@@ -110,7 +110,9 @@ public class ProgressQueryRepository {
 
   public List<AssignmentAggregate> aggregateAssignments(
       Long studentId, List<Long> courseIds, Instant now) {
-    if (courseIds.isEmpty()) return List.of();
+    if (courseIds.isEmpty()) {
+      return List.of();
+    }
     return entityManager
         .createQuery(
             """
@@ -135,7 +137,9 @@ public class ProgressQueryRepository {
   }
 
   public List<QuizAggregate> aggregateQuizzes(Long studentId, List<Long> courseIds) {
-    if (courseIds.isEmpty()) return List.of();
+    if (courseIds.isEmpty()) {
+      return List.of();
+    }
     // Aggregate best score per quiz first, so multiple attempts do not inflate progress.
     return entityManager
         .createQuery(
@@ -161,7 +165,9 @@ public class ProgressQueryRepository {
       int detailPage,
       int detailSize,
       boolean deadlinesOnly) {
-    if (courseIds.isEmpty()) return List.of();
+    if (courseIds.isEmpty()) {
+      return List.of();
+    }
     TypedQuery<AssignmentRow> query =
         entityManager
             .createQuery(
@@ -189,13 +195,17 @@ public class ProgressQueryRepository {
                 AssignmentRow.class)
             .setParameter("studentId", studentId)
             .setParameter("courseIds", courseIds);
-    if (deadlinesOnly) query.setParameter("now", now);
+    if (deadlinesOnly) {
+      query.setParameter("now", now);
+    }
     return query.setFirstResult(detailPage * detailSize).setMaxResults(detailSize).getResultList();
   }
 
   public List<QuizRow> findQuizzes(
       Long studentId, List<Long> courseIds, Instant now, int detailPage, int detailSize) {
-    if (courseIds.isEmpty()) return List.of();
+    if (courseIds.isEmpty()) {
+      return List.of();
+    }
     return entityManager
         .createQuery(
             """

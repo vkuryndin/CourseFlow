@@ -1,7 +1,17 @@
 package org.courseflow.auth.controller;
 
-import org.courseflow.auth.dto.*;
-import org.courseflow.auth.service.*;
+import org.courseflow.auth.dto.ChangePasswordRequest;
+import org.courseflow.auth.dto.ForgotPasswordRequest;
+import org.courseflow.auth.dto.LoginRequest;
+import org.courseflow.auth.dto.LoginResponse;
+import org.courseflow.auth.dto.RegistrationRequest;
+import org.courseflow.auth.dto.RegistrationResponse;
+import org.courseflow.auth.dto.ResetPasswordRequest;
+import org.courseflow.auth.service.AuthRateLimiter;
+import org.courseflow.auth.service.AuthService;
+import org.courseflow.auth.service.PasswordResetDispatcher;
+import org.courseflow.auth.service.PasswordResetService;
+import org.courseflow.auth.service.PasswordService;
 import org.courseflow.common.exception.RateLimitExceededException;
 import org.courseflow.common.system.CourseFlowMetrics;
 import org.slf4j.Logger;

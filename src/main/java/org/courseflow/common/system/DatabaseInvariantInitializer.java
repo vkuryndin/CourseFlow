@@ -57,9 +57,11 @@ public class DatabaseInvariantInitializer implements ApplicationRunner, Ordered 
     jdbcTemplate.execute(
         "CREATE INDEX IF NOT EXISTS ix_cf_submissions_student_date ON submissions (student_id, submitted_at)");
     jdbcTemplate.execute(
-        "CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_quiz_status ON quiz_submissions (quiz_id, status, expires_at)");
+        "CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_quiz_status ON quiz_submissions"
+            + " (quiz_id, status, expires_at)");
     jdbcTemplate.execute(
-        "CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_expiring ON quiz_submissions (expires_at, id) WHERE status = 'IN_PROGRESS'");
+        "CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_expiring ON quiz_submissions"
+            + " (expires_at, id) WHERE status = 'IN_PROGRESS'");
     jdbcTemplate.execute(
         "CREATE INDEX IF NOT EXISTS ix_cf_quiz_submissions_student_date ON quiz_submissions (student_id, taken_at)");
     jdbcTemplate.execute(
@@ -67,7 +69,8 @@ public class DatabaseInvariantInitializer implements ApplicationRunner, Ordered 
     jdbcTemplate.execute(
         "CREATE INDEX IF NOT EXISTS ix_cf_auth_sessions_expires ON auth_sessions (expires_at)");
     jdbcTemplate.execute(
-        "CREATE INDEX IF NOT EXISTS ix_cf_reset_tokens_account_expires ON password_reset_tokens (user_account_id, expires_at)");
+        "CREATE INDEX IF NOT EXISTS ix_cf_reset_tokens_account_expires ON"
+            + " password_reset_tokens (user_account_id, expires_at)");
     jdbcTemplate.execute(
         "CREATE INDEX IF NOT EXISTS ix_cf_reset_tokens_expires ON password_reset_tokens (expires_at)");
     jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS ix_cf_course_tag_tag ON course_tag (tag_id)");

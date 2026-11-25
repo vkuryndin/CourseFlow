@@ -76,7 +76,9 @@ public class AccountCreator {
       boolean passwordChangeRequired) {
     User user = userDirectory.createUser(displayName, normalizedEmail, roles, clock.instant());
     UserAccount account = new UserAccount(user, passwordHash, clock.instant());
-    if (passwordChangeRequired) account.requirePasswordChange();
+    if (passwordChangeRequired) {
+      account.requirePasswordChange();
+    }
     accounts.saveAndFlush(account);
     return user;
   }

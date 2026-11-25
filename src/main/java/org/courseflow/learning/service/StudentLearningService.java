@@ -174,7 +174,9 @@ public class StudentLearningService {
   private Map<String, Object> parameters(Long studentId, Long courseId) {
     Map<String, Object> params = new HashMap<>();
     params.put("studentId", studentId);
-    if (courseId != null) params.put("courseId", courseId);
+    if (courseId != null) {
+      params.put("courseId", courseId);
+    }
     return params;
   }
 

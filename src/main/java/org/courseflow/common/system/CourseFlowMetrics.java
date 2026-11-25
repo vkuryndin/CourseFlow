@@ -7,13 +7,13 @@ import org.springframework.stereotype.Component;
 /** Fixed metric names; no email, IP, user ID or other high-cardinality tags. */
 @Component
 public class CourseFlowMetrics {
-  private final Counter rateLimited,
-      resetRequests,
-      resetAccepted,
-      resetRejected,
-      resetProcessingFailed,
-      resetMailSent,
-      resetMailFailed;
+  private final Counter rateLimited;
+  private final Counter resetRequests;
+  private final Counter resetAccepted;
+  private final Counter resetRejected;
+  private final Counter resetProcessingFailed;
+  private final Counter resetMailSent;
+  private final Counter resetMailFailed;
 
   public CourseFlowMetrics(MeterRegistry registry) {
     rateLimited = registry.counter("courseflow.auth.rate_limited");

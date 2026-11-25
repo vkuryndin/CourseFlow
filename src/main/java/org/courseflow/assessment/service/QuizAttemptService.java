@@ -72,9 +72,9 @@ public class QuizAttemptService {
   @Transactional
   public StartResult start(Long quizId, Long studentId) {
     Course course = lockCourseForQuizShared(quizId);
-    User student = lockActiveStudent(studentId);
+    final User student = lockActiveStudent(studentId);
 
-    Quiz quiz =
+    final Quiz quiz =
         quizRepository
             .findById(quizId)
             .orElseThrow(() -> new ResourceNotFoundException("Quiz not found: " + quizId));
@@ -160,7 +160,7 @@ public class QuizAttemptService {
     Course course = lockCourseForQuizShared(quizId);
     lockActiveStudent(studentId);
 
-    QuizSubmission attempt = findOwnedAttempt(quizId, attemptId, studentId);
+    final QuizSubmission attempt = findOwnedAttempt(quizId, attemptId, studentId);
 
     requireActiveEnrollment(course.getId(), studentId);
 
@@ -190,7 +190,7 @@ public class QuizAttemptService {
 
     Map<Long, Set<Long>> selectedAnswers = QuizGrader.validateAnswers(questions, request);
 
-    int score = QuizGrader.score(questions, selectedAnswers);
+    final int score = QuizGrader.score(questions, selectedAnswers);
 
     // Check deadline again before saving the result.
     now = clock.instant();

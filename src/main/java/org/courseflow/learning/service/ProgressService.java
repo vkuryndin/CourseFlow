@@ -17,7 +17,11 @@ import org.courseflow.learning.dto.CourseProgressResponse.QuizProgress;
 import org.courseflow.learning.dto.CourseProgressSummaryResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.repository.ProgressQueryRepository;
-import org.courseflow.learning.repository.ProgressQueryRepository.*;
+import org.courseflow.learning.repository.ProgressQueryRepository.AssignmentAggregate;
+import org.courseflow.learning.repository.ProgressQueryRepository.AssignmentRow;
+import org.courseflow.learning.repository.ProgressQueryRepository.CourseRow;
+import org.courseflow.learning.repository.ProgressQueryRepository.QuizAggregate;
+import org.courseflow.learning.repository.ProgressQueryRepository.QuizRow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -143,9 +147,12 @@ public class ProgressService {
 
     Map<Long, AssignmentAggregate> assignments = new HashMap<>();
     Map<Long, QuizAggregate> quizzes = new HashMap<>();
-    for (var row : queries.aggregateAssignments(studentId, courseIds, now))
+    for (var row : queries.aggregateAssignments(studentId, courseIds, now)) {
       assignments.put(row.courseId(), row);
-    for (var row : queries.aggregateQuizzes(studentId, courseIds)) quizzes.put(row.courseId(), row);
+    }
+    for (var row : queries.aggregateQuizzes(studentId, courseIds)) {
+      quizzes.put(row.courseId(), row);
+    }
     List<CourseProgressSummaryResponse> result = new ArrayList<>();
     for (CourseRow row : courses) {
       var a = assignments.get(row.courseId());

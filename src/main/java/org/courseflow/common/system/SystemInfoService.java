@@ -114,10 +114,18 @@ public class SystemInfoService {
   }
 
   private SystemInfoResponse.Database databaseInfo() {
-    String product = null, version = null, driver = null, driverVersion = null;
-    String address = null, name = null, user = null, schema = null;
+    String product = null;
+    String version = null;
+    String driver = null;
+    String driverVersion = null;
+    String address = null;
+    String name = null;
+    String user = null;
+    String schema = null;
     Integer port = null;
-    Long size = null, tables = null, elapsed = null;
+    Long size = null;
+    Long tables = null;
+    Long elapsed = null;
     String status = "UNAVAILABLE";
     try (Connection connection = dataSource.getConnection()) {
       status = "PARTIAL";

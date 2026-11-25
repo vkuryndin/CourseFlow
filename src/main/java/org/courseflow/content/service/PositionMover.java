@@ -19,7 +19,9 @@ final class PositionMover {
       BiConsumer<T, Integer> setPosition,
       IntSupplier maxPosition,
       Runnable flush) {
-    if (oldPosition == newPosition) return;
+    if (oldPosition == newPosition) {
+      return;
+    }
     // The range includes the selected entity. Exclude it before changing positions.
     List<T> others =
         affected.stream().filter(item -> position.applyAsInt(item) != oldPosition).toList();

@@ -36,8 +36,11 @@ public class RequestIdFilter extends OncePerRequestFilter {
     try {
       chain.doFilter(request, response);
     } finally {
-      if (previous == null) MDC.remove("requestId");
-      else MDC.put("requestId", previous);
+      if (previous == null) {
+        MDC.remove("requestId");
+      } else {
+        MDC.put("requestId", previous);
+      }
     }
   }
 }

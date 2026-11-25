@@ -8,7 +8,9 @@ public final class HttpUrls {
   private HttpUrls() {}
 
   public static String optional(String value, String field) {
-    if (value == null || value.isBlank()) return null;
+    if (value == null || value.isBlank()) {
+      return null;
+    }
     String normalized = value.trim();
     try {
       URI uri = URI.create(normalized);

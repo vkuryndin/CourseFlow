@@ -45,7 +45,7 @@ public class SecurityExceptionHandler implements AuthenticationEntryPoint, Acces
       HttpServletRequest request, HttpServletResponse response, HttpStatus status)
       throws IOException {
 
-    ApiErrorResponse body =
+    final ApiErrorResponse body =
         new ApiErrorResponse(
             clock.instant(),
             status.value(),

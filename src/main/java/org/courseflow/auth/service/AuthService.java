@@ -77,7 +77,9 @@ public class AuthService {
     boolean matches =
         passwordEncoder.matches(
             request.password(), snapshot == null ? dummyPasswordHash : snapshot.passwordHash());
-    if (snapshot == null || !matches) throw invalidCredentials();
+    if (snapshot == null || !matches) {
+      throw invalidCredentials();
+    }
 
     return transaction.execute(
         status -> {

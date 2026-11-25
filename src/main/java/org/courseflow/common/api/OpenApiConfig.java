@@ -60,10 +60,14 @@ public class OpenApiConfig {
   @Bean
   public OpenApiCustomizer publicOperations() {
     return api -> {
-      if (api.getComponents() == null) api.setComponents(new Components());
+      if (api.getComponents() == null) {
+        api.setComponents(new Components());
+      }
       registerErrorSchema(api.getComponents());
       api.getComponents().getSchemas().forEach(OpenApiFields::describe);
-      if (api.getPaths() == null) return;
+      if (api.getPaths() == null) {
+        return;
+      }
       var tags = new TreeSet<String>();
       api.getPaths()
           .forEach(
@@ -76,7 +80,9 @@ public class OpenApiConfig {
                                         && PublicEndpoints.isPublicGet(path)
                                     || method == PathItem.HttpMethod.POST
                                         && PublicEndpoints.isPublicPost(path);
-                            if (isPublic) operation.setSecurity(List.of());
+                            if (isPublic) {
+                              operation.setSecurity(List.of());
+                            }
                             var doc = OpenApiDocumentation.find(method.name(), path);
                             if (doc != null) {
                               operation.setTags(List.of(doc.tag()));
@@ -88,7 +94,9 @@ public class OpenApiConfig {
                             }
                             describeResponses(path, method, operation, isPublic, doc);
                           }));
-      if (!tags.isEmpty()) api.setTags(tags.stream().map(name -> new Tag().name(name)).toList());
+      if (!tags.isEmpty()) {
+        api.setTags(tags.stream().map(name -> new Tag().name(name)).toList());
+      }
     };
   }
 
@@ -129,13 +137,15 @@ public class OpenApiConfig {
 
   private void describeParameters(
       String path, Operation operation, OpenApiDocumentation.Endpoint doc) {
-    if (operation.getParameters() != null)
+    if (operation.getParameters() != null) {
       operation
           .getParameters()
           .forEach(
               parameter -> {
                 String name = parameter.getName();
-                if (name == null) return;
+                if (name == null) {
+                  return;
+                }
                 if (name.equals("sortBy")) {
                   parameter.setDescription(
                       doc.sortFields().isEmpty()
@@ -156,8 +166,10 @@ public class OpenApiConfig {
                   parameter.setDescription(PARAMETER_DESCRIPTIONS.get(name));
                 }
               });
-    if (operation.getRequestBody() != null)
+    }
+    if (operation.getRequestBody() != null) {
       operation.getRequestBody().setDescription("Данные запроса");
+    }
   }
 
   private void describeResponses(
@@ -167,13 +179,15 @@ public class OpenApiConfig {
       boolean isPublic,
       OpenApiDocumentation.Endpoint doc) {
     var responses = operation.getResponses();
-    if (responses == null) return;
+    if (responses == null) {
+      return;
+    }
     // Keep generated response schemas and existing explicitly documented errors.
     // Only supply descriptions and applicable HTTP codes.
     if (doc != null) {
       for (String code : doc.successCodes().split(",")) {
         ApiResponse response = responses.get(code);
-        if (response != null)
+        if (response != null) {
           response.setDescription(
               switch (code) {
                 case "200" ->
@@ -185,6 +199,7 @@ public class OpenApiConfig {
                 case "204" -> "Выполнено, без тела ответа";
                 default -> "Успешно";
               });
+        }
       }
     }
     if (doc == null
@@ -198,13 +213,15 @@ public class OpenApiConfig {
       addError(operation, "401", "Требуется действительный JWT");
       addError(operation, "403", "Недостаточно прав доступа");
     }
-    if (doc != null ? doc.notFound() : path.contains("{"))
+    if (doc != null ? doc.notFound() : path.contains("{")) {
       addError(operation, "404", "Объект не найден");
+    }
     if (responses.containsKey("200") || responses.containsKey("201")) {
       addError(operation, "406", "Формат ответа не поддерживается");
     }
-    if (operation.getRequestBody() != null)
+    if (operation.getRequestBody() != null) {
       addError(operation, "415", "Формат тела запроса не поддерживается");
+    }
     if (doc != null
         ? doc.conflict()
         : method != PathItem.HttpMethod.GET || path.contains("/quizzes/")) {
@@ -213,8 +230,12 @@ public class OpenApiConfig {
     if (method == PathItem.HttpMethod.POST && PublicEndpoints.isRateLimitedPost(path)) {
       addError(operation, "429", "Превышен лимит запросов");
     }
-    if (path.equals("/api/auth/login")) addError(operation, "401", "Неверный email или пароль");
-    if (path.equals("/api/system/status")) addError(operation, "503", "База данных недоступна");
+    if (path.equals("/api/auth/login")) {
+      addError(operation, "401", "Неверный email или пароль");
+    }
+    if (path.equals("/api/system/status")) {
+      addError(operation, "503", "База данных недоступна");
+    }
     if (responses.containsKey("429")) {
       responses
           .get("429")
@@ -264,7 +285,9 @@ public class OpenApiConfig {
   }
 
   private void addError(Operation operation, String code, String description) {
-    if (operation.getResponses().containsKey(code)) return;
+    if (operation.getResponses().containsKey(code)) {
+      return;
+    }
     operation
         .getResponses()
         .addApiResponse(

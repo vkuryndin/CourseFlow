@@ -56,7 +56,7 @@ public class QuestionService {
   @Transactional
   public QuestionResponse.ManagementResponse createQuestion(
       Long quizId, CreateQuestionRequest request, Long currentUserId, boolean isAdmin) {
-    Quiz quiz = quizService.requireQuizManagementAccess(quizId, currentUserId, isAdmin, true);
+    final Quiz quiz = quizService.requireQuizManagementAccess(quizId, currentUserId, isAdmin, true);
 
     if (quizService.hasQuizSubmissions(quizId)) {
       throw new BusinessConflictException("Cannot modify Quiz after student attempts");

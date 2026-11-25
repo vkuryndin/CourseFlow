@@ -27,7 +27,9 @@ public class DemoDataInitializer {
 
   @EventListener(ApplicationReadyEvent.class)
   public void initialize() {
-    if (service.isInitialized()) return;
+    if (service.isInitialized()) {
+      return;
+    }
     List<DemoAccounts.Account> accounts = DemoAccounts.create();
     Path credentials = null;
     try {

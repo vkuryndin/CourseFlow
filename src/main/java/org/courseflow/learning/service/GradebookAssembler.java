@@ -7,8 +7,16 @@ import java.util.List;
 import java.util.Map;
 import org.courseflow.common.api.JpqlPages;
 import org.courseflow.common.api.PageResponse;
-import org.courseflow.learning.dto.GradebookResponse.*;
-import org.courseflow.learning.repository.GradebookQueryRepository.*;
+import org.courseflow.learning.dto.GradebookResponse.AssessmentType;
+import org.courseflow.learning.dto.GradebookResponse.Cell;
+import org.courseflow.learning.dto.GradebookResponse.Column;
+import org.courseflow.learning.dto.GradebookResponse.StudentRow;
+import org.courseflow.learning.repository.GradebookQueryRepository.AssignmentColumn;
+import org.courseflow.learning.repository.GradebookQueryRepository.AssignmentResult;
+import org.courseflow.learning.repository.GradebookQueryRepository.ColumnRows;
+import org.courseflow.learning.repository.GradebookQueryRepository.QuizColumn;
+import org.courseflow.learning.repository.GradebookQueryRepository.QuizResult;
+import org.courseflow.learning.repository.GradebookQueryRepository.StudentProjection;
 
 /** Pure read-model assembly: no persistence or security dependencies. */
 final class GradebookAssembler {
@@ -44,8 +52,9 @@ final class GradebookAssembler {
       List<QuizResult> quizResults,
       Instant now) {
     Map<Long, Instant> assignmentDeadlines = new HashMap<>();
-    for (AssignmentColumn row : columnRows.assignments())
+    for (AssignmentColumn row : columnRows.assignments()) {
       assignmentDeadlines.put(row.id(), row.dueAt());
+    }
     Map<CellKey, Cell> cells = new HashMap<>();
     for (AssignmentResult row : assignmentResults) {
 

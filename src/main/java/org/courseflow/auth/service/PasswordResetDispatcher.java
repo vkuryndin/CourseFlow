@@ -48,8 +48,11 @@ public class PasswordResetDispatcher {
 
   private void process(String email, String requestId) {
     String previous = MDC.get("requestId");
-    if (requestId == null) MDC.remove("requestId");
-    else MDC.put("requestId", requestId);
+    if (requestId == null) {
+      MDC.remove("requestId");
+    } else {
+      MDC.put("requestId", requestId);
+    }
     try {
       passwordResetService.requestReset(email);
     } catch (RuntimeException ex) {
@@ -60,8 +63,11 @@ public class PasswordResetDispatcher {
           ex.getClass().getName(),
           Arrays.toString(ex.getStackTrace()));
     } finally {
-      if (previous == null) MDC.remove("requestId");
-      else MDC.put("requestId", previous);
+      if (previous == null) {
+        MDC.remove("requestId");
+      } else {
+        MDC.put("requestId", previous);
+      }
     }
   }
 }

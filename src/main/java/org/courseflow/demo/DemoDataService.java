@@ -61,9 +61,12 @@ public class DemoDataService {
   @Transactional(isolation = Isolation.READ_COMMITTED, timeout = 300)
   public boolean seed(List<DemoAccounts.Account> accounts) {
     jdbc.execute("SELECT pg_advisory_xact_lock(62130001)");
-    if (isInitialized()) return false;
-    if (accounts.size() != 60)
+    if (isInitialized()) {
+      return false;
+    }
+    if (accounts.size() != 60) {
       throw new IllegalArgumentException("Ожидается 60 демонстрационных аккаунтов");
+    }
     List<DemoContent.CourseData> content = DemoContent.load();
     Instant now = clock.instant();
     LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
@@ -93,7 +96,9 @@ public class DemoDataService {
                   users.get(2 + i / 2),
                   42,
                   start));
-      for (String name : data.tags()) course.addTag(tag(tags, name));
+      for (String name : data.tags()) {
+        course.addTag(tag(tags, name));
+      }
       List<Assignment> assignments = new ArrayList<>();
       List<Quiz> quizzes = new ArrayList<>();
       for (int m = 0; m < 3; m++) {
@@ -162,10 +167,14 @@ public class DemoDataService {
                   review(item.data(), rating, s),
                   now.minus(4 + s % 5, ChronoUnit.DAYS)));
         }
-        if (e == 0 && s % 10 == 0) enrollment.withdraw(now.minus(1, ChronoUnit.DAYS));
+        if (e == 0 && s % 10 == 0) {
+          enrollment.withdraw(now.minus(1, ChronoUnit.DAYS));
+        }
       }
       // История обучения не удаляется при деактивации.
-      if (s >= 47) student.deactivate();
+      if (s >= 47) {
+        student.deactivate();
+      }
     }
     // Архивирование происходит после формирования исторической активности.
     courses.get(14).course().archive();
@@ -205,7 +214,9 @@ public class DemoDataService {
       }
     }
     // 0 + 3 + 4 + 5 = 12 попыток на студента. Не более двух на один Quiz.
-    if (e == 0) return;
+    if (e == 0) {
+      return;
+    }
     for (int m = 0; m < 3; m++) {
       Quiz quiz = item.quizzes().get(m);
       int attempts = m < e - 1 ? 2 : 1;
@@ -232,8 +243,11 @@ public class DemoDataService {
           boolean right = (q + s) % questions.size() < desired;
           List<AnswerOption> options = question.getAnswerOptions();
           if (right) {
-            for (AnswerOption option : options)
-              if (option.isCorrect()) save(result.addSelection(question, option));
+            for (AnswerOption option : options) {
+              if (option.isCorrect()) {
+                save(result.addSelection(question, option));
+              }
+            }
             correct++;
           } else {
             AnswerOption wrong =

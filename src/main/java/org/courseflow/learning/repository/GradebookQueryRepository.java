@@ -12,7 +12,8 @@ import java.util.Map;
 import org.courseflow.common.api.JpqlPages;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.BadRequestException;
-import org.courseflow.learning.dto.GradebookResponse.*;
+import org.courseflow.learning.dto.GradebookResponse.AssessmentType;
+import org.courseflow.learning.dto.GradebookResponse.ReviewStatus;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.entity.SubmissionStatus;
 import org.springframework.stereotype.Repository;
@@ -74,7 +75,7 @@ public class GradebookQueryRepository {
       String sortBy,
       String direction,
       Instant now) {
-    String orderBy = buildOrderBy(sortBy, direction);
+    final String orderBy = buildOrderBy(sortBy, direction);
 
     Map<String, Object> parameters = new HashMap<>();
     parameters.put("courseId", courseId);
@@ -192,10 +193,14 @@ public class GradebookQueryRepository {
     String entity = type == AssessmentType.ASSIGNMENT ? "Assignment" : "Quiz";
     String jpql =
         "SELECT COUNT(a.id) FROM " + entity + " a WHERE " + path + ".course.id = :courseId";
-    if (moduleId != null) jpql += " AND " + path + ".id = :moduleId";
+    if (moduleId != null) {
+      jpql += " AND " + path + ".id = :moduleId";
+    }
     TypedQuery<Long> query =
         entityManager.createQuery(jpql, Long.class).setParameter("courseId", courseId);
-    if (moduleId != null) query.setParameter("moduleId", moduleId);
+    if (moduleId != null) {
+      query.setParameter("moduleId", moduleId);
+    }
     return query.getSingleResult();
   }
 
@@ -282,7 +287,9 @@ public class GradebookQueryRepository {
 
   public List<AssignmentResult> findAssignmentResults(
       List<Long> studentIds, List<Long> assignmentIds) {
-    if (studentIds.isEmpty() || assignmentIds.isEmpty()) return List.of();
+    if (studentIds.isEmpty() || assignmentIds.isEmpty()) {
+      return List.of();
+    }
     return entityManager
         .createQuery(
             """
@@ -301,7 +308,9 @@ public class GradebookQueryRepository {
   }
 
   public List<QuizResult> findQuizResults(List<Long> studentIds, List<Long> quizIds, Instant now) {
-    if (studentIds.isEmpty() || quizIds.isEmpty()) return List.of();
+    if (studentIds.isEmpty() || quizIds.isEmpty()) {
+      return List.of();
+    }
     return entityManager
         .createQuery(
             """

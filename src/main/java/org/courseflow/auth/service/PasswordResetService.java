@@ -91,21 +91,29 @@ public class PasswordResetService {
     ResetDelivery delivery = transaction.execute(status -> createResetToken(normalizedEmail));
     // TransactionTemplate has committed and released the JDBC connection.
     // Do not send on rollback or while holding an account lock.
-    if (delivery != null) sendResetEmail(delivery.recipient(), delivery.rawToken());
+    if (delivery != null) {
+      sendResetEmail(delivery.recipient(), delivery.rawToken());
+    }
   }
 
   private ResetDelivery createResetToken(String normalizedEmail) {
     Long accountId = userAccountRepository.findAccountIdByUserEmail(normalizedEmail).orElse(null);
-    if (accountId == null) return null;
+    if (accountId == null) {
+      return null;
+    }
     UserAccount account = userAccountRepository.findByIdForUpdate(accountId).orElse(null);
     if (account == null
         || !normalizedEmail.equals(account.getUser().getEmail())
-        || account.getUser().getStatus() != UserStatus.ACTIVE) return null;
+        || account.getUser().getStatus() != UserStatus.ACTIVE) {
+      return null;
+    }
 
     Instant now = clock.instant();
     Instant cooldownThreshold = now.plus(TOKEN_LIFETIME.minus(REQUEST_COOLDOWN));
     if (tokenRepository.existsByUserAccount_IdAndUsedAtIsNullAndExpiresAtAfter(
-        account.getId(), cooldownThreshold)) return null;
+        account.getId(), cooldownThreshold)) {
+      return null;
+    }
 
     tokenRepository.invalidateUnusedTokensForAccount(account.getId(), now);
     String rawToken = generateToken();

@@ -142,7 +142,7 @@ public class QuizAttemptQueryService {
       throw new BadRequestException("Invalid studentId");
     }
 
-    Instant now = clock.instant();
+    final Instant now = clock.instant();
     String effectiveStatus =
         """
                 CASE WHEN s.status = org.courseflow.assessment.entity.QuizSubmissionStatus.SUBMITTED THEN 'SUBMITTED'
@@ -182,12 +182,16 @@ public class QuizAttemptQueryService {
       where += " AND (" + effectiveStatus + ") = :status";
     }
 
-    String orderBy = Pagination.orderBy(sortField, normalizedDirection, "s.id");
+    final String orderBy = Pagination.orderBy(sortField, normalizedDirection, "s.id");
 
     Map<String, Object> parameters = new java.util.HashMap<>();
     parameters.put("quizId", quizId);
-    if (studentId != null) parameters.put("studentId", studentId);
-    if (status != null) parameters.put("status", status.name());
+    if (studentId != null) {
+      parameters.put("studentId", studentId);
+    }
+    if (status != null) {
+      parameters.put("status", status.name());
+    }
     parameters.put("now", now);
     var result =
         JpqlPages.findPage(

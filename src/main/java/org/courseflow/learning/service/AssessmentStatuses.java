@@ -12,8 +12,12 @@ final class AssessmentStatuses {
   }
 
   static String quiz(Integer bestScore, long attemptsUsed, long activeAttempts) {
-    if (bestScore != null) return "COMPLETED";
-    if (attemptsUsed == 0) return "NOT_STARTED";
+    if (bestScore != null) {
+      return "COMPLETED";
+    }
+    if (attemptsUsed == 0) {
+      return "NOT_STARTED";
+    }
     return activeAttempts > 0 ? "IN_PROGRESS" : "EXPIRED";
   }
 }

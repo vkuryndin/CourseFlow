@@ -204,7 +204,7 @@ public class CourseService {
 
     Course course = courseGuard.lock(courseId);
 
-    User newTeacher = findActiveTeacher(newTeacherId);
+    final User newTeacher = findActiveTeacher(newTeacherId);
 
     ensureTeacherNotEnrolled(courseId, newTeacherId);
     ensureScheduleCompatible(course, newTeacherId);

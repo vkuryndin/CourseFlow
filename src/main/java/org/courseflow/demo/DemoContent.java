@@ -80,7 +80,9 @@ public final class DemoContent {
     for (int number = 1; number <= 16; number++) {
       String path = String.format(Locale.ROOT, "/demo/course-%02d.json", number);
       try (InputStream stream = DemoContent.class.getResourceAsStream(path)) {
-        if (stream == null) throw new IllegalStateException("Не найден ресурс " + path);
+        if (stream == null) {
+          throw new IllegalStateException("Не найден ресурс " + path);
+        }
         CourseData course = mapper.readValue(stream, CourseData.class);
         validate(course);
         courses.add(course);
@@ -95,31 +97,43 @@ public final class DemoContent {
     require(course.title(), 200);
     require(course.description(), 5000);
     require(course.category(), 100);
-    if (course.tags().isEmpty() || course.modules().size() != 3) invalid();
+    if (course.tags().isEmpty() || course.modules().size() != 3) {
+      invalid();
+    }
     course.tags().forEach(tag -> require(tag, 50));
     for (ModuleData module : course.modules()) {
       require(module.title(), 200);
       require(module.description(), 2000);
       require(module.assignment(), 20000);
       require(module.solution(), 20000);
-      if (module.lessons().size() != 3 || module.questions().size() != 10) invalid();
+      if (module.lessons().size() != 3 || module.questions().size() != 10) {
+        invalid();
+      }
       for (LessonData lesson : module.lessons()) {
         require(lesson.title(), 200);
         require(lesson.content(), 20000);
       }
       for (QuestionData question : module.questions()) {
         require(question.text(), 5000);
-        if (question.type() == null || question.options().size() != 4) invalid();
+        if (question.type() == null || question.options().size() != 4) {
+          invalid();
+        }
         long correct = question.options().stream().filter(OptionData::correct).count();
-        if (correct != (question.type() == QuestionType.SINGLE_CHOICE ? 1 : 2)) invalid();
-        if (question.options().stream().map(OptionData::text).distinct().count() != 4) invalid();
+        if (correct != (question.type() == QuestionType.SINGLE_CHOICE ? 1 : 2)) {
+          invalid();
+        }
+        if (question.options().stream().map(OptionData::text).distinct().count() != 4) {
+          invalid();
+        }
         question.options().forEach(option -> require(option.text(), 2000));
       }
     }
   }
 
   private static void require(String value, int max) {
-    if (value == null || value.isBlank() || value.length() > max) invalid();
+    if (value == null || value.isBlank() || value.length() > max) {
+      invalid();
+    }
   }
 
   private static void invalid() {

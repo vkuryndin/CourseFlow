@@ -9,7 +9,11 @@ import org.courseflow.security.CurrentUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/courses/{courseId}/gradebook")
@@ -28,7 +32,8 @@ public class GradebookController {
       @RequestParam(required = false) EnrollmentStatus enrollmentStatus,
       @io.swagger.v3.oas.annotations.Parameter(
               description =
-                  "Assignment filter: NOT_SUBMITTED includes all missing submissions; OVERDUE includes only missing submissions at or after the deadline.")
+                  "Assignment filter: NOT_SUBMITTED includes all missing submissions; OVERDUE includes"
+                      + " only missing submissions at or after the deadline.")
           @RequestParam(required = false)
           ReviewStatus reviewStatus,
       @RequestParam(required = false) Long moduleId,
