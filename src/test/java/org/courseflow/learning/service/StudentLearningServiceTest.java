@@ -15,11 +15,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import jakarta.persistence.EntityManager;
 import java.util.List;
-import org.courseflow.assessment.dto.MyQuizAttemptResponse;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.learning.dto.MyAssignmentResponse;
+import org.courseflow.learning.dto.MyQuizAttemptResponse;
 import org.courseflow.learning.dto.MySubmissionResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.entity.SubmissionStatus;

@@ -4,7 +4,6 @@ import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
-import org.courseflow.assessment.dto.MyQuizAttemptResponse;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.catalog.entity.CourseStatus;
 import org.courseflow.common.api.JpqlPages;
@@ -12,6 +11,7 @@ import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.BadRequestException;
 import org.courseflow.learning.dto.MyAssignmentResponse;
+import org.courseflow.learning.dto.MyQuizAttemptResponse;
 import org.courseflow.learning.dto.MySubmissionResponse;
 import org.courseflow.learning.entity.EnrollmentStatus;
 import org.courseflow.learning.entity.SubmissionStatus;
@@ -142,7 +142,7 @@ public class StudentLearningService {
     }
     String select =
         """
-                SELECT new org.courseflow.assessment.dto.MyQuizAttemptResponse(
+                SELECT new org.courseflow.learning.dto.MyQuizAttemptResponse(
                     s.id, q.id, q.title, c.id, c.title, s.attemptNumber,
                 """
             + QUIZ_STATUS

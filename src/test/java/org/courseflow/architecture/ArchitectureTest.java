@@ -81,7 +81,6 @@ class ArchitectureTest {
           "identity -> auth",
           "identity -> catalog",
           "identity -> learning",
-          "learning -> assessment",
           "learning -> catalog",
           "learning -> content",
           "learning -> identity",

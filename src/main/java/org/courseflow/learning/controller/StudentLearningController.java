@@ -1,10 +1,10 @@
 package org.courseflow.learning.controller;
 
-import org.courseflow.assessment.dto.MyQuizAttemptResponse;
 import org.courseflow.assessment.entity.QuizSubmissionStatus;
 import org.courseflow.common.api.PageResponse;
 import org.courseflow.common.security.CurrentUser;
 import org.courseflow.learning.dto.MyAssignmentResponse;
+import org.courseflow.learning.dto.MyQuizAttemptResponse;
 import org.courseflow.learning.dto.MySubmissionResponse;
 import org.courseflow.learning.entity.SubmissionStatus;
 import org.courseflow.learning.service.StudentLearningService;
