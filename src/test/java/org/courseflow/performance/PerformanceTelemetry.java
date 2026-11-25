@@ -2,6 +2,8 @@ package org.courseflow.performance;
 
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,6 +24,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 import javax.management.ObjectName;
 import org.hibernate.stat.Statistics;
 
@@ -33,12 +36,20 @@ final class PerformanceTelemetry implements AutoCloseable {
           + "gc_count,gc_time_ms,hikari_active,hikari_idle,hikari_total,hikari_waiting,"
           + "tomcat_busy,tomcat_threads,hibernate_sql_prepared,hibernate_transactions,"
           + "hibernate_successful_transactions,pg_connections,pg_active,pg_open_transactions,"
-          + "pg_lock_waiters,pg_deadlocks,pg_commits,pg_rollbacks,observer_error,post_gc_heap_bytes,jvm_threads\n";
+          + "pg_lock_waiters,pg_deadlocks,pg_commits,pg_rollbacks,observer_error,"
+          + "post_gc_heap_bytes,jvm_threads,client_validated_success,client_expected_non_success,"
+          + "client_unexpected_errors\n";
 
   private final String scenario;
   private final HikariDataSource dataSource;
   private final Statistics statistics;
   private final Path output;
+  private final Predicate<LoadRunner.Sample> unexpected;
+  private final AtomicLong valid = new AtomicLong();
+  private final AtomicLong expectedNonSuccess = new AtomicLong();
+  private final AtomicLong unexpectedErrors = new AtomicLong();
+  private long lastProgressNanos;
+  private long lastProgressCount;
   private final long start = System.nanoTime();
   private final AtomicInteger inFlight = new AtomicInteger();
   private final AtomicInteger peak = new AtomicInteger();
@@ -50,7 +61,6 @@ final class PerformanceTelemetry implements AutoCloseable {
             t.setDaemon(true);
             return t;
           });
-  private final List<String> rows = new ArrayList<>();
   private Connection observer;
   private ScheduledFuture<?> samplingTask;
   private volatile int pgSamples;
@@ -60,12 +70,15 @@ final class PerformanceTelemetry implements AutoCloseable {
   private volatile long lastDeadlocks = -1;
 
   PerformanceTelemetry(
-      String scenario, HikariDataSource dataSource, Statistics statistics, Path output)
+      String scenario, HikariDataSource dataSource, Statistics statistics, Path output,
+      Predicate<LoadRunner.Sample> unexpected)
       throws Exception {
     this.scenario = scenario;
     this.dataSource = dataSource;
     this.statistics = statistics;
     this.output = output;
+    this.unexpected = unexpected;
+    this.lastProgressNanos = start;
     try {
       sample();
       samplingTask = scheduler.scheduleWithFixedDelay(this::sample, 2, 2, TimeUnit.SECONDS);
@@ -85,6 +98,20 @@ final class PerformanceTelemetry implements AutoCloseable {
       completed.incrementAndGet();
       inFlight.decrementAndGet();
     }
+  }
+
+  void record(LoadRunner.Sample sample) {
+    if (sample.successful()) {
+      valid.incrementAndGet();
+    } else if (unexpected.test(sample)) {
+      unexpectedErrors.incrementAndGet();
+    } else {
+      expectedNonSuccess.incrementAndGet();
+    }
+  }
+
+  long recorded() {
+    return valid.get() + expectedNonSuccess.get() + unexpectedErrors.get();
   }
 
   int peak() {
@@ -194,7 +221,31 @@ final class PerformanceTelemetry implements AutoCloseable {
     }
     values.add(collectionUsageAvailable ? Long.toString(postGcHeap) : "NA");
     add(values, ManagementFactory.getThreadMXBean().getThreadCount());
-    rows.add(String.join(",", values));
+    long successes = valid.get();
+    long allowed = expectedNonSuccess.get();
+    long failures = unexpectedErrors.get();
+    add(values, successes, allowed, failures);
+    // Persist each observation immediately, including the initial and final snapshots.
+    try {
+      Files.writeString(output, String.join(",", values) + "\n", StandardCharsets.UTF_8,
+          StandardOpenOption.APPEND);
+    } catch (IOException failure) {
+      throw new UncheckedIOException("Cannot write performance telemetry: " + output, failure);
+    }
+    long now = System.nanoTime();
+    long interval = now - lastProgressNanos;
+    if (interval >= TimeUnit.SECONDS.toNanos(30)) {
+      long total = successes + allowed + failures;
+      System.out.printf(Locale.ROOT,
+          "%s: elapsed %.0fs, requests %d, interval RPS %.2f, valid %d, unexpected %d, "
+              + "expected non-success %d, in-flight %d, heap %.1f MiB, observer errors %d%n",
+          scenario, (now - start) / 1e9, total,
+          (total - lastProgressCount) / (interval / 1e9), successes, failures, allowed, inFlight.get(),
+          memory.getHeapMemoryUsage().getUsed() / 1048576.0, errors);
+      System.out.flush();
+      lastProgressNanos = now;
+      lastProgressCount = total;
+    }
   }
 
   private long[] postgres() throws Exception {
@@ -297,7 +348,6 @@ final class PerformanceTelemetry implements AutoCloseable {
         samplingTask.get(); // Surface an unexpected sampler exception.
       }
       sample();
-      Files.write(output, rows, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
     } finally {
       closeObserver();
     }

@@ -2,10 +2,9 @@ package org.courseflow.performance;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,14 +38,18 @@ final class LoadRunner {
   record Result(int users, double seconds, List<Sample> samples, int peakInFlight) {}
 
   static final class Probe {
-    private final Queue<Sample> samples;
+    private final List<Sample> samples;
+    private final Consumer<Sample> onSample;
     private final int user;
     private final AtomicInteger inFlight;
     private final AtomicInteger peak;
     private final long runStarted;
 
-    private Probe(Queue<Sample> samples, int user, AtomicInteger inFlight, AtomicInteger peak, long runStarted) {
+    private Probe(
+        List<Sample> samples, int user, AtomicInteger inFlight, AtomicInteger peak,
+        long runStarted, Consumer<Sample> onSample) {
       this.samples = samples;
+      this.onSample = onSample;
       this.user = user;
       this.inFlight = inFlight;
       this.peak = peak;
@@ -90,31 +93,44 @@ final class LoadRunner {
         exception = failure.getClass().getSimpleName();
         return null;
       } finally {
-        samples.add(
+        Sample sample =
             new Sample(
                 user,
                 operation,
                 elapsed < 0 ? System.nanoTime() - started : elapsed,
                 expected,
                 status,
-                exception, System.nanoTime() - runStarted));
+                exception,
+                System.nanoTime() - runStarted);
+        samples.add(sample);
+        onSample.accept(sample);
       }
     }
   }
 
   static Result once(int users, Work work) throws Exception {
-    return run(users, Duration.ZERO, Duration.ZERO, work);
+    return once(users, work, sample -> {});
+  }
+
+  static Result once(int users, Work work, Consumer<Sample> onSample) throws Exception {
+    return run(users, Duration.ZERO, Duration.ZERO, work, onSample);
   }
 
   static Result sustained(int users, Duration duration, Duration pause, Work work)
       throws Exception {
+    return sustained(users, duration, pause, work, sample -> {});
+  }
+
+  static Result sustained(int users, Duration duration, Duration pause, Work work,
+      Consumer<Sample> onSample) throws Exception {
     if (duration.isZero() || duration.isNegative() || pause.isNegative()) {
       throw new IllegalArgumentException("Invalid load duration or pause");
     }
-    return run(users, duration, pause, work);
+    return run(users, duration, pause, work, onSample);
   }
 
-  private static Result run(int users, Duration duration, Duration pause, Work work)
+  private static Result run(int users, Duration duration, Duration pause, Work work,
+      Consumer<Sample> onSample)
       throws Exception {
     if (users < 1) {
       throw new IllegalArgumentException("At least one virtual user is required");
@@ -122,7 +138,7 @@ final class LoadRunner {
     ExecutorService executor = Executors.newFixedThreadPool(users);
     CountDownLatch ready = new CountDownLatch(users);
     CountDownLatch start = new CountDownLatch(1);
-    Queue<Sample> samples = new ConcurrentLinkedQueue<>();
+    List<List<Sample>> userSamples = new ArrayList<>(users);
     List<Future<Void>> futures = new ArrayList<>();
     AtomicInteger inFlight = new AtomicInteger();
     AtomicInteger peak = new AtomicInteger();
@@ -132,6 +148,9 @@ final class LoadRunner {
     try {
       for (int index = 0; index < users; index++) {
         int user = index;
+        // Only this worker writes its list; the main thread reads it after Future.get().
+        List<Sample> samples = new ArrayList<>();
+        userSamples.add(samples);
         futures.add(
             executor.submit(
                 () -> {
@@ -140,7 +159,7 @@ final class LoadRunner {
                     throw new IllegalStateException("Load start timed out");
                   }
                   // CountDownLatch publishes the shared start time to every worker.
-                  Probe probe = new Probe(samples, user, inFlight, peak, started[0]);
+                  Probe probe = new Probe(samples, user, inFlight, peak, started[0], onSample);
                   do {
                     work.execute(user, probe);
                     long remaining = durationNanos - (System.nanoTime() - started[0]);
@@ -164,10 +183,16 @@ final class LoadRunner {
         future.get(Math.max(1, remaining), TimeUnit.NANOSECONDS);
       }
       double seconds = (System.nanoTime() - started[0]) / 1_000_000_000.0;
-      if (samples.stream().map(Sample::user).distinct().count() != users) {
+      if (userSamples.stream().anyMatch(List::isEmpty)) {
         throw new IllegalStateException("At least one virtual user performed no requests");
       }
-      return new Result(users, seconds, List.copyOf(samples), peak.get());
+      int count = userSamples.stream().mapToInt(List::size).sum();
+      List<Sample> samples = new ArrayList<>(count);
+      for (List<Sample> perUser : userSamples) {
+        samples.addAll(perUser);
+        perUser.clear();
+      }
+      return new Result(users, seconds, Collections.unmodifiableList(samples), peak.get());
     } finally {
       executor.shutdownNow();
       start.countDown();

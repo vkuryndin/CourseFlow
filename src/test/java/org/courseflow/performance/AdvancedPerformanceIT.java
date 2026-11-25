@@ -306,7 +306,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
                             assertTrue(!actor.token().equals(token));
                             tokens.put(user, (String) token);
                           });
-                    }));
+                    }, observer::record));
     assertTrue(
         phase.result().seconds() < 60, "Authentication burst must fit one fixed rate-limit window");
     assertEquals(
@@ -405,7 +405,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
                             Response::status,
                             r -> validateEnrollment(actor, r.body()));
                   }
-                }));
+                }, observer::record));
   }
 
   private void recover(String name) throws Exception {
@@ -440,12 +440,14 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
 
   private Phase run(String name, int users, Policy policy, Run run) throws Exception {
     System.out.println("Starting " + name + ": " + users + " users");
+    System.out.flush();
     boolean wasEnabled = statistics.isStatisticsEnabled();
     statistics.setStatisticsEnabled(true);
     PerformanceTelemetry observer;
     LoadRunner.Result result;
     try {
-      observer = new PerformanceTelemetry(name, dataSource, statistics, telemetry);
+      observer = new PerformanceTelemetry(name, dataSource, statistics, telemetry,
+          sample -> unexpected(sample, policy));
       try (observer) {
         result = run.execute(observer);
       }
@@ -465,6 +467,7 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
         samples.stream().map(LoadRunner.Sample::user).distinct().count(),
         "Every user must execute a request");
     assertEquals((long) samples.size(), observer.completed(), "Missing HTTP measurements");
+    assertEquals((long) samples.size(), observer.recorded(), "Missing progress measurements");
     assertTrue(observer.peak() >= Math.max(2, users / 10),
         "Insufficient measured HTTP concurrency: " + name + ": " + observer.peak());
     assertTrue(observer.pgSamples() >= 2, "Missing database telemetry: " + name);
@@ -533,8 +536,11 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
     long errors = samples.stream().filter(s -> unexpected(s, policy)).count();
     double rps = samples.size() / result.seconds();
     double avg = samples.stream().mapToDouble(s -> s.nanos() / 1e6).average().orElse(0);
-    double p95 = percentile(samples, .95);
-    double p99 = percentile(samples, .99);
+    long[] durations = sortedDurations(samples);
+    long[] validDurations = successful.size() == samples.size()
+        ? durations : sortedDurations(successful);
+    double p95 = percentile(durations, .95);
+    double p99 = percentile(durations, .99);
     Map<String, Long> outcomes = new TreeMap<>();
     for (var sample : samples) {
       String key =
@@ -559,13 +565,13 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
             rps,
             successful.size() / result.seconds(),
             avg,
-            percentile(samples, 0),
-            percentile(samples, .5),
+            percentile(durations, 0),
+            percentile(durations, .5),
             p95,
             p99,
-            percentile(samples, 1),
-            optionalPercentile(successful, .95),
-            optionalPercentile(successful, .99),
+            percentile(durations, 1),
+            optionalPercentile(validDurations, .95),
+            optionalPercentile(validDurations, .99),
             observer.peak(),
             observer.pgSamples(),
             observer.errors(),
@@ -604,13 +610,20 @@ class AdvancedPerformanceIT extends HttpIntegrationTest {
   }
 
   private static double percentile(List<LoadRunner.Sample> samples, double quantile) {
-    if (samples.isEmpty()) return 0;
-    long[] sorted = samples.stream().mapToLong(LoadRunner.Sample::nanos).sorted().toArray();
+    return percentile(sortedDurations(samples), quantile);
+  }
+
+  private static long[] sortedDurations(List<LoadRunner.Sample> samples) {
+    return samples.stream().mapToLong(LoadRunner.Sample::nanos).sorted().toArray();
+  }
+
+  private static double percentile(long[] sorted, double quantile) {
+    if (sorted.length == 0) return 0;
     return sorted[Math.max(0, (int) Math.ceil(quantile * sorted.length) - 1)] / 1e6;
   }
 
-  private static String optionalPercentile(List<LoadRunner.Sample> samples, double quantile) {
-    return samples.isEmpty()
+  private static String optionalPercentile(long[] samples, double quantile) {
+    return samples.length == 0
         ? "NA"
         : String.format(Locale.ROOT, "%.3f", percentile(samples, quantile));
   }
