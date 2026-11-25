@@ -1,0 +1,2 @@
+import {test,expect} from '@playwright/test';
+for(const path of ['/login','/register','/forgot-password','/reset-password'])test(`shared auth design: ${path}`,async({page})=>{await page.goto(path);await expect(page.locator('.auth-brand svg')).toBeVisible();await expect(page.locator('.auth-brand').getByText('CourseFlow')).toBeVisible();await expect(page.locator('.auth-illustration')).toBeVisible();await expect.poll(()=>page.locator('.auth-illustration').evaluate((img:HTMLImageElement)=>img.complete&&img.naturalWidth>0)).toBe(true)});

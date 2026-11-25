@@ -1,0 +1,27 @@
+import { ClipboardList, FileText, ListChecks } from 'lucide-react';
+import { courseDetailsPath, studentLessonPath } from '../../shared/course-navigation';
+import { useStudentAssignments, assignmentStatus, assignmentLabels, assignmentColor } from '../../shared/student-assignments';
+import { useEffect, useState } from 'react';
+import { Alert, Box, Button, Paper, Stack, Typography, Chip } from '@mui/material';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Data, useGet, lessonPath, label, date, safeUrl } from '../../shared/api';
+import { structure } from '../../shared/structure';
+import { Heading, State, Empty } from '../../shared/ui';
+import { SafeHtml } from '../../shared/rich';
+import { AssignmentPanel } from './assignment-panel';
+export function CourseLearning() {
+    const { courseId: id = '', lessonId } = useParams(), c = useGet(`/api/courses/${id}`), tree = useQuery({ queryKey: ['structure', id], queryFn: () => structure(id), retry: false }), nav = useNavigate();
+    const [assignment, A] = useState<Data | null>(null), statuses = useStudentAssignments(id, !!id);
+    const modules = tree.data || [], flat = modules.flatMap(m => m.lessons.map(l => ({ ...l, id: l.id, moduleId: m.id, moduleTitle: m.title }))), index = flat.findIndex(l => String(l.id) === lessonId), selected = flat[index] || flat[0], q = useGet(selected ? lessonPath(id, selected.moduleId, selected.id) : '', {}, !!selected);
+    const route = (l: Data) => studentLessonPath(id, l.moduleId, l.id);
+    const byId = new Map((statuses.data || []).map(row => [String(row.assignmentId), row]));
+    const enrich = (x: Data, l: Data, m: Data) => ({ ...x, courseId: id, courseTitle: c.data?.title, moduleTitle: m.title, lessonTitle: l.title, ...byId.get(String(x.id)), assignmentId: x.id });
+    useEffect(() => { if (!lessonId && selected)
+        nav(route(selected), { replace: true }); }, [selected?.id, lessonId, id]);
+    useEffect(() => { A(null); }, [id]);
+    const statusFor = (x: Data) => assignmentStatus(byId.get(String(x.id)));
+    const open = (x: Data, l: Data, m: Data) => A(enrich(x, l, m));
+    const videoUrl = safeUrl(q.data?.videoUrl);
+    return <><Heading title={c.data?.title || 'Обучение'} action={<Button component={Link} to={courseDetailsPath(id, true)}>О курсе</Button>}/><State query={tree}><div className="workspace"><Paper className="tree student-course-tree"><Typography variant="h6" mb={2}>Программа курса</Typography>{statuses.isError && <Alert severity="warning" action={<Button onClick={() => void statuses.refetch()}>Повторить</Button>}>Статусы заданий недоступны</Alert>}{modules.map(m => <Box key={m.id} mb={2}><Typography fontWeight={700}>{m.title}</Typography>{m.lessons.map(l => <Box key={l.id}><Button startIcon={<FileText size={15}/>} className={'tree-label ' + (selected?.id === l.id ? 'selected' : '')} component={Link} to={route({ ...l, moduleId: m.id })}>{l.title}</Button>{l.assignments.map(x => { const st = statusFor(x); return <button type="button" key={x.id} className="student-tree-assignment" onClick={() => open(x, l, m)}><ClipboardList size={15}/><span><span className="tree-assignment-title">{x.title}</span>{st ? <span className={`tree-assignment-status status-${st.toLowerCase()}`}>{assignmentLabels[st]}</span> : statuses.isSuccess ? <span className="tree-assignment-status">Статус недоступен</span> : null}</span></button>; })}</Box>)}{m.quiz && <Button className="tree-label" startIcon={<ListChecks size={15}/>} component={Link} to={`/student/quizzes/${m.quiz.id}`}>Тест: {m.quiz.title}</Button>}</Box>)}</Paper><Paper className="section editor-pane">{selected ? <State query={q}><Typography color="text.secondary">{selected.moduleTitle}</Typography><Typography variant="h4" my={2}>{q.data?.title}</Typography>{videoUrl && <Button variant="outlined" href={videoUrl} target="_blank" rel="noopener noreferrer">Открыть видеоматериал ↗</Button>}<SafeHtml value={q.data?.content || ''}/>{selected.sessions.map(s => { const meetingUrl = safeUrl(s.meetingUrl); return <Paper variant="outlined" className="section" key={s.id}><Typography fontWeight={600}>{label(s.format)} · {date(s.startsAt)} — {date(s.endsAt)}</Typography>{meetingUrl && <Button href={meetingUrl} target="_blank" rel="noopener noreferrer">Подключиться</Button>}</Paper>; })}{selected.assignments.map(x => { const st = statusFor(x); return <Paper variant="outlined" className="section" key={x.id}><Stack direction="row" gap={1} flexWrap="wrap" alignItems="center"><Typography fontWeight={700}>{x.title}</Typography>{st && <Chip size="small" color={assignmentColor(st)} label={assignmentLabels[st]}/>}</Stack><Typography color="text.secondary">Срок: {date(x.dueAt)} · {x.maxScore} баллов</Typography><Button onClick={() => open(x, selected, { title: selected.moduleTitle })}>Перейти к заданию</Button></Paper>; })}<Stack direction="row" justifyContent="space-between" mt={3}><Button disabled={index <= 0} onClick={() => nav(route(flat[index - 1]))}>← Предыдущий</Button><Button disabled={index < 0 || index >= flat.length - 1} onClick={() => nav(route(flat[index + 1]))}>Следующий →</Button></Stack></State> : <Empty kind="courses" text="В курсе пока нет уроков"/>}</Paper></div></State><AssignmentPanel assignment={assignment ? { ...assignment, ...byId.get(String(assignment.assignmentId)) } : null} close={() => A(null)}/></>;
+}

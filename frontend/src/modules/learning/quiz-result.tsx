@@ -1,0 +1,5 @@
+import { Button, Paper, Typography } from '@mui/material';
+import { Link, useParams } from 'react-router-dom';
+import { useGet, label } from '../../shared/api';
+import { Heading, State, Rows, Details, Stats } from '../../shared/ui';
+export function QuizResult() { const { quizId: id = '', attemptId: attempt = '' } = useParams(), q = useGet(`/api/quizzes/${id}/attempts/${attempt}/result`); return <><Heading title="Результат тестирования" action={<Button component={Link} to={`/student/quizzes/${id}`}>К тесту</Button>}/><State query={q}>{q.data && <><Stats items={[["Балл", q.data.attempt.score ?? '—'], ['Статус', label(q.data.attempt.status)], ['Попытка', q.data.attempt.attemptNumber]]}/><Paper className="section"><Details data={q.data.attempt} keys={['takenAt', 'finishedAt', 'expiresAt']}/><Typography variant="h6">Выбранные ответы</Typography><Rows rows={q.data.selectedAnswers || []} cols={[{ key: 'questionText', title: 'Вопрос' }, { key: 'optionText', title: 'Ответ' }]}/></Paper></>}</State></>; }

@@ -1,0 +1,11 @@
+/* Catalog hero alignment */
+.hero.catalog-hero {
+  margin-inline: -16px;
+  padding-inline: 16px !important;
+}
+@media (max-width: 599px) {
+  .hero.catalog-hero {
+    margin-inline: -12px;
+    padding-inline: 12px !important;
+  }
+}

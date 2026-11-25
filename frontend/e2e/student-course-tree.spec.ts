@@ -1,0 +1,3 @@
+import {test,expect} from '@playwright/test';
+import {course,lesson,setup} from './fixtures/course-schedule';
+test('tree includes overdue and graded assignments under lesson, opens overdue read-only',async({page})=>{await setup(page,'STUDENT');await page.goto('/student/courses/1/modules/4/lessons/5');const tree=page.locator('.student-course-tree');const task=tree.getByRole('button',{name:/Практика: маршрутизация/});await expect(task).toContainText('Просрочено');await expect(tree.getByRole('button',{name:/Последний дедлайн/})).toContainText('Проверено');await task.click();const drawer=page.locator('.entity-drawer-body');await expect(drawer.getByText('Полный текст задания')).toBeVisible();await expect(drawer.getByText('Срок сдачи истёк')).toBeVisible()});
