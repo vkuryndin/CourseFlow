@@ -43,17 +43,36 @@ CourseFlow — веб-приложение для организации уче�
 ## Архитектура
 
 ```mermaid
-flowchart LR
-    U[Браузер] --> F[React / Nginx]
-    F -->|REST / JWT| B[Spring Boot]
-    B --> J[Spring Data JPA / Hibernate]
-    J --> P[(PostgreSQL)]
-    B --> M[SMTP]
+flowchart TD
+    U["Браузер / React SPA"]
+
+    subgraph AWS["AWS EC2 · Docker Compose"]
+        N["Nginx<br/>Frontend / Reverse Proxy"]
+
+        subgraph B["Spring Boot · Модульный монолит"]
+            S["Spring Security / JWT"]
+            C["REST Controllers / DTO"]
+            L["Business Services"]
+            R["Spring Data JPA / Hibernate"]
+
+            S --> C --> L --> R
+        end
+
+        P[("PostgreSQL 18<br/>20 сущностей / 22 таблицы")]
+        V[("Persistent Volume")]
+
+        N -->|REST API| S
+        R -->|JDBC| P
+        P --- V
+    end
+
+    U <-->|HTTP / JSON| N
+    L -->|SMTP / STARTTLS| M["Gmail SMTP"]
 ```
 
-Серверная часть построена как модульный монолит. Модули соответствуют предметным областям платформы; внутри них выделены контроллеры, сервисы, репозитории, сущности и DTO. Клиентская часть представляет собой SPA с отдельными рабочими областями для каждой роли.
+Серверная часть построена как модульный монолит со слоистой внутренней структурой: безопасность, REST-контроллеры, бизнес-сервисы и слой доступа к данным. Модули соответствуют предметным областям платформы. Клиентская часть представляет собой SPA на React с отдельными рабочими областями для каждой роли. Nginx отдаёт статические файлы приложения и проксирует запросы REST API. Данные хранятся в PostgreSQL, письма для восстановления пароля отправляются через Gmail SMTP.
 
-Модель данных, связи между сущностями и структура модулей описаны в [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Модель данных, связи между сущностями, структура модулей и дополнительные диаграммы приведены в [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Реализация учебного задания
 
