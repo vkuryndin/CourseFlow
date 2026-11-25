@@ -23,7 +23,7 @@ export function ServerSearch<T extends SearchItem>({path,label,value,onChange,na
     filterOptions={()=>results} loading={waiting||query.isPending||query.isFetchingNextPage} loadingText={loadingText} noOptionsText={failed?errorText:emptyText} clearText="Очистить выбор" openText="Открыть" closeText="Закрыть"
     ListboxProps={{style:{maxHeight:280},onScroll:event=>{const el=event.currentTarget;if(el.scrollHeight-el.scrollTop-el.clientHeight<70)more()}}}
     onHighlightChange={(_,item,reason)=>{if(reason==='keyboard'&&item&&results.findIndex(t=>t.id===item.id)>=results.length-3)more()}}
-    renderInput={p=><TextField {...p} label={label} placeholder={placeholder} required={required} error={error||failed} helperText={helperText||(failed?errorText:undefined)} inputProps={{...p.inputProps,maxLength:120}} InputProps={{...p.InputProps,endAdornment:<>{open&&(waiting||query.isFetching)&&<CircularProgress size={16} color="inherit"/>}{p.InputProps.endAdornment}</>}}/>}/>
+    renderInput={p=><TextField {...p} label={label} placeholder={placeholder} required={required} error={error||failed} helperText={helperText||(failed?errorText:undefined)} inputProps={{...p.inputProps,maxLength:120,title:selectedLabel||undefined}} InputProps={{...p.InputProps,endAdornment:<>{open&&(waiting||query.isFetching)&&<CircularProgress size={16} color="inherit"/>}{p.InputProps.endAdornment}</>}}/>}/>
   {failed&&<Button size="small" onMouseDown={e=>e.preventDefault()} onClick={()=>{setOpen(true);if(query.isFetchNextPageError)void query.fetchNextPage({cancelRefetch:false});else void query.refetch()}}>Повторить загрузку</Button>}</Box>
 }
 type NamedItem=SearchItem&{name?:string;displayName?:string;title?:string};
