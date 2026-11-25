@@ -95,28 +95,30 @@ flowchart TD
 
 20 JPA-сущностей, 22 таблицы с учётом `user_roles` и `course_tag`, 20 репозиториев Spring Data JPA и два репозитория специализированных запросов для электронного журнала и прогресса. Для однократной загрузки демонстрационных данных используется отдельная последовательность PostgreSQL.
 
-| Модуль | Сущность | Таблица / назначение |
-|---|---|---|
-| identity | User | users — пользователь и роли |
-| identity | Profile | profiles — профиль |
-| auth | UserAccount | user_accounts — пароль и состояние учётной записи |
-| auth | AuthSession | auth_sessions — состояние токена/сессии |
-| auth | PasswordResetToken | password_reset_tokens — восстановление пароля |
-| catalog | Category | categories — классификация |
-| catalog | Tag | tags — метки |
-| catalog | Course | courses — курс, преподаватель, категория |
-| content | Module | modules — раздел курса |
-| content | Lesson | lessons — урок |
-| content | LessonSession | lesson_sessions — занятие |
-| learning | Enrollment | enrollments — запись на курс |
-| learning | Assignment | assignments — домашнее задание |
-| learning | Submission | submissions — работа студента |
-| assessment | Quiz | quizzes — тест модуля |
-| assessment | Question | questions — вопрос |
-| assessment | AnswerOption | answer_options — вариант ответа |
-| assessment | QuizSubmission | quiz_submissions — попытка тестирования |
-| assessment | QuizAnswerSelection | quiz_answer_selections — выбор варианта |
-| review | CourseReview | course_reviews — отзыв и оценка |
+| Модуль | Сущность | Таблица / назначение | Основные поля | Ограничения |
+|---|---|---|---|---|
+| identity | User | users — пользователь и роли | displayName, email, status, systemAdmin, roles, createdAt, deletedAt | Уникальный email; не более одного системного администратора; уникальная пара user_id и role |
+| identity | Profile | profiles — профиль | user, bio, avatarUrl | Уникальный user_id (1:1) |
+| auth | UserAccount | user_accounts — пароль и состояние учётной записи | user, passwordHash, passwordChangeRequired, createdAt | Уникальный user_id; пароль хранится как хеш |
+| auth | AuthSession | auth_sessions — состояние токена/сессии | id (UUID), userAccount, createdAt, expiresAt, revoked | Обязательная ссылка на учётную запись |
+| auth | PasswordResetToken | password_reset_tokens — восстановление пароля | userAccount, tokenHash, expiresAt, usedAt | Уникальный token_hash; одноразовое использование |
+| catalog | Category | categories — классификация | name, description | Уникальное название, в том числе без учёта регистра |
+| catalog | Tag | tags — метки | name | Уникальное название, в том числе без учёта регистра |
+| catalog | Course | courses — курс, преподаватель, категория | title, description, category, teacher, duration, startDate, status | Обязательные category_id и teacher_id; duration > 0, в днях |
+| content | Module | modules — раздел курса | course, title, description, position | Уникальная позиция внутри курса; position > 0 |
+| content | Lesson | lessons — урок | module, title, content, videoUrl, position | Уникальная позиция внутри модуля; position > 0 |
+| content | LessonSession | lesson_sessions — занятие | lesson, startsAt, endsAt, format, meetingUrl | endsAt > startsAt; пересечения расписания преподавателя контролируются сервисом |
+| learning | Enrollment | enrollments — запись на курс | student, course, enrolledAt, endedAt, status | UNIQUE(student_id, course_id) |
+| learning | Assignment | assignments — домашнее задание | lesson, title, description, dueAt, maxScore | maxScore > 0 |
+| learning | Submission | submissions — работа студента | assignment, student, content, submittedAt, status, score, feedback | UNIQUE(assignment_id, student_id); score ≥ 0 или NULL; верхняя граница проверяется сервисом |
+| assessment | Quiz | quizzes — тест модуля | module, title, timeLimit, maxAttempts | Уникальный module_id; время 1–240 минут, число попыток 1–10 (по умолчанию 2) |
+| assessment | Question | questions — вопрос | quiz, text, type, position | Уникальная позиция внутри теста; position > 0 |
+| assessment | AnswerOption | answer_options — вариант ответа | question, text, correct | Обязательный question_id; составной внешний ключ при сохранении выбора проверяет принадлежность варианта вопросу |
+| assessment | QuizSubmission | quiz_submissions — попытка тестирования | quiz, student, attemptNumber, score, takenAt, expiresAt, finishedAt, status | UNIQUE(quiz_id, student_id, attempt_number); номер > 0, результат 0–100 или NULL; expiresAt > takenAt |
+| assessment | QuizAnswerSelection | quiz_answer_selections — выбор варианта | quizSubmission, question, answerOption | Уникальная тройка FK; составной FK обеспечивает принадлежность варианта вопросу |
+| review | CourseReview | course_reviews — отзыв и оценка | course, student, rating, comment, createdAt | UNIQUE(course_id, student_id); rating 1–5 |
+
+У всех сущностей есть собственный первичный ключ `id`. В таблице перечислены основные атрибуты без служебных полей версионности. Ограничения обеспечиваются JPA, дополнительными индексами и `CHECK` в `DatabaseInvariantInitializer`, а также сервисными проверками там, где правило зависит от нескольких объектов.
 
 ### ER-диаграмма
 
@@ -169,6 +171,19 @@ erDiagram
 
 `LazyInitializationIT` воспроизводит LazyInitializationException и проверяет способы обхода. `OrmPersistenceIT`, `QueryEfficiencyIT`, `PostgresLockingIT`, `TransactionIsolationIT`, `AdvancedIntegrityIT` проверяют ORM и PostgreSQL.
 
+### Основные бизнес-правила
+
+| Область | Правило |
+|---|---|
+| Пользователи | Деактивация блокирует вход и отзывает сессии, но сохраняет учебные связи. При окончательном удалении учётная запись удаляется, а пользователь обезличивается; учитываются действующие записи и назначенные курсы. Системный и последний администратор защищены. |
+| Курсы | Преподаватель управляет собственными курсами; смена преподавателя доступна администратору. Архивирование невозможно при незавершённых занятиях. Курс с зависимыми учебными объектами не удаляется физически. |
+| Запись на курс | Один объект Enrollment на студента и курс. Повторная запись возвращает существующую активную запись или восстанавливает ранее прекращённую. Отписка сохраняет историю. |
+| Учебные материалы | ADMIN, преподаватель курса и студент с активной записью могут читать закрытые материалы. Модули и каталог доступны без JWT. |
+| Расписание | Начало занятия предшествует окончанию; пересечения занятий одного преподавателя запрещены. |
+| Домашние задания | Одна сдача на студента и задание; требуются активная запись и соблюдение срока сдачи. Оценка не превышает maxScore. |
+| Тестирование | На модуль приходится не более одного теста. Число попыток и время ограничены; правильные варианты не выдаются студенту во время активной попытки. Выбранные ответы сохраняются. |
+| Отзывы | Один отзыв на студента и курс, рейтинг от 1 до 5. Для изменения отзыва требуется активная запись на активный курс; преподаватель не оценивает собственный курс. |
+
 ## 6. Транзакции и целостность
 
 Сервисы задают транзакционные границы; чтение использует транзакции с `readOnly=true` для соответствующих операций. PostgreSQL обеспечивает FK, UNIQUE, CHECK и блокировки. `DatabaseInvariantInitializer` добавляет индексы, ограничения позиций и оценок, уникальность системного администратора, регистронезависимые ограничения категорий/тегов; сериализация инициализации через advisory lock. Ограничения проверяются совместно с сервисной валидацией. `dev` и `aws` используют `ddl-auto=update`, `test` — `create`. 
@@ -198,6 +213,6 @@ flowchart TD
     CD[GitHub Actions / Deploy] -->|SSH| Host
 ```
 
-Три контейнера работают в отдельной bridge-сети. PostgreSQL и backend используют постоянные тома. Nginx публикует HTTP-порт 8081 на адресе, заданном `COURSEFLOW_BIND_ADDRESS` (по умолчанию `127.0.0.1`); backend и PostgreSQL доступны внутри сети Docker. Ограничение учебного развёртывания — HTTP без TLS. Настроены health checks, graceful shutdown backend, политика перезапуска `unless-stopped`, ограничения памяти и ротация логов.
+Три контейнера работают в отдельной bridge-сети. PostgreSQL и backend используют постоянные тома. Nginx публикует HTTP-порт 8081 на адресе, заданном `COURSEFLOW_BIND_ADDRESS` (по умолчанию `127.0.0.1`); backend и PostgreSQL доступны внутри сети Docker. Ограничение учебного развёртывания — HTTP без TLS. Настроены проверки состояния контейнеров, graceful shutdown backend, политика перезапуска `unless-stopped`, ограничения памяти и ротация логов.
 
 GitHub Actions выполняет сборку и публикует образы backend и frontend в GitHub Container Registry (GHCR). Развёртывание запускается отдельным workflow вручную: через SSH на EC2 загружаются образы и обновляются соответствующие контейнеры Docker Compose. Backend отправляет письма восстановления пароля через Gmail SMTP с STARTTLS. Детали — [SETUP.md](SETUP.md).

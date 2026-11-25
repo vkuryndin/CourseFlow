@@ -31,7 +31,7 @@ Authorization: Bearer <accessToken>
 
 ## 3. Форматы и обработка ошибок
 
-Параметры списков зависят от endpoint. Общие: page (от 0), size (1–100), sortBy, direction (`asc` / `desc`); поиск `q` либо `search` и фильтры по конкретному ресурсу. Пример из CourseController:
+Набор параметров зависит от операции API. Общие: page (от 0), size (1–100), sortBy, direction (`asc` / `desc`); поиск `q` либо `search` и фильтры по конкретному ресурсу. Пример из CourseController:
 
 ```http
 GET http://localhost:8080/api/courses?page=0&size=20&q=Java&sortBy=id&direction=asc
@@ -57,7 +57,7 @@ GET http://localhost:8080/api/courses?page=0&size=20&q=Java&sortBy=id&direction=
 
 | HTTP | Значение |
 |---|---|
-| 200 / 201 / 204 | Успех / создание / ответ без тела |
+| 200 / 201 / 202 / 204 | Успех / создание / запрос принят / ответ без тела |
 | 400 | Некорректный JSON, параметры, валидация |
 | 401 | Нет действительного токена или неверные учётные данные |
 | 403 | Недостаточно прав |
@@ -69,163 +69,163 @@ GET http://localhost:8080/api/courses?page=0&size=20&q=Java&sortBy=id&direction=
 
 ## 4. Перечень операций REST API
 
-В таблицах приведены HTTP-методы и маршруты приложения. Пути в фигурных скобках — параметры. «Публичный» означает доступ без JWT; для остальных применяется политика `security/EndpointAuthorization.java` и проверки сервисов. DTO, поля запроса и точные статусы каждого метода приведены в Swagger и контроллерах. Источники: `src/main/java/org/courseflow/<module>/controller/`, `common/system/`.
+В таблицах приведены маршруты, назначение, условия доступа и успешные HTTP-статусы. Пути в фигурных скобках — параметры. «Без JWT» означает публичный маршрут; «JWT и права на курс» — ADMIN, преподаватель данного курса или студент с активной записью. Дополнительно применяются ограничения состояния ресурсов, владения и принадлежности связанных объектов. Преподаватель создаёт курсы только для себя. Для JWT с обязательной сменой пароля действуют ограничения раздела 2. Схемы DTO и параметры доступны в Swagger UI; общие ошибки перечислены в разделе 3.
 
 ### 4.1. Авторизация
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| POST | `/api/users/{id}/password-reset` | Нет |
-| POST | `/api/auth/register` | Да |
-| POST | `/api/auth/login` | Да |
-| POST | `/api/auth/logout` | Нет |
-| POST | `/api/auth/change-password` | Нет |
-| POST | `/api/auth/forgot-password` | Да |
-| POST | `/api/auth/reset-password` | Да |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| POST | `/api/users/{id}/password-reset` | Запросить отправку ссылки для сброса пароля пользователя. | ADMIN | 202 |
+| POST | `/api/auth/register` | Регистрация. Создаёт аккаунт с ролью STUDENT. | Без JWT | 201 |
+| POST | `/api/auth/login` | Вход. Возвращает JWT со сроком действия 1 час. | Без JWT | 200 |
+| POST | `/api/auth/logout` | Выход. Отзывает текущую сессию. | JWT (любая роль) | 204 |
+| POST | `/api/auth/change-password` | Изменить пароль | JWT (любая роль) | 204 |
+| POST | `/api/auth/forgot-password` | Запросить сброс пароля. Ответ не раскрывает наличие аккаунта. | Без JWT | 202 |
+| POST | `/api/auth/reset-password` | Установить новый пароль. По одноразовому токену. | Без JWT | 204 |
 
 ### 4.2. Пользователи и профили
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| GET | `/api/users/me/profile` | Нет |
-| PUT | `/api/users/me/profile` | Нет |
-| GET | `/api/teachers` | Да |
-| GET | `/api/teachers/{id}` | Да |
-| GET | `/api/users/me` | Нет |
-| GET | `/api/users/{id}` | Нет |
-| GET | `/api/users` | Нет |
-| POST | `/api/users` | Нет |
-| PUT | `/api/users/{id}/roles` | Нет |
-| PUT | `/api/users/{id}` | Нет |
-| POST | `/api/users/{id}/deactivate` | Нет |
-| POST | `/api/users/{id}/activate` | Нет |
-| DELETE | `/api/users/{id}` | Нет |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| GET | `/api/users/me/profile` | Мой профиль | JWT (любая роль) | 200 |
+| PUT | `/api/users/me/profile` | Изменить профиль | JWT (любая роль) | 200 |
+| GET | `/api/teachers` | Список преподавателей | Без JWT | 200 |
+| GET | `/api/teachers/{id}` | Получить преподавателя | Без JWT | 200 |
+| GET | `/api/users/me` | Мой аккаунт | JWT (любая роль) | 200 |
+| GET | `/api/users/{id}` | Получить пользователя | ADMIN | 200 |
+| GET | `/api/users` | Список пользователей | ADMIN | 200 |
+| POST | `/api/users` | Создать пользователя | ADMIN | 201 |
+| PUT | `/api/users/{id}/roles` | Изменить роли | ADMIN | 200 |
+| PUT | `/api/users/{id}` | Изменить пользователя | ADMIN | 200 |
+| POST | `/api/users/{id}/deactivate` | Деактивировать пользователя | ADMIN | 200 |
+| POST | `/api/users/{id}/activate` | Активировать пользователя | ADMIN | 200 |
+| DELETE | `/api/users/{id}` | Удалить пользователя. Учебная история сохраняется. | ADMIN | 204 |
 
 ### 4.3. Каталог
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| POST | `/api/categories` | Нет |
-| PUT | `/api/categories/{id}` | Нет |
-| DELETE | `/api/categories/{id}` | Нет |
-| GET | `/api/categories/{id}` | Да |
-| GET | `/api/categories` | Да |
-| POST | `/api/courses` | Нет |
-| PUT | `/api/courses/{id}` | Нет |
-| GET | `/api/courses/{id}` | Да |
-| GET | `/api/courses` | Да |
-| POST | `/api/courses/{id}/archive` | Нет |
-| DELETE | `/api/courses/{id}` | Нет |
-| POST | `/api/courses/{courseId}/tags/{tagId}` | Нет |
-| DELETE | `/api/courses/{courseId}/tags/{tagId}` | Нет |
-| GET | `/api/courses/{courseId}/tags` | Да |
-| PUT | `/api/courses/{courseId}/teacher` | Нет |
-| GET | `/api/tags` | Да |
-| GET | `/api/tags/{id}` | Да |
-| POST | `/api/tags` | Нет |
-| PUT | `/api/tags/{id}` | Нет |
-| DELETE | `/api/tags/{id}` | Нет |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| POST | `/api/categories` | Создать категорию | ADMIN | 201 |
+| PUT | `/api/categories/{id}` | Изменить категорию | ADMIN | 200 |
+| DELETE | `/api/categories/{id}` | Удалить категорию | ADMIN | 204 |
+| GET | `/api/categories/{id}` | Получить категорию | Без JWT | 200 |
+| GET | `/api/categories` | Список категорий | Без JWT | 200 |
+| POST | `/api/courses` | Создать курс | ADMIN или TEACHER (свой курс) | 201 |
+| PUT | `/api/courses/{id}` | Изменить курс | ADMIN или преподаватель курса | 200 |
+| GET | `/api/courses/{id}` | Получить курс | Без JWT | 200 |
+| GET | `/api/courses` | Каталог курсов | Без JWT | 200 |
+| POST | `/api/courses/{id}/archive` | Архивировать курс | ADMIN или преподаватель курса | 200 |
+| DELETE | `/api/courses/{id}` | Удалить курс | ADMIN или преподаватель курса | 204 |
+| POST | `/api/courses/{courseId}/tags/{tagId}` | Добавить тег к курсу. Повторный запрос безопасен. | ADMIN или преподаватель курса | 204 |
+| DELETE | `/api/courses/{courseId}/tags/{tagId}` | Удалить тег курса | ADMIN или преподаватель курса | 204 |
+| GET | `/api/courses/{courseId}/tags` | Теги курса | Без JWT | 200 |
+| PUT | `/api/courses/{courseId}/teacher` | Назначить преподавателя | ADMIN | 200 |
+| GET | `/api/tags` | Список тегов | Без JWT | 200 |
+| GET | `/api/tags/{id}` | Получить тег | Без JWT | 200 |
+| POST | `/api/tags` | Создать тег | ADMIN | 201 |
+| PUT | `/api/tags/{id}` | Изменить тег | ADMIN | 200 |
+| DELETE | `/api/tags/{id}` | Удалить тег | ADMIN | 204 |
 
 ### 4.4. Учебные материалы
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| POST | `/api/courses/{courseId}/modules/{moduleId}/lessons` | Нет |
-| GET | `/api/courses/{courseId}/modules/{moduleId}/lessons` | Нет |
-| GET | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}` | Нет |
-| PUT | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}` | Нет |
-| PATCH | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/position` | Нет |
-| DELETE | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}` | Нет |
-| POST | `/api/lessons/{lessonId}/sessions` | Нет |
-| GET | `/api/lessons/{lessonId}/sessions` | Нет |
-| GET | `/api/lessons/{lessonId}/sessions/{sessionId}` | Нет |
-| PUT | `/api/lessons/{lessonId}/sessions/{sessionId}` | Нет |
-| PATCH | `/api/lessons/{lessonId}/sessions/{sessionId}/time` | Нет |
-| DELETE | `/api/lessons/{lessonId}/sessions/{sessionId}` | Нет |
-| POST | `/api/courses/{courseId}/modules` | Нет |
-| GET | `/api/courses/{courseId}/modules` | Да |
-| GET | `/api/courses/{courseId}/modules/{moduleId}` | Да |
-| PUT | `/api/courses/{courseId}/modules/{moduleId}` | Нет |
-| PATCH | `/api/courses/{courseId}/modules/{moduleId}/position` | Нет |
-| DELETE | `/api/courses/{courseId}/modules/{moduleId}` | Нет |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| POST | `/api/courses/{courseId}/modules/{moduleId}/lessons` | Создать урок | ADMIN или преподаватель курса | 201 |
+| GET | `/api/courses/{courseId}/modules/{moduleId}/lessons` | Уроки модуля | JWT и права на курс | 200 |
+| GET | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}` | Получить урок | JWT и права на курс | 200 |
+| PUT | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}` | Изменить урок | ADMIN или преподаватель курса | 200 |
+| PATCH | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/position` | Изменить порядок урока | ADMIN или преподаватель курса | 200 |
+| DELETE | `/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}` | Удалить урок | ADMIN или преподаватель курса | 204 |
+| POST | `/api/lessons/{lessonId}/sessions` | Создать занятие | ADMIN или преподаватель курса | 201 |
+| GET | `/api/lessons/{lessonId}/sessions` | Расписание урока | JWT и права на курс | 200 |
+| GET | `/api/lessons/{lessonId}/sessions/{sessionId}` | Получить занятие | JWT и права на курс | 200 |
+| PUT | `/api/lessons/{lessonId}/sessions/{sessionId}` | Изменить занятие | ADMIN или преподаватель курса | 200 |
+| PATCH | `/api/lessons/{lessonId}/sessions/{sessionId}/time` | Перенести занятие | ADMIN или преподаватель курса | 200 |
+| DELETE | `/api/lessons/{lessonId}/sessions/{sessionId}` | Удалить занятие | ADMIN или преподаватель курса | 204 |
+| POST | `/api/courses/{courseId}/modules` | Создать модуль | ADMIN или преподаватель курса | 201 |
+| GET | `/api/courses/{courseId}/modules` | Модули курса | Без JWT | 200 |
+| GET | `/api/courses/{courseId}/modules/{moduleId}` | Получить модуль | Без JWT | 200 |
+| PUT | `/api/courses/{courseId}/modules/{moduleId}` | Изменить модуль | ADMIN или преподаватель курса | 200 |
+| PATCH | `/api/courses/{courseId}/modules/{moduleId}/position` | Изменить порядок модуля | ADMIN или преподаватель курса | 200 |
+| DELETE | `/api/courses/{courseId}/modules/{moduleId}` | Удалить модуль | ADMIN или преподаватель курса | 204 |
 
 ### 4.5. Обучение и успеваемость
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| POST | `/api/lessons/{lessonId}/assignments` | Нет |
-| GET | `/api/lessons/{lessonId}/assignments` | Нет |
-| GET | `/api/lessons/{lessonId}/assignments/{assignmentId}` | Нет |
-| PUT | `/api/lessons/{lessonId}/assignments/{assignmentId}` | Нет |
-| PATCH | `/api/lessons/{lessonId}/assignments/{assignmentId}/deadline` | Нет |
-| DELETE | `/api/lessons/{lessonId}/assignments/{assignmentId}` | Нет |
-| POST | `/api/courses/{courseId}/enrollments` | Нет |
-| GET | `/api/courses/{courseId}/enrollments/me` | Нет |
-| DELETE | `/api/courses/{courseId}/enrollments/me` | Нет |
-| DELETE | `/api/courses/{courseId}/enrollments/students/{studentId}` | Нет |
-| GET | `/api/courses/{courseId}/enrollments` | Нет |
-| GET | `/api/courses/{courseId}/gradebook` | Нет |
-| GET | `/api/users/me/enrollments` | Нет |
-| GET | `/api/users/me/progress` | Нет |
-| GET | `/api/users/me/assignments` | Нет |
-| GET | `/api/users/me/submissions` | Нет |
-| GET | `/api/users/me/quiz-attempts` | Нет |
-| POST | `/api/assignments/{assignmentId}/submissions` | Нет |
-| GET | `/api/assignments/{assignmentId}/submissions/me` | Нет |
-| GET | `/api/assignments/{assignmentId}/submissions` | Нет |
-| PUT | `/api/assignments/{assignmentId}/submissions/{submissionId}/grade` | Нет |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| POST | `/api/lessons/{lessonId}/assignments` | Создать задание | ADMIN или преподаватель курса | 201 |
+| GET | `/api/lessons/{lessonId}/assignments` | Задания урока | JWT и права на курс | 200 |
+| GET | `/api/lessons/{lessonId}/assignments/{assignmentId}` | Получить задание | JWT и права на курс | 200 |
+| PUT | `/api/lessons/{lessonId}/assignments/{assignmentId}` | Изменить задание | ADMIN или преподаватель курса | 200 |
+| PATCH | `/api/lessons/{lessonId}/assignments/{assignmentId}/deadline` | Продлить срок сдачи. Новый срок позже текущего и в будущем. Оценки сохраняются. | ADMIN или преподаватель курса | 200 |
+| DELETE | `/api/lessons/{lessonId}/assignments/{assignmentId}` | Удалить задание | ADMIN или преподаватель курса | 204 |
+| POST | `/api/courses/{courseId}/enrollments` | Записаться на курс. Повторный запрос возвращает или восстанавливает запись. | STUDENT | 200 / 201 |
+| GET | `/api/courses/{courseId}/enrollments/me` | Моя запись на курс | STUDENT | 200 |
+| DELETE | `/api/courses/{courseId}/enrollments/me` | Отписаться от курса | STUDENT | 204 |
+| DELETE | `/api/courses/{courseId}/enrollments/students/{studentId}` | Отписать студента | ADMIN | 204 |
+| GET | `/api/courses/{courseId}/enrollments` | Список студентов курса | ADMIN или преподаватель курса | 200 |
+| GET | `/api/courses/{courseId}/gradebook` | Электронный журнал | ADMIN или преподаватель курса | 200 |
+| GET | `/api/users/me/enrollments` | Мои курсы | STUDENT | 200 |
+| GET | `/api/users/me/progress` | Мой прогресс | STUDENT | 200 |
+| GET | `/api/users/me/assignments` | Мои задания | STUDENT | 200 |
+| GET | `/api/users/me/submissions` | Мои ответы на задания | STUDENT | 200 |
+| GET | `/api/users/me/quiz-attempts` | Мои попытки тестирования | STUDENT | 200 |
+| POST | `/api/assignments/{assignmentId}/submissions` | Сдать задание | STUDENT | 201 |
+| GET | `/api/assignments/{assignmentId}/submissions/me` | Мой ответ на задание | STUDENT | 200 |
+| GET | `/api/assignments/{assignmentId}/submissions` | Ответы студентов | ADMIN или преподаватель курса | 200 |
+| PUT | `/api/assignments/{assignmentId}/submissions/{submissionId}/grade` | Оценить ответ | ADMIN или преподаватель курса | 200 |
 
 ### 4.6. Тестирование знаний
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| POST | `/api/quizzes/{quizId}/attempts` | Нет |
-| GET | `/api/quizzes/{quizId}/attempts/{attemptId}` | Нет |
-| POST | `/api/quizzes/{quizId}/attempts/{attemptId}/submit` | Нет |
-| GET | `/api/quizzes/{quizId}/attempts/me` | Нет |
-| GET | `/api/quizzes/{quizId}/attempts` | Нет |
-| GET | `/api/quizzes/{quizId}/attempts/{attemptId}/result` | Нет |
-| GET | `/api/quizzes/{quizId}/attempts/{attemptId}/manage` | Нет |
-| POST | `/api/modules/{moduleId}/quiz` | Нет |
-| GET | `/api/modules/{moduleId}/quiz` | Нет |
-| GET | `/api/quizzes/{quizId}` | Нет |
-| POST | `/api/quizzes/{quizId}/questions` | Нет |
-| GET | `/api/quizzes/{quizId}/questions` | Нет |
-| GET | `/api/quizzes/{quizId}/questions/manage` | Нет |
-| PUT | `/api/quizzes/{quizId}` | Нет |
-| DELETE | `/api/quizzes/{quizId}` | Нет |
-| PUT | `/api/quizzes/{quizId}/questions/{questionId}` | Нет |
-| DELETE | `/api/quizzes/{quizId}/questions/{questionId}` | Нет |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| POST | `/api/quizzes/{quizId}/attempts` | Начать попытку. Возвращает текущую активную попытку или создаёт новую. | STUDENT | 200 / 201 |
+| GET | `/api/quizzes/{quizId}/attempts/{attemptId}` | Получить свою попытку | STUDENT | 200 |
+| POST | `/api/quizzes/{quizId}/attempts/{attemptId}/submit` | Отправить ответы. Повторная отправка завершённой попытки не допускается. | STUDENT | 200 |
+| GET | `/api/quizzes/{quizId}/attempts/me` | Мои попытки | STUDENT | 200 |
+| GET | `/api/quizzes/{quizId}/attempts` | Результаты студентов | ADMIN или преподаватель курса | 200 |
+| GET | `/api/quizzes/{quizId}/attempts/{attemptId}/result` | Мой результат | STUDENT | 200 |
+| GET | `/api/quizzes/{quizId}/attempts/{attemptId}/manage` | Подробный результат студента | ADMIN или преподаватель курса | 200 |
+| POST | `/api/modules/{moduleId}/quiz` | Создать тест | ADMIN или преподаватель курса | 201 |
+| GET | `/api/modules/{moduleId}/quiz` | Тест модуля | JWT и права на курс | 200 |
+| GET | `/api/quizzes/{quizId}` | Получить тест | JWT и права на курс | 200 |
+| POST | `/api/quizzes/{quizId}/questions` | Добавить вопрос | ADMIN или преподаватель курса | 201 |
+| GET | `/api/quizzes/{quizId}/questions` | Вопросы теста. Студенту доступно без правильных ответов во время активной попытки. | JWT и права на курс | 200 |
+| GET | `/api/quizzes/{quizId}/questions/manage` | Вопросы с правильными ответами | ADMIN или преподаватель курса | 200 |
+| PUT | `/api/quizzes/{quizId}` | Изменить тест | ADMIN или преподаватель курса | 200 |
+| DELETE | `/api/quizzes/{quizId}` | Удалить тест | ADMIN или преподаватель курса | 204 |
+| PUT | `/api/quizzes/{quizId}/questions/{questionId}` | Изменить вопрос | ADMIN или преподаватель курса | 200 |
+| DELETE | `/api/quizzes/{quizId}/questions/{questionId}` | Удалить вопрос | ADMIN или преподаватель курса | 204 |
 
 ### 4.7. Отзывы
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| POST | `/api/courses/{courseId}/reviews` | Нет |
-| PUT | `/api/courses/{courseId}/reviews/me` | Нет |
-| DELETE | `/api/courses/{courseId}/reviews/me` | Нет |
-| GET | `/api/courses/{courseId}/reviews/me` | Нет |
-| GET | `/api/courses/{courseId}/reviews` | Да |
-| GET | `/api/courses/{courseId}/reviews/rating` | Да |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| POST | `/api/courses/{courseId}/reviews` | Оставить отзыв | STUDENT | 201 |
+| PUT | `/api/courses/{courseId}/reviews/me` | Изменить свой отзыв | STUDENT | 200 |
+| DELETE | `/api/courses/{courseId}/reviews/me` | Удалить свой отзыв | STUDENT | 204 |
+| GET | `/api/courses/{courseId}/reviews/me` | Мой отзыв | STUDENT | 200 |
+| GET | `/api/courses/{courseId}/reviews` | Отзывы о курсе | Без JWT | 200 |
+| GET | `/api/courses/{courseId}/reviews/rating` | Рейтинг курса | Без JWT | 200 |
 
 ### 4.8. Дашборды
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| GET | `/api/dashboard/admin` | Нет |
-| GET | `/api/dashboard/student` | Нет |
-| GET | `/api/dashboard/teacher` | Нет |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| GET | `/api/dashboard/admin` | Панель администратора | ADMIN | 200 |
+| GET | `/api/dashboard/student` | Панель студента | STUDENT | 200 |
+| GET | `/api/dashboard/teacher` | Панель преподавателя | TEACHER | 200 |
 
 ### 4.9. Системная информация
 
-| Метод | Путь | Доступ без JWT |
-|---|---|---|
-| GET | `/api/system/info` | Нет |
-| GET | `/api/system/status` | Нет |
+| Метод | Путь | Назначение | Доступ | Успех (HTTP) |
+|---|---|---|---|---|
+| GET | `/api/system/info` | Диагностика системы. Кеш 60 секунд. Без паролей; SMTP-соединение не проверяется. | ADMIN | 200 |
+| GET | `/api/system/status` | Состояние системы | JWT (любая роль) | 200 |
 
 `GET /api/system/info` доступен администратору и возвращает `SystemInfoResponse`: снимок приложения, JVM, PostgreSQL, пула соединений и настроек почты, локальный адрес backend и срок жизни JWT. Снимок кешируется на 60 секунд, недоступные показатели могут быть `null`. Пароли и ключи не возвращаются; доступность SMTP-соединения не проверяется.
 
-Всего 107 операций прикладного API. `frontend/src/shared/contract.json` содержит локальную проекцию OpenAPI (схемы, тела запросов и параметры операций) для клиентской валидации. Полная спецификация со статусами ответов, описаниями и правилами авторизации доступна на `/v3/api-docs` в профиле `dev`.
+Всего 107 операций прикладного API. `frontend/src/shared/contract.json` содержит локальный клиентский контракт (схемы, тела запросов и параметры операций). `npm run check:contract` проверяет его внутреннюю согласованность, но не сравнивает с OpenAPI запущенного backend. Серверная спецификация доступна на `/v3/api-docs` в профиле `dev`. Бизнес-ограничения определяются реализацией сервисов.
 
 ## 5. Actuator и диагностика
 
@@ -244,5 +244,71 @@ GET http://localhost:8080/api/courses?page=0&size=20&q=Java&sortBy=id&direction=
 - `requests.http` — набор ручных REST-запросов.
 - `requests_auto.http` — автоматизированные последовательности HTTP Client с проверками.
 - Swagger UI — схемы DTO, описание операций, интерактивные вызовы (dev).
+
+### Основной учебный цикл
+
+Примеры используют переменные `baseUrl`, `teacher_token`, `student_token` и идентификаторы объектов, полученные в предыдущих ответах. Категория, преподаватель, урок с заданием и тест с вопросами должны существовать; курс должен быть активным. Дата начала курса указывается с учётом текущей даты. Полные последовательности подготовки данных и негативных проверок находятся в `requests_auto.http`.
+
+**Создание курса (преподаватель)** — HTTP 201. Из ответа используется `id` курса.
+
+```http
+POST {{baseUrl}}/api/courses
+Authorization: Bearer {{teacher_token}}
+Content-Type: application/json
+
+{
+  "title": "Основы Java",
+  "description": "Практический курс",
+  "categoryId": {{category_id}},
+  "teacherId": {{teacher_id}},
+  "duration": 56,
+  "startDate": "{{course_start}}"
+}
+```
+
+**Запись на курс (студент)** — HTTP 201 при создании, 200 при существующей или восстановленной записи.
+
+```http
+POST {{baseUrl}}/api/courses/{{course_id}}/enrollments
+Authorization: Bearer {{student_token}}
+```
+
+**Сдача работы (студент)** — HTTP 201; из ответа используются `id` и `version` работы.
+
+```http
+POST {{baseUrl}}/api/assignments/{{assignment_id}}/submissions
+Authorization: Bearer {{student_token}}
+Content-Type: application/json
+
+{"content": "Решение задания"}
+```
+
+**Оценивание (преподаватель курса)** — HTTP 200; `version` берётся из актуального ответа, балл не превышает максимальный балл задания.
+
+```http
+PUT {{baseUrl}}/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
+Authorization: Bearer {{teacher_token}}
+Content-Type: application/json
+
+{"version": {{submission_version}}, "score": 80, "feedback": "Работа проверена"}
+```
+
+**Начало попытки и отправка ответов (студент)** — HTTP 201 или 200 при начале, HTTP 200 при отправке. Идентификатор попытки берётся из первого ответа, идентификаторы вопросов и вариантов — из списка вопросов. Результат рассчитывается сервером.
+
+```http
+POST {{baseUrl}}/api/quizzes/{{quiz_id}}/attempts
+Authorization: Bearer {{student_token}}
+
+###
+GET {{baseUrl}}/api/quizzes/{{quiz_id}}/questions
+Authorization: Bearer {{student_token}}
+
+###
+POST {{baseUrl}}/api/quizzes/{{quiz_id}}/attempts/{{attempt_id}}/submit
+Authorization: Bearer {{student_token}}
+Content-Type: application/json
+
+{"answers": [{"questionId": {{question_id}}, "optionIds": [{{option_id}}]}]}
+```
 
 Для сценариев с изменением данных используется отдельная тестовая среда. См. [TESTING.md](TESTING.md).

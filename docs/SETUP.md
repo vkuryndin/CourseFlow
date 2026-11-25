@@ -4,7 +4,14 @@
 
 ## 1. Требования и варианты размещения
 
-Java 17, Git, Node.js 22 (минимальная версия Node.js — 20.19), npm, PostgreSQL 18. Gradle Wrapper входит в репозиторий. Docker и Compose v2 используются для контейнерного запуска; интеграционные и нагрузочные тесты требуют Docker.
+| Вариант | Требования |
+|---|---|
+| Локальная разработка backend и frontend | Java 17, Git, Node.js 22 (не ниже 20.19), npm, доступ к PostgreSQL 18 |
+| Модульные и архитектурные тесты backend | Java 17, Gradle Wrapper |
+| Интеграционные и нагрузочные тесты | Java 17, доступ к Docker; PostgreSQL запускается Testcontainers |
+| Запуск готовых контейнеров | Docker, Compose v2 |
+
+Gradle Wrapper входит в репозиторий.
 
 ```bash
 git clone https://github.com/vkuryndin/CourseFlow.git
@@ -56,7 +63,7 @@ Hibernate создаёт и обновляет схему при запуске 
 | `COURSEFLOW_ADMIN_EMAIL` | Email системного администратора |
 | `COURSEFLOW_ADMIN_PASSWORD` | Пароль системного администратора по умолчанию |
 
-Email и пароль администратора необходимы при создании системного администратора. При последующих запусках сохраняется существующая учётная запись; изменение переменной не меняет её пароль. Для Gmail SMTP используется пароль приложения Google. Отправка почты выполняется через `smtp.gmail.com:587` с STARTTLS; таймауты подключения, чтения и записи составляют 5 секунд.
+В профиле `dev` email и пароль администратора необходимы при создании системного администратора. При последующих запусках сохраняется существующая учётная запись; изменение переменной не меняет её пароль. Для Gmail SMTP используется пароль приложения Google. Отправка почты выполняется через `smtp.gmail.com:587` с STARTTLS; таймауты подключения, чтения и записи составляют 5 секунд.
 
 Пример конфигурации локального запуска:
 
@@ -89,7 +96,7 @@ MAIL_APP_PASSWORD=<gmail-app-password>
 | `COURSEFLOW_TRUSTED_PROXY_IP` | Не задан | Адрес доверенного reverse proxy |
 | `COURSEFLOW_PASSWORD_RESET_URL` | `http://localhost:5173/reset-password` (dev) | Адрес страницы восстановления пароля |
 
-В профиле `dev` разрешены origin `http://localhost:5173` и `http://127.0.0.1:5173`. В профиле `aws` необходимо указать `COURSEFLOW_CORS_ALLOWED_ORIGINS` и `COURSEFLOW_PASSWORD_RESET_URL`; Docker Compose задаёт их автоматически для локального контейнерного запуска. При сетевом доступе значения настраиваются под адрес размещения (см. разделы 6–7).
+В профиле `dev` разрешены источники запросов `http://localhost:5173` и `http://127.0.0.1:5173`. В профиле `aws` необходимо указать `COURSEFLOW_CORS_ALLOWED_ORIGINS` и `COURSEFLOW_PASSWORD_RESET_URL`; Docker Compose задаёт их автоматически для локального контейнерного запуска. При сетевом доступе значения настраиваются под адрес размещения (см. разделы 6–7).
 
 Интеграционные и нагрузочные тесты используют профиль `test` с отдельными тестовыми параметрами JWT, SMTP и системного администратора. Адрес и учётные данные временной БД передаются Testcontainers; параметры рабочей БД для этих тестов не требуются.
 
@@ -175,6 +182,8 @@ npm run dev
 | `MAIL_USERNAME` | Gmail-адрес отправителя |
 | `MAIL_APP_PASSWORD` | Пароль приложения Google |
 
+Переменные `COURSEFLOW_ADMIN_EMAIL` и `COURSEFLOW_ADMIN_PASSWORD` обязательны для Docker Compose независимо от наличия администратора в базе.
+
 Compose передаёт backend профиль `aws`, JDBC-адрес `jdbc:postgresql://postgres:5432/courseflow`, имя пользователя `courseflow`, порт 8080 и IP доверенного Nginx. В отличие от запуска из IDEA, отдельно задавать эти параметры не нужно.
 
 **Дополнительные параметры Compose:**
@@ -183,14 +192,14 @@ Compose передаёт backend профиль `aws`, JDBC-адрес `jdbc:pos
 |---|---|---|
 | `COURSEFLOW_IMAGE_PREFIX` | `ghcr.io/vkuryndin/courseflow` | Префикс имён образов |
 | `COURSEFLOW_BIND_ADDRESS` | `127.0.0.1` | Адрес публикации порта 8081; `0.0.0.0` для сетевого доступа |
-| `COURSEFLOW_CORS_ALLOWED_ORIGINS` | `http://localhost:8081,http://127.0.0.1:8081` | Разрешённые origin |
+| `COURSEFLOW_CORS_ALLOWED_ORIGINS` | `http://localhost:8081,http://127.0.0.1:8081` | Допустимые источники запросов (CORS) |
 | `COURSEFLOW_PASSWORD_RESET_URL` | `http://localhost:8081/reset-password` | Адрес восстановления пароля |
 | `COURSEFLOW_SUBNET` | `172.30.253.0/24` | Подсеть контейнеров |
 | `COURSEFLOW_FRONTEND_IP` | `172.30.253.10` | Адрес frontend и доверенного reverse proxy |
 | `COURSEFLOW_BACKEND_IP` | `172.30.253.11` | Адрес backend |
 | `COURSEFLOW_DB_IP` | `172.30.253.12` | Адрес PostgreSQL |
 
-При локальном контейнерном запуске эти значения можно оставить без изменений, если подсеть свободна. Для AWS адрес публикации, разрешённые origin и ссылка восстановления задаются по фактическому адресу размещения (раздел 7).
+При локальном контейнерном запуске эти значения можно оставить без изменений, если подсеть свободна. Для AWS адрес публикации, допустимые источники запросов и ссылка восстановления задаются по фактическому адресу размещения (раздел 7).
 
 | Сервис | Образ / порт | Ресурсы |
 |---|---|---|
@@ -198,7 +207,7 @@ Compose передаёт backend профиль `aws`, JDBC-адрес `jdbc:pos
 | Backend | `courseflow-backend:latest`, 8080 | 512 МБ; heap 64–256 МБ; SerialGC, до 40 потоков Tomcat; пул БД 10 |
 | Frontend | `courseflow-frontend:latest`, 80 | Порт хоста 8081 |
 
-Том `postgres-data` монтируется в `/var/lib/postgresql`, том `demo-credentials` — в `/home/courseflow/.courseflow`. Для контейнеров предусмотрены health checks, автоматический перезапуск и ротация логов (3 файла по 10 МБ). Все порты, кроме 8081, используются внутри сети Compose.
+Том `postgres-data` монтируется в `/var/lib/postgresql`, том `demo-credentials` — в `/home/courseflow/.courseflow`. Для контейнеров предусмотрены проверки состояния контейнеров, автоматический перезапуск и ротация логов (3 файла по 10 МБ). Все порты, кроме 8081, используются внутри сети Compose.
 
 ```bash
 cp .env.example .env
@@ -265,6 +274,5 @@ vmstat 1 5
 | Ошибка отправки писем | Gmail SMTP 587, пароль приложения, STARTTLS, адрес восстановления |
 | Ошибка Testcontainers | Доступ к Docker, SSH, known_hosts, параметры удалённого хоста, порт 23750 |
 | Ошибка доставки | GitHub Secrets, сетевой доступ, ревизии образов, состояние контейнеров |
-| HTTP 429 при сборке Gradle | Ограничение запросов Maven Central; повторный запуск неудачного job |
 
 Команды тестирования приведены в [TESTING.md](TESTING.md).
