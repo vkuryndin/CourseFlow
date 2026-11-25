@@ -74,8 +74,13 @@ class GradebookQueryRepositoryTest {
     var countJpql = org.mockito.ArgumentCaptor.forClass(String.class);
     verify(em).createQuery(dataJpql.capture(), eq(StudentProjection.class));
     verify(em).createQuery(countJpql.capture(), eq(Long.class));
-    for (String fragment : List.of("e.course.id = :courseId", "LOCATE(:search, LOWER(u.displayName))",
-        "e.status = :enrollmentStatus", "a.lesson.module.id = :moduleId", "a.dueAt <= :now")) {
+    for (String fragment :
+        List.of(
+            "e.course.id = :courseId",
+            "LOCATE(:search, LOWER(u.displayName))",
+            "e.status = :enrollmentStatus",
+            "a.lesson.module.id = :moduleId",
+            "a.dueAt <= :now")) {
       assertTrue(dataJpql.getValue().contains(fragment), fragment);
       assertTrue(countJpql.getValue().contains(fragment), fragment);
     }

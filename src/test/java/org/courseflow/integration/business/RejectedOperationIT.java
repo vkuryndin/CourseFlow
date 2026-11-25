@@ -32,19 +32,35 @@ class RejectedOperationIT extends AdvancedHttpTest {
     Actor learner = actor(List.of("STUDENT"));
     Actor otherTeacher = actor(List.of("TEACHER"));
     enroll(graph.course(), learner);
-    Object submitted = expect(api("POST", "/api/assignments/" + assignment + "/submissions",
-        learner.token(), Map.of("content", "Original answer")), 201);
+    Object submitted =
+        expect(
+            api(
+                "POST",
+                "/api/assignments/" + assignment + "/submissions",
+                learner.token(),
+                Map.of("content", "Original answer")),
+            201);
     long id = id(submitted);
     String path = "/api/assignments/" + assignment + "/submissions/" + id + "/grade";
     var snapshot = jdbc.queryForMap("SELECT * FROM submissions WHERE id = ?", id);
-    var grade = Map.of("version", requiredInteger(submitted, "version"), "score", 70, "feedback", "Changed");
+    var grade =
+        Map.of(
+            "version", requiredInteger(submitted, "version"), "score", 70, "feedback", "Changed");
     error(api("PUT", path, otherTeacher.token(), grade), 403, "ACCESS_DENIED");
     assertEquals(snapshot, jdbc.queryForMap("SELECT * FROM submissions WHERE id = ?", id));
-    error(api("PUT", path, teacher.token(), Map.of("version", requiredInteger(submitted, "version"), "score", 101)), 400, "BAD_REQUEST");
+    error(
+        api(
+            "PUT",
+            path,
+            teacher.token(),
+            Map.of("version", requiredInteger(submitted, "version"), "score", 101)),
+        400,
+        "BAD_REQUEST");
     assertEquals(snapshot, jdbc.queryForMap("SELECT * FROM submissions WHERE id = ?", id));
     Object valid = expect(api("PUT", path, teacher.token(), grade), 200);
     assertEquals(70L, requiredInteger(valid, "score"));
-    assertEquals(70, jdbc.queryForObject("SELECT score FROM submissions WHERE id = ?", Integer.class, id));
+    assertEquals(
+        70, jdbc.queryForObject("SELECT score FROM submissions WHERE id = ?", Integer.class, id));
   }
 
   private void error(Response response, int status, String code) {

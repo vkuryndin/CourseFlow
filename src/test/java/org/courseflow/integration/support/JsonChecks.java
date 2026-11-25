@@ -2,8 +2,8 @@ package org.courseflow.integration.support;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -19,9 +19,10 @@ import java.util.regex.Pattern;
 /** Small JSON assertion helpers shared by the ported HTTP scenarios. */
 public final class JsonChecks {
   public static final Object UNDEFINED = new Object();
-  private static final ObjectMapper JSON = new ObjectMapper()
-      .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-      .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+  private static final ObjectMapper JSON =
+      new ObjectMapper()
+          .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+          .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
   private JsonChecks() {}
 
@@ -66,7 +67,10 @@ public final class JsonChecks {
 
   public static long requiredInteger(Object value, String key) {
     Object field = requiredField(value, key);
-    if (!(field instanceof Byte || field instanceof Short || field instanceof Integer || field instanceof Long)) {
+    if (!(field instanceof Byte
+        || field instanceof Short
+        || field instanceof Integer
+        || field instanceof Long)) {
       throw new AssertionError("Expected integer JSON field: " + key);
     }
     return ((Number) field).longValue();

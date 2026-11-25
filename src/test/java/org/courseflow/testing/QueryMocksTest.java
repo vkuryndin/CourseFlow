@@ -13,8 +13,14 @@ class QueryMocksTest {
   void rejectsMissingExpectedParameter() {
     EntityManager em = mock(EntityManager.class);
     var query = QueryMocks.query(em, String.class, List.of(), "studentId");
-    assertSame(query, em.createQuery("SELECT u.email FROM User u WHERE u.id = :studentId", String.class));
-    assertThrows(AssertionError.class, () -> em.createQuery("SELECT u.email FROM User u", String.class));
-    assertThrows(AssertionError.class, () -> em.createQuery("SELECT u.email FROM User u WHERE u.id = :studentIdOther", String.class));
+    assertSame(
+        query, em.createQuery("SELECT u.email FROM User u WHERE u.id = :studentId", String.class));
+    assertThrows(
+        AssertionError.class, () -> em.createQuery("SELECT u.email FROM User u", String.class));
+    assertThrows(
+        AssertionError.class,
+        () ->
+            em.createQuery(
+                "SELECT u.email FROM User u WHERE u.id = :studentIdOther", String.class));
   }
 }

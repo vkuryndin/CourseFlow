@@ -51,6 +51,8 @@ class JwtConfigTest {
     otherBytes[0] = 1;
     var otherKey = config.jwtSigningKey(Base64.getEncoder().encodeToString(otherBytes));
     var otherDecoder = config.jwtDecoder(otherKey, validator, Clock.systemUTC());
-    assertThrows(org.springframework.security.oauth2.jwt.JwtException.class, () -> otherDecoder.decode(token));
+    assertThrows(
+        org.springframework.security.oauth2.jwt.JwtException.class,
+        () -> otherDecoder.decode(token));
   }
 }

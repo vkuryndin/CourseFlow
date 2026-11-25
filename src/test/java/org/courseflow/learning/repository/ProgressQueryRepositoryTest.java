@@ -58,8 +58,12 @@ class ProgressQueryRepositoryTest {
     var countJpql = org.mockito.ArgumentCaptor.forClass(String.class);
     verify(em).createQuery(dataJpql.capture(), eq(CourseRow.class));
     verify(em).createQuery(countJpql.capture(), eq(Long.class));
-    for (String fragment : List.of("e.student.id = :studentId", "c.id = :courseId",
-        "e.status = :enrollmentStatus", "c.status = :courseStatus")) {
+    for (String fragment :
+        List.of(
+            "e.student.id = :studentId",
+            "c.id = :courseId",
+            "e.status = :enrollmentStatus",
+            "c.status = :courseStatus")) {
       assertTrue(dataJpql.getValue().contains(fragment), fragment);
       assertTrue(countJpql.getValue().contains(fragment), fragment);
     }

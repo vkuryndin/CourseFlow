@@ -20,6 +20,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 class CourseFlowRegressionIT extends HttpIntegrationTest {
 
   private boolean failed;
+
   @org.springframework.beans.factory.annotation.Autowired
   private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
@@ -33,7 +34,8 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
 
   private void checkError(Response response, int status, String code) {
     org.junit.jupiter.api.Assertions.assertEquals(status, response.status());
-    org.junit.jupiter.api.Assertions.assertEquals((long) status, requiredInteger(response.body(), "status"));
+    org.junit.jupiter.api.Assertions.assertEquals(
+        (long) status, requiredInteger(response.body(), "status"));
     org.junit.jupiter.api.Assertions.assertEquals(code, requiredField(response.body(), "code"));
   }
 
@@ -572,8 +574,12 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
   private void case007() throws Exception {
     long student = scenarioId("student_id");
     String email = get("student_email");
-    verify(dbCount("SELECT count(*) FROM users WHERE email = ?", email) == 1, "Registration precondition");
-    verify(dbCount("SELECT count(*) FROM user_accounts WHERE user_id = ?", student) == 1, "Account precondition");
+    verify(
+        dbCount("SELECT count(*) FROM users WHERE email = ?", email) == 1,
+        "Registration precondition");
+    verify(
+        dbCount("SELECT count(*) FROM user_accounts WHERE user_id = ?", student) == 1,
+        "Account precondition");
     var response =
         request(
             "POST",
@@ -589,8 +595,12 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "application/json");
     verify(eq(response.status(), 409), plus("Expected 409, got ", response.status()));
     checkError(response, 409, "BUSINESS_CONFLICT");
-    verify(dbCount("SELECT count(*) FROM users WHERE email = ?", email) == 1, "Duplicate user created");
-    verify(dbCount("SELECT count(*) FROM user_accounts WHERE user_id = ?", student) == 1, "Duplicate account created");
+    verify(
+        dbCount("SELECT count(*) FROM users WHERE email = ?", email) == 1,
+        "Duplicate user created");
+    verify(
+        dbCount("SELECT count(*) FROM user_accounts WHERE user_id = ?", student) == 1,
+        "Duplicate account created");
   }
 
   private void case008() throws Exception {
@@ -1477,7 +1487,11 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
   private void case060() throws Exception {
     long course = scenarioId("temp_course_id");
     long student = scenarioId("student_id");
-    long before = dbCount("SELECT count(*) FROM enrollments WHERE course_id = ? AND student_id = ?", course, student);
+    long before =
+        dbCount(
+            "SELECT count(*) FROM enrollments WHERE course_id = ? AND student_id = ?",
+            course,
+            student);
     var response =
         request(
             "POST",
@@ -1487,7 +1501,13 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "Bearer {{student_token}}");
     verify(eq(response.status(), 409), plus("Expected 409, got ", response.status()));
     checkError(response, 409, "BUSINESS_CONFLICT");
-    verify(dbCount("SELECT count(*) FROM enrollments WHERE course_id = ? AND student_id = ?", course, student) == before, "Rejected enrollment changed database");
+    verify(
+        dbCount(
+                "SELECT count(*) FROM enrollments WHERE course_id = ? AND student_id = ?",
+                course,
+                student)
+            == before,
+        "Rejected enrollment changed database");
   }
 
   private void case061() throws Exception {
@@ -2412,7 +2432,13 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
   private void case114() throws Exception {
     long assignment = scenarioId("assignment_id");
     long student = scenarioId("other_id");
-    verify(dbCount("SELECT count(*) FROM submissions WHERE assignment_id = ? AND student_id = ?", assignment, student) == 0, "Precondition: no submission");
+    verify(
+        dbCount(
+                "SELECT count(*) FROM submissions WHERE assignment_id = ? AND student_id = ?",
+                assignment,
+                student)
+            == 0,
+        "Precondition: no submission");
     var response =
         request(
             "POST",
@@ -2428,7 +2454,13 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "application/json");
     verify(eq(response.status(), 403), plus("Expected 403, got ", response.status()));
     checkError(response, 403, "ACCESS_DENIED");
-    verify(dbCount("SELECT count(*) FROM submissions WHERE assignment_id = ? AND student_id = ?", assignment, student) == 0, "Forbidden submission persisted");
+    verify(
+        dbCount(
+                "SELECT count(*) FROM submissions WHERE assignment_id = ? AND student_id = ?",
+                assignment,
+                student)
+            == 0,
+        "Forbidden submission persisted");
   }
 
   private void case115() throws Exception {
@@ -2491,8 +2523,16 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
         eq(field(response.body(), "requestId"), response.header("X-Request-Id")),
         "response.body.requestId === response.headers.valueOf(\"X-Request-Id\")");
     checkError(response, 409, "BUSINESS_CONFLICT");
-    verify(dbCount("SELECT count(*) FROM submissions WHERE assignment_id = ? AND student_id = ?", scenarioId("assignment_id"), scenarioId("student_id")) == 1, "Duplicate submission persisted");
-    verify(before.equals(jdbc.queryForMap("SELECT * FROM submissions WHERE id = ?", submission)), "Original submission changed");
+    verify(
+        dbCount(
+                "SELECT count(*) FROM submissions WHERE assignment_id = ? AND student_id = ?",
+                scenarioId("assignment_id"),
+                scenarioId("student_id"))
+            == 1,
+        "Duplicate submission persisted");
+    verify(
+        before.equals(jdbc.queryForMap("SELECT * FROM submissions WHERE id = ?", submission)),
+        "Original submission changed");
   }
 
   private void case117() throws Exception {
@@ -2567,7 +2607,9 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "application/json");
     verify(eq(response.status(), 400), plus("Expected 400, got ", response.status()));
     checkError(response, 400, "BAD_REQUEST");
-    verify(before.equals(jdbc.queryForMap("SELECT * FROM submissions WHERE id = ?", submission)), "Invalid grade changed submission");
+    verify(
+        before.equals(jdbc.queryForMap("SELECT * FROM submissions WHERE id = ?", submission)),
+        "Invalid grade changed submission");
   }
 
   private void case122() throws Exception {
@@ -2643,7 +2685,9 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
 
   private void case125() throws Exception {
     long assignment = scenarioId("assignment_id");
-    var before = jdbc.queryForList("SELECT * FROM submissions WHERE assignment_id = ? ORDER BY id", assignment);
+    var before =
+        jdbc.queryForList(
+            "SELECT * FROM submissions WHERE assignment_id = ? ORDER BY id", assignment);
     verify(!before.isEmpty(), "Precondition: assignment has submissions");
     var response =
         request(
@@ -2654,8 +2698,14 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "Bearer {{teacher_token}}");
     verify(eq(response.status(), 409), plus("Expected 409, got ", response.status()));
     checkError(response, 409, "BUSINESS_CONFLICT");
-    verify(dbCount("SELECT count(*) FROM assignments WHERE id = ?", assignment) == 1, "Assignment was deleted");
-    verify(before.equals(jdbc.queryForList("SELECT * FROM submissions WHERE assignment_id = ? ORDER BY id", assignment)), "Submissions changed after rejected deletion");
+    verify(
+        dbCount("SELECT count(*) FROM assignments WHERE id = ?", assignment) == 1,
+        "Assignment was deleted");
+    verify(
+        before.equals(
+            jdbc.queryForList(
+                "SELECT * FROM submissions WHERE assignment_id = ? ORDER BY id", assignment)),
+        "Submissions changed after rejected deletion");
   }
 
   private void case126() throws Exception {
@@ -2754,7 +2804,10 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "application/json");
     verify(eq(response.status(), 409), plus("Expected 409, got ", response.status()));
     checkError(response, 409, "BUSINESS_CONFLICT");
-    verify(before.equals(jdbc.queryForList("SELECT * FROM quizzes WHERE module_id = ? ORDER BY id", module)), "Duplicate quiz changed database");
+    verify(
+        before.equals(
+            jdbc.queryForList("SELECT * FROM quizzes WHERE module_id = ? ORDER BY id", module)),
+        "Duplicate quiz changed database");
   }
 
   private void case131() throws Exception {
@@ -3369,7 +3422,10 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
   private void case156() throws Exception {
     long attempt = scenarioId("attempt1_id");
     var before = jdbc.queryForMap("SELECT * FROM quiz_submissions WHERE id = ?", attempt);
-    var selections = jdbc.queryForList("SELECT * FROM quiz_answer_selections WHERE quiz_submission_id = ? ORDER BY id", attempt);
+    var selections =
+        jdbc.queryForList(
+            "SELECT * FROM quiz_answer_selections WHERE quiz_submission_id = ? ORDER BY id",
+            attempt);
     var response =
         request(
             "POST",
@@ -3399,8 +3455,15 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "application/json");
     verify(eq(response.status(), 409), plus("Expected 409, got ", response.status()));
     checkError(response, 409, "BUSINESS_CONFLICT");
-    verify(before.equals(jdbc.queryForMap("SELECT * FROM quiz_submissions WHERE id = ?", attempt)), "Completed attempt changed");
-    verify(selections.equals(jdbc.queryForList("SELECT * FROM quiz_answer_selections WHERE quiz_submission_id = ? ORDER BY id", attempt)), "Duplicate attempt changed answers");
+    verify(
+        before.equals(jdbc.queryForMap("SELECT * FROM quiz_submissions WHERE id = ?", attempt)),
+        "Completed attempt changed");
+    verify(
+        selections.equals(
+            jdbc.queryForList(
+                "SELECT * FROM quiz_answer_selections WHERE quiz_submission_id = ? ORDER BY id",
+                attempt)),
+        "Duplicate attempt changed answers");
   }
 
   private void case157() throws Exception {
@@ -3453,7 +3516,11 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
   private void case159() throws Exception {
     long quiz = scenarioId("quiz_id");
     long student = scenarioId("student_id");
-    long before = dbCount("SELECT count(*) FROM quiz_submissions WHERE quiz_id = ? AND student_id = ?", quiz, student);
+    long before =
+        dbCount(
+            "SELECT count(*) FROM quiz_submissions WHERE quiz_id = ? AND student_id = ?",
+            quiz,
+            student);
     var response =
         request(
             "POST",
@@ -3463,7 +3530,13 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
             "Bearer {{student_token}}");
     verify(eq(response.status(), 409), plus("Expected 409, got ", response.status()));
     checkError(response, 409, "BUSINESS_CONFLICT");
-    verify(dbCount("SELECT count(*) FROM quiz_submissions WHERE quiz_id = ? AND student_id = ?", quiz, student) == before, "Rejected attempt persisted");
+    verify(
+        dbCount(
+                "SELECT count(*) FROM quiz_submissions WHERE quiz_id = ? AND student_id = ?",
+                quiz,
+                student)
+            == before,
+        "Rejected attempt persisted");
   }
 
   private void case160() throws Exception {
@@ -5489,7 +5562,9 @@ class CourseFlowRegressionIT extends HttpIntegrationTest {
         eq(field(response.body(), "code"), "CONCURRENT_CONFLICT"),
         "response.body.code === \"CONCURRENT_CONFLICT\"");
     checkError(response, 409, "CONCURRENT_CONFLICT");
-    verify(before.equals(jdbc.queryForMap("SELECT * FROM courses WHERE id = ?", course)), "Stale update changed course");
+    verify(
+        before.equals(jdbc.queryForMap("SELECT * FROM courses WHERE id = ?", course)),
+        "Stale update changed course");
   }
 
   private void case288() throws Exception {

@@ -79,16 +79,21 @@ class EndpointAuthorizationTest {
   @SuppressWarnings("unchecked")
   void criticalRoutesKeepTheirOwnAuthorization() {
     stubMatchers();
-    var admin = (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
-        mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
-    var student = (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
-        mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
-    var teacher = (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
-        mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
-    var authenticated = (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
-        mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
+    var admin =
+        (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
+            mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
+    var student =
+        (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
+            mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
+    var teacher =
+        (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
+            mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
+    var authenticated =
+        (AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizedUrl)
+            mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
     when(registry.requestMatchers(HttpMethod.GET, "/api/system/info")).thenReturn(admin);
-    when(registry.requestMatchers(HttpMethod.POST, "/api/courses/*/enrollments")).thenReturn(student);
+    when(registry.requestMatchers(HttpMethod.POST, "/api/courses/*/enrollments"))
+        .thenReturn(student);
     when(registry.requestMatchers(HttpMethod.GET, "/api/courses/*/gradebook")).thenReturn(teacher);
     when(registry.requestMatchers(HttpMethod.GET, "/api/users/me")).thenReturn(authenticated);
     EndpointAuthorization.configure(registry, false);

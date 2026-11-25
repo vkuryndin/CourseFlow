@@ -25,11 +25,17 @@ final class LoadRunner {
   }
 
   record Sample(
-      int user, String operation, long nanos, int expected, int status, String exception,
+      int user,
+      String operation,
+      long nanos,
+      int expected,
+      int status,
+      String exception,
       long completionOffsetNanos) {
     Sample(int user, String operation, long nanos, int expected, int status, String exception) {
       this(user, operation, nanos, expected, status, exception, 0);
     }
+
     boolean successful() {
       return exception.isEmpty() && status == expected;
     }
@@ -46,8 +52,12 @@ final class LoadRunner {
     private final long runStarted;
 
     private Probe(
-        List<Sample> samples, int user, AtomicInteger inFlight, AtomicInteger peak,
-        long runStarted, Consumer<Sample> onSample) {
+        List<Sample> samples,
+        int user,
+        AtomicInteger inFlight,
+        AtomicInteger peak,
+        long runStarted,
+        Consumer<Sample> onSample) {
       this.samples = samples;
       this.onSample = onSample;
       this.user = user;
@@ -121,16 +131,17 @@ final class LoadRunner {
     return sustained(users, duration, pause, work, sample -> {});
   }
 
-  static Result sustained(int users, Duration duration, Duration pause, Work work,
-      Consumer<Sample> onSample) throws Exception {
+  static Result sustained(
+      int users, Duration duration, Duration pause, Work work, Consumer<Sample> onSample)
+      throws Exception {
     if (duration.isZero() || duration.isNegative() || pause.isNegative()) {
       throw new IllegalArgumentException("Invalid load duration or pause");
     }
     return run(users, duration, pause, work, onSample);
   }
 
-  private static Result run(int users, Duration duration, Duration pause, Work work,
-      Consumer<Sample> onSample)
+  private static Result run(
+      int users, Duration duration, Duration pause, Work work, Consumer<Sample> onSample)
       throws Exception {
     if (users < 1) {
       throw new IllegalArgumentException("At least one virtual user is required");

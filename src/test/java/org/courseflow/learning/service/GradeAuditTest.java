@@ -3,15 +3,15 @@ package org.courseflow.learning.service;
 import static org.courseflow.testing.Fixtures.NOW;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 class GradeAuditTest {
@@ -48,7 +48,11 @@ class GradeAuditTest {
       committed.get(0).afterCompletion(TransactionSynchronization.STATUS_COMMITTED);
       assertEquals(1, appender.list.size());
       String message = appender.list.get(0).getFormattedMessage();
-      assertEquals("event=submission_regraded assignmentId=1 submissionId=2 graderId=3 previousScore=70 newScore=80 feedbackChanged=true version=2 gradedAt=" + NOW + " auditRequestId=grade-audit-test", message);
+      assertEquals(
+          "event=submission_regraded assignmentId=1 submissionId=2 graderId=3 previousScore=70 newScore=80 feedbackChanged=true version=2 gradedAt="
+              + NOW
+              + " auditRequestId=grade-audit-test",
+          message);
     } finally {
       if (TransactionSynchronizationManager.isSynchronizationActive()) {
         TransactionSynchronizationManager.clearSynchronization();

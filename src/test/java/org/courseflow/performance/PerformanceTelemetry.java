@@ -70,7 +70,10 @@ final class PerformanceTelemetry implements AutoCloseable {
   private volatile long lastDeadlocks = -1;
 
   PerformanceTelemetry(
-      String scenario, HikariDataSource dataSource, Statistics statistics, Path output,
+      String scenario,
+      HikariDataSource dataSource,
+      Statistics statistics,
+      Path output,
       Predicate<LoadRunner.Sample> unexpected)
       throws Exception {
     this.scenario = scenario;
@@ -227,7 +230,10 @@ final class PerformanceTelemetry implements AutoCloseable {
     add(values, successes, allowed, failures);
     // Persist each observation immediately, including the initial and final snapshots.
     try {
-      Files.writeString(output, String.join(",", values) + "\n", StandardCharsets.UTF_8,
+      Files.writeString(
+          output,
+          String.join(",", values) + "\n",
+          StandardCharsets.UTF_8,
           StandardOpenOption.APPEND);
     } catch (IOException failure) {
       throw new UncheckedIOException("Cannot write performance telemetry: " + output, failure);
@@ -236,12 +242,20 @@ final class PerformanceTelemetry implements AutoCloseable {
     long interval = now - lastProgressNanos;
     if (interval >= TimeUnit.SECONDS.toNanos(30)) {
       long total = successes + allowed + failures;
-      System.out.printf(Locale.ROOT,
+      System.out.printf(
+          Locale.ROOT,
           "%s: elapsed %.0fs, requests %d, interval RPS %.2f, valid %d, unexpected %d, "
               + "expected non-success %d, in-flight %d, heap %.1f MiB, observer errors %d%n",
-          scenario, (now - start) / 1e9, total,
-          (total - lastProgressCount) / (interval / 1e9), successes, failures, allowed, inFlight.get(),
-          memory.getHeapMemoryUsage().getUsed() / 1048576.0, errors);
+          scenario,
+          (now - start) / 1e9,
+          total,
+          (total - lastProgressCount) / (interval / 1e9),
+          successes,
+          failures,
+          allowed,
+          inFlight.get(),
+          memory.getHeapMemoryUsage().getUsed() / 1048576.0,
+          errors);
       System.out.flush();
       lastProgressNanos = now;
       lastProgressCount = total;

@@ -854,32 +854,46 @@ class PerformanceIT extends AdvancedHttpTest {
       appendRow(scenario, entry.getKey(), result, entry.getValue());
     }
     assertTrue(samples.size() >= minimumRequests, "Too few completed requests: " + scenario);
-    assertTrue(result.peakInFlight() >= Math.max(2, result.users() / 10),
+    assertTrue(
+        result.peakInFlight() >= Math.max(2, result.users() / 10),
         "Insufficient measured client concurrency: " + scenario + ": " + result.peakInFlight());
-    Set<String> required = switch (scenario) {
-      case "catalog_100" -> Set.of("catalog");
-      case "lessons_100" -> Set.of("lesson");
-      case "enrollments_50" -> Set.of("enroll");
-      case "homework_50" -> Set.of("submit_homework");
-      case "quiz_50" -> Set.of("start_quiz", "submit_quiz");
-      case "gradebook_20" -> Set.of("gradebook");
-      case "mixed_100" -> Set.of("catalog", "lesson", "progress", "student_dashboard",
-          "repeat_enrollment", "gradebook", "teacher_dashboard", "admin_users", "admin_dashboard");
-      case "mixed_writes_100" -> Set.of("submit_homework", "lesson", "grade_homework");
-      default -> {
-        assertTrue(scenario.startsWith("soak_"), "Unknown workload: " + scenario);
-        yield Set.of("catalog", "lesson", "progress", "student_dashboard", "repeat_enrollment");
-      }
-    };
+    Set<String> required =
+        switch (scenario) {
+          case "catalog_100" -> Set.of("catalog");
+          case "lessons_100" -> Set.of("lesson");
+          case "enrollments_50" -> Set.of("enroll");
+          case "homework_50" -> Set.of("submit_homework");
+          case "quiz_50" -> Set.of("start_quiz", "submit_quiz");
+          case "gradebook_20" -> Set.of("gradebook");
+          case "mixed_100" ->
+              Set.of(
+                  "catalog",
+                  "lesson",
+                  "progress",
+                  "student_dashboard",
+                  "repeat_enrollment",
+                  "gradebook",
+                  "teacher_dashboard",
+                  "admin_users",
+                  "admin_dashboard");
+          case "mixed_writes_100" -> Set.of("submit_homework", "lesson", "grade_homework");
+          default -> {
+            assertTrue(scenario.startsWith("soak_"), "Unknown workload: " + scenario);
+            yield Set.of("catalog", "lesson", "progress", "student_dashboard", "repeat_enrollment");
+          }
+        };
     assertEquals(required, byOperation.keySet(), "Workload operation coverage: " + scenario);
     if (scenario.equals("quiz_50")) {
       assertEquals(50, byOperation.get("start_quiz").size());
       assertEquals(50, byOperation.get("submit_quiz").size());
       for (int user = 0; user < 50; user++) {
         final int actor = user;
-        assertEquals(Set.of("start_quiz", "submit_quiz"), samples.stream()
-            .filter(sample -> sample.user() == actor).map(LoadRunner.Sample::operation)
-            .collect(java.util.stream.Collectors.toSet()));
+        assertEquals(
+            Set.of("start_quiz", "submit_quiz"),
+            samples.stream()
+                .filter(sample -> sample.user() == actor)
+                .map(LoadRunner.Sample::operation)
+                .collect(java.util.stream.Collectors.toSet()));
       }
     }
     if (scenario.equals("mixed_writes_100")) {
@@ -935,8 +949,13 @@ class PerformanceIT extends AdvancedHttpTest {
         samples.size() / result.seconds() >= minimumRps,
         scenario + " throughput below " + minimumRps + " RPS");
     if (scenario.startsWith("soak_50_") && !Boolean.getBoolean("courseflow.performance.smoke")) {
-      int seconds = Integer.parseInt(scenario.substring("soak_50_".length(), scenario.length() - 1));
-      SoakChecks.verify(result, seconds, required, minimumRps,
+      int seconds =
+          Integer.parseInt(scenario.substring("soak_50_".length(), scenario.length() - 1));
+      SoakChecks.verify(
+          result,
+          seconds,
+          required,
+          minimumRps,
           Long.getLong("courseflow.performance.p95Ms", 500L),
           Long.getLong("courseflow.performance.p99Ms", 1000L));
     }

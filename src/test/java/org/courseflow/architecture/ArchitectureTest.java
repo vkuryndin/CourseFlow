@@ -63,26 +63,42 @@ class ArchitectureTest {
       resideInAPackage(SERVICE).or(APPLICATION_API);
   private static final DescribedPredicate<JavaClass> HTTP =
       resideInAnyPackage(
-          "org.springframework.web..", "org.springframework.http..", "jakarta.servlet..", "javax.servlet..");
+          "org.springframework.web..",
+          "org.springframework.http..",
+          "jakarta.servlet..",
+          "javax.servlet..");
   private static final DescribedPredicate<JavaClass> PERSISTENCE =
       resideInAnyPackage(
-              "jakarta.persistence..", "javax.persistence..", "org.hibernate..",
-              "org.springframework.data.jpa..", "org.springframework.data.repository..",
-              "org.springframework.jdbc..", "java.sql..", "javax.sql..")
+              "jakarta.persistence..",
+              "javax.persistence..",
+              "org.hibernate..",
+              "org.springframework.data.jpa..",
+              "org.springframework.data.repository..",
+              "org.springframework.jdbc..",
+              "java.sql..",
+              "javax.sql..")
           .or(REPOSITORIES)
           .or(equivalentTo(JpqlPages.class));
   private static final DescribedPredicate<JavaClass> DTOS =
       resideInAPackage(DTO)
-          .or(describe("shared response types", (JavaClass type) ->
-              resideInAnyPackage(COMMON).test(type)
-                  && type.getName().split("\\$", 2)[0].endsWith("Response")));
+          .or(
+              describe(
+                  "shared response types",
+                  (JavaClass type) ->
+                      resideInAnyPackage(COMMON).test(type)
+                          && type.getName().split("\\$", 2)[0].endsWith("Response")));
 
   private static JavaClasses production;
 
   @BeforeAll
   static void importProductionClasses() throws URISyntaxException {
-    Path mainClasses = Path.of(CourseFlowApplication.class.getProtectionDomain()
-        .getCodeSource().getLocation().toURI());
+    Path mainClasses =
+        Path.of(
+            CourseFlowApplication.class
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .toURI());
     production = new ClassFileImporter().importPath(mainClasses);
     assertFalse(production.isEmpty(), "No production classes imported");
   }
@@ -90,44 +106,74 @@ class ArchitectureTest {
   @Test
   void controllersCannotAccessPersistenceDirectly() {
     // Translating persistence exceptions into HTTP errors is not persistence access.
-    noClasses().that(WEB_BOUNDARY).should().dependOnClassesThat(
-        PERSISTENCE.and(not(describe("exception types", (JavaClass type) -> type.isAssignableTo(Throwable.class)))))
+    noClasses()
+        .that(WEB_BOUNDARY)
+        .should()
+        .dependOnClassesThat(
+            PERSISTENCE.and(
+                not(
+                    describe(
+                        "exception types",
+                        (JavaClass type) -> type.isAssignableTo(Throwable.class)))))
         .check(production);
   }
 
   @Test
   void nonWebCodeCannotDependOnControllers() {
-    noClasses().that(not(WEB_BOUNDARY)).should().dependOnClassesThat(WEB_BOUNDARY)
+    noClasses()
+        .that(not(WEB_BOUNDARY))
+        .should()
+        .dependOnClassesThat(WEB_BOUNDARY)
         .check(production);
   }
 
   @Test
   void repositoriesCannotDependOnHigherLayers() {
-    noClasses().that(REPOSITORIES).should().dependOnClassesThat(
-        WEB_BOUNDARY.or(BUSINESS).or(resideInAPackage(SECURITY)).or(HTTP))
+    noClasses()
+        .that(REPOSITORIES)
+        .should()
+        .dependOnClassesThat(WEB_BOUNDARY.or(BUSINESS).or(resideInAPackage(SECURITY)).or(HTTP))
         .check(production);
   }
 
   @Test
   void businessServicesAndModuleApisAreIndependentOfHttp() {
-    noClasses().that(BUSINESS).should().dependOnClassesThat(WEB_BOUNDARY.or(HTTP))
+    noClasses()
+        .that(BUSINESS)
+        .should()
+        .dependOnClassesThat(WEB_BOUNDARY.or(HTTP))
         .check(production);
   }
 
   @Test
   void domainModelIsIndependentOfApplicationAndInfrastructure() {
-    noClasses().that().resideInAPackage(ENTITY).or().areAnnotatedWith(Entity.class)
-        .should().dependOnClassesThat(
-            resideInAPackage(ROOT + "..").and(not(resideInAPackage(ENTITY)))
-                .or(resideInAnyPackage("org.springframework..", "jakarta.servlet..", "javax.servlet..",
-                    "java.sql..", "javax.sql..", "com.fasterxml.jackson..")))
+    noClasses()
+        .that()
+        .resideInAPackage(ENTITY)
+        .or()
+        .areAnnotatedWith(Entity.class)
+        .should()
+        .dependOnClassesThat(
+            resideInAPackage(ROOT + "..")
+                .and(not(resideInAPackage(ENTITY)))
+                .or(
+                    resideInAnyPackage(
+                        "org.springframework..",
+                        "jakarta.servlet..",
+                        "javax.servlet..",
+                        "java.sql..",
+                        "javax.sql..",
+                        "com.fasterxml.jackson..")))
         .check(production);
   }
 
   @Test
   void dtosDoNotDependOnPersistenceOrBusinessServices() {
-    noClasses().that(DTOS).should().dependOnClassesThat(
-        PERSISTENCE.or(BUSINESS).or(WEB_BOUNDARY).or(resideInAPackage(SECURITY)))
+    noClasses()
+        .that(DTOS)
+        .should()
+        .dependOnClassesThat(
+            PERSISTENCE.or(BUSINESS).or(WEB_BOUNDARY).or(resideInAPackage(SECURITY)))
         .check(production);
   }
 
@@ -137,8 +183,10 @@ class ArchitectureTest {
       if (isWebBoundary(type)) {
         for (var method : type.getMethods()) {
           if (method.getModifiers().contains(JavaModifier.PUBLIC)) {
-            assertFalse(method.getReturnType().getAllInvolvedRawTypes().stream()
-                .anyMatch(raw -> raw.isAnnotatedWith(Entity.class)), method::getFullName);
+            assertFalse(
+                method.getReturnType().getAllInvolvedRawTypes().stream()
+                    .anyMatch(raw -> raw.isAnnotatedWith(Entity.class)),
+                method::getFullName);
           }
         }
       }
@@ -150,8 +198,10 @@ class ArchitectureTest {
     for (JavaClass type : production) {
       if (DTOS.test(type)) {
         for (var field : type.getAllFields()) {
-          assertFalse(field.getType().getAllInvolvedRawTypes().stream()
-              .anyMatch(raw -> raw.isAnnotatedWith(Entity.class)), field::getFullName);
+          assertFalse(
+              field.getType().getAllInvolvedRawTypes().stream()
+                  .anyMatch(raw -> raw.isAnnotatedWith(Entity.class)),
+              field::getFullName);
         }
       }
     }
@@ -162,35 +212,50 @@ class ArchitectureTest {
     Set<String> modules = new TreeSet<>();
     for (JavaClass type : production) {
       if (resideInAnyPackage(SERVICE, REPOSITORY).test(type)) {
-        modules.add(ROOT + "." + type.getPackageName().substring(ROOT.length() + 1).split("\\.")[0]);
+        modules.add(
+            ROOT + "." + type.getPackageName().substring(ROOT.length() + 1).split("\\.")[0]);
       }
     }
     assertFalse(modules.isEmpty(), "No service or repository modules imported");
     for (String module : modules) {
-      noClasses().that().resideOutsideOfPackage(module + "..")
-          .should().dependOnClassesThat().resideInAnyPackage(
-              module + ".service..", module + ".repository..")
+      noClasses()
+          .that()
+          .resideOutsideOfPackage(module + "..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(module + ".service..", module + ".repository..")
           .check(production);
     }
   }
 
   @Test
   void commonDoesNotDependOnApplicationModules() {
-    noClasses().that().resideInAPackage(COMMON).should().dependOnClassesThat(
-        resideInAPackage(ROOT + "..").and(not(resideInAPackage(COMMON))))
+    noClasses()
+        .that()
+        .resideInAPackage(COMMON)
+        .should()
+        .dependOnClassesThat(resideInAPackage(ROOT + "..").and(not(resideInAPackage(COMMON))))
         .check(production);
   }
 
   @Test
   void applicationDoesNotDependOnSecurityImplementation() {
-    noClasses().that().resideOutsideOfPackage(SECURITY)
-        .should().dependOnClassesThat().resideInAPackage(SECURITY)
+    noClasses()
+        .that()
+        .resideOutsideOfPackage(SECURITY)
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage(SECURITY)
         .check(production);
   }
 
   @Test
   void entitiesResideInEntityPackages() {
-    classes().that().areAnnotatedWith(Entity.class).should().resideInAPackage(ENTITY)
+    classes()
+        .that()
+        .areAnnotatedWith(Entity.class)
+        .should()
+        .resideInAPackage(ENTITY)
         .check(production);
   }
 
@@ -201,26 +266,41 @@ class ArchitectureTest {
 
   @Test
   void controllersAndAdviceResideInWebPackages() {
-    classes().that(describe("controllers", ArchitectureTest::isController))
-        .should().resideInAnyPackage(CONTROLLER, SYSTEM).check(production);
-    classes().that(describe("controller advice", ArchitectureTest::isAdvice))
-        .should().resideInAPackage(EXCEPTION).check(production);
+    classes()
+        .that(describe("controllers", ArchitectureTest::isController))
+        .should()
+        .resideInAnyPackage(CONTROLLER, SYSTEM)
+        .check(production);
+    classes()
+        .that(describe("controller advice", ArchitectureTest::isAdvice))
+        .should()
+        .resideInAPackage(EXCEPTION)
+        .check(production);
   }
 
   @Test
   void servicesResideInServiceOrApiPackages() {
-    classes().that().areAnnotatedWith(Service.class).should().resideInAnyPackage(
-        SERVICE, API, SYSTEM, SECURITY, ROOT + ".demo..")
+    classes()
+        .that()
+        .areAnnotatedWith(Service.class)
+        .should()
+        .resideInAnyPackage(SERVICE, API, SYSTEM, SECURITY, ROOT + ".demo..")
         .check(production);
   }
 
   @Test
   void dependenciesAreNotInjectedIntoFieldsOrMethods() {
-    for (String annotation : Set.of(
-        "org.springframework.beans.factory.annotation.Autowired", "jakarta.inject.Inject",
-        "javax.inject.Inject", "jakarta.annotation.Resource", "javax.annotation.Resource",
-        "jakarta.persistence.PersistenceContext", "javax.persistence.PersistenceContext",
-        "jakarta.persistence.PersistenceUnit", "javax.persistence.PersistenceUnit")) {
+    for (String annotation :
+        Set.of(
+            "org.springframework.beans.factory.annotation.Autowired",
+            "jakarta.inject.Inject",
+            "javax.inject.Inject",
+            "jakarta.annotation.Resource",
+            "javax.annotation.Resource",
+            "jakarta.persistence.PersistenceContext",
+            "javax.persistence.PersistenceContext",
+            "jakarta.persistence.PersistenceUnit",
+            "javax.persistence.PersistenceUnit")) {
       noFields().should().beAnnotatedWith(annotation).check(production);
       noMethods().should().beAnnotatedWith(annotation).check(production);
     }
@@ -255,9 +335,14 @@ class ArchitectureTest {
     }
   }
 
-  private static void assertNoConstructorCycle(JavaClass component,
-      Map<JavaClass, Set<JavaClass>> graph, Set<JavaClass> visited, Set<JavaClass> path) {
-    assertFalse(path.contains(component), () -> "Cyclic constructor dependencies: " + path + " -> " + component);
+  private static void assertNoConstructorCycle(
+      JavaClass component,
+      Map<JavaClass, Set<JavaClass>> graph,
+      Set<JavaClass> visited,
+      Set<JavaClass> path) {
+    assertFalse(
+        path.contains(component),
+        () -> "Cyclic constructor dependencies: " + path + " -> " + component);
     if (visited.add(component)) {
       path.add(component);
       for (JavaClass dependency : graph.getOrDefault(component, Set.of())) {
@@ -275,7 +360,8 @@ class ArchitectureTest {
     }
     var all = slices().matching(ROOT + ".(*)..").should().beFreeOfCycles();
     reportCycles("All module cycles (including ORM)", all);
-    reportCycles("Application module cycles (without entity-package dependencies)",
+    reportCycles(
+        "Application module cycles (without entity-package dependencies)",
         all.ignoreDependency(resideInAPackage(ENTITY), alwaysTrue())
             .ignoreDependency(alwaysTrue(), resideInAPackage(ENTITY)));
   }
@@ -286,9 +372,7 @@ class ArchitectureTest {
   }
 
   private static boolean isWebBoundary(JavaClass type) {
-    return resideInAPackage(CONTROLLER).test(type)
-        || isController(type)
-        || isAdvice(type);
+    return resideInAPackage(CONTROLLER).test(type) || isController(type) || isAdvice(type);
   }
 
   private static boolean isController(JavaClass type) {
