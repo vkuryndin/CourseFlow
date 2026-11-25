@@ -13,27 +13,27 @@ import org.junit.jupiter.api.Test;
 
 class QuizAttemptResponseTest {
 
-    @Test
-    void readOnlyProjectionReflectsExpiryWithoutMutatingEntity() {
-        var attempt = id(new QuizSubmission(quiz(), student(), 1, NOW), 90);
-        var before = QuizAttemptResponse.at(attempt, attempt.getExpiresAt().minusNanos(1));
+  @Test
+  void readOnlyProjectionReflectsExpiryWithoutMutatingEntity() {
+    var attempt = id(new QuizSubmission(quiz(), student(), 1, NOW), 90);
+    var before = QuizAttemptResponse.at(attempt, attempt.getExpiresAt().minusNanos(1));
 
-        assertEquals(QuizSubmissionStatus.IN_PROGRESS, before.status());
-        var after = QuizAttemptResponse.at(attempt, attempt.getExpiresAt());
-        assertEquals(QuizSubmissionStatus.EXPIRED, after.status());
-        assertEquals(attempt.getExpiresAt(), after.finishedAt());
-        assertEquals(QuizSubmissionStatus.IN_PROGRESS, attempt.getStatus());
-        assertNull(attempt.getFinishedAt());
-    }
+    assertEquals(QuizSubmissionStatus.IN_PROGRESS, before.status());
+    var after = QuizAttemptResponse.at(attempt, attempt.getExpiresAt());
+    assertEquals(QuizSubmissionStatus.EXPIRED, after.status());
+    assertEquals(attempt.getExpiresAt(), after.finishedAt());
+    assertEquals(QuizSubmissionStatus.IN_PROGRESS, attempt.getStatus());
+    assertNull(attempt.getFinishedAt());
+  }
 
-    @Test
-    void completedAttemptDoesNotBecomeExpired() {
-        var attempt = id(new QuizSubmission(quiz(), student(), 1, NOW), 90);
-        attempt.complete(80, NOW);
+  @Test
+  void completedAttemptDoesNotBecomeExpired() {
+    var attempt = id(new QuizSubmission(quiz(), student(), 1, NOW), 90);
+    attempt.complete(80, NOW);
 
-        var response = QuizAttemptResponse.at(attempt, attempt.getExpiresAt());
+    var response = QuizAttemptResponse.at(attempt, attempt.getExpiresAt());
 
-        assertEquals(QuizSubmissionStatus.SUBMITTED, response.status());
-        assertEquals(80, response.score());
-    }
+    assertEquals(QuizSubmissionStatus.SUBMITTED, response.status());
+    assertEquals(80, response.score());
+  }
 }

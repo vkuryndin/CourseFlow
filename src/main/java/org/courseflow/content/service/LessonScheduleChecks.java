@@ -10,19 +10,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
 public class LessonScheduleChecks {
-    private final LessonSessionRepository sessions;
+  private final LessonSessionRepository sessions;
 
-    public LessonScheduleChecks(LessonSessionRepository sessions) {
-        this.sessions = sessions;
-    }
+  public LessonScheduleChecks(LessonSessionRepository sessions) {
+    this.sessions = sessions;
+  }
 
-    public boolean hasSessionsForLesson(Long lessonId) { return sessions.existsByLesson_Id(lessonId); }
+  public boolean hasSessionsForLesson(Long lessonId) {
+    return sessions.existsByLesson_Id(lessonId);
+  }
 
-    public boolean hasUnfinishedSessions(Long courseId, Instant now) {
-        return sessions.existsByLesson_Module_Course_IdAndEndsAtGreaterThan(courseId, now);
-    }
+  public boolean hasUnfinishedSessions(Long courseId, Instant now) {
+    return sessions.existsByLesson_Module_Course_IdAndEndsAtGreaterThan(courseId, now);
+  }
 
-    public boolean hasReassignmentOverlap(Long courseId, Long teacherId, Instant now) {
-        return sessions.countReassignmentOverlaps(courseId, teacherId, now) > 0;
-    }
+  public boolean hasReassignmentOverlap(Long courseId, Long teacherId, Instant now) {
+    return sessions.countReassignmentOverlaps(courseId, teacherId, now) > 0;
+  }
 }

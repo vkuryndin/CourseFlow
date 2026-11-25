@@ -9,21 +9,20 @@ import org.courseflow.dashboard.dto.AdminDashboardResponse;
 import org.courseflow.dashboard.service.AdminDashboardService;
 import org.junit.jupiter.api.Test;
 
-/**
- * Direct controller contract tests; no Spring MVC runtime.
- */
+/** Direct controller contract tests; no Spring MVC runtime. */
 class AdminDashboardControllerTest {
-    private final AdminDashboardService adminDashboardService = mock(AdminDashboardService.class);
-    private final AdminDashboardController controller = new AdminDashboardController(adminDashboardService);
+  private final AdminDashboardService adminDashboardService = mock(AdminDashboardService.class);
+  private final AdminDashboardController controller =
+      new AdminDashboardController(adminDashboardService);
 
-    @Test
-    void getDashboardDelegatesAndReturnsContract() {
-        AdminDashboardResponse expected = mock(AdminDashboardResponse.class);
-        when(adminDashboardService.getDashboard()).thenReturn(expected);
+  @Test
+  void getDashboardDelegatesAndReturnsContract() {
+    AdminDashboardResponse expected = mock(AdminDashboardResponse.class);
+    when(adminDashboardService.getDashboard()).thenReturn(expected);
 
-        var actual = controller.getDashboard();
+    var actual = controller.getDashboard();
 
-        assertSame(expected, actual);
-        verify(adminDashboardService).getDashboard();
-    }
+    assertSame(expected, actual);
+    verify(adminDashboardService).getDashboard();
+  }
 }

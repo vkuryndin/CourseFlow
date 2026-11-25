@@ -9,9 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
 public class AssignmentAccess {
-    private final AssignmentRepository repository;
+  private final AssignmentRepository repository;
 
-    public AssignmentAccess(AssignmentRepository repository) { this.repository = repository; }
+  public AssignmentAccess(AssignmentRepository repository) {
+    this.repository = repository;
+  }
 
-    public boolean hasAssignments(Long lessonId) { return repository.existsByLesson_Id(lessonId); }
+  public boolean hasAssignments(Long lessonId) {
+    return repository.existsByLesson_Id(lessonId);
+  }
 }

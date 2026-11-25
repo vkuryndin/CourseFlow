@@ -11,37 +11,35 @@ import org.courseflow.identity.service.ProfileService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-/**
- * Direct controller contract tests; no Spring MVC runtime.
- */
+/** Direct controller contract tests; no Spring MVC runtime. */
 class ProfileControllerTest {
-    private final ProfileService profileService = mock(ProfileService.class);
-    private final ProfileController controller = new ProfileController(profileService);
+  private final ProfileService profileService = mock(ProfileService.class);
+  private final ProfileController controller = new ProfileController(profileService);
 
-    @Test
-    void getDelegatesAndReturnsContract() {
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getSubject()).thenReturn("42");
-        ProfileResponse expected = mock(ProfileResponse.class);
-        when(profileService.getMyProfile(42L)).thenReturn(expected);
+  @Test
+  void getDelegatesAndReturnsContract() {
+    Jwt jwt = mock(Jwt.class);
+    when(jwt.getSubject()).thenReturn("42");
+    ProfileResponse expected = mock(ProfileResponse.class);
+    when(profileService.getMyProfile(42L)).thenReturn(expected);
 
-        var actual = controller.get(jwt);
+    var actual = controller.get(jwt);
 
-        assertSame(expected, actual);
-        verify(profileService).getMyProfile(42L);
-    }
+    assertSame(expected, actual);
+    verify(profileService).getMyProfile(42L);
+  }
 
-    @Test
-    void updateDelegatesAndReturnsContract() {
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getSubject()).thenReturn("42");
-        UpdateProfileRequest request = mock(UpdateProfileRequest.class);
-        ProfileResponse expected = mock(ProfileResponse.class);
-        when(profileService.updateMyProfile(42L, request)).thenReturn(expected);
+  @Test
+  void updateDelegatesAndReturnsContract() {
+    Jwt jwt = mock(Jwt.class);
+    when(jwt.getSubject()).thenReturn("42");
+    UpdateProfileRequest request = mock(UpdateProfileRequest.class);
+    ProfileResponse expected = mock(ProfileResponse.class);
+    when(profileService.updateMyProfile(42L, request)).thenReturn(expected);
 
-        var actual = controller.update(jwt, request);
+    var actual = controller.update(jwt, request);
 
-        assertSame(expected, actual);
-        verify(profileService).updateMyProfile(42L, request);
-    }
+    assertSame(expected, actual);
+    verify(profileService).updateMyProfile(42L, request);
+  }
 }

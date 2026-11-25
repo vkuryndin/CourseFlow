@@ -10,20 +10,20 @@ import org.courseflow.catalog.repository.CourseRepository;
 import org.junit.jupiter.api.Test;
 
 class CourseParticipationTest {
-    private final CourseRepository repository = mock(CourseRepository.class);
-    private final CourseParticipation service = new CourseParticipation(repository);
+  private final CourseRepository repository = mock(CourseRepository.class);
+  private final CourseParticipation service = new CourseParticipation(repository);
 
-    @Test
-    void historicalCoursesCount() {
-        when(repository.existsByTeacher_Id(20L)).thenReturn(true);
-        assertTrue(service.teachesAnyCourse(20L));
-        assertFalse(service.teachesAnyCourse(10L));
-    }
+  @Test
+  void historicalCoursesCount() {
+    when(repository.existsByTeacher_Id(20L)).thenReturn(true);
+    assertTrue(service.teachesAnyCourse(20L));
+    assertFalse(service.teachesAnyCourse(10L));
+  }
 
-    @Test
-    void activeCoursesOnly() {
-        when(repository.existsByTeacher_IdAndStatus(20L, CourseStatus.ACTIVE)).thenReturn(true);
-        assertTrue(service.teachesActiveCourse(20L));
-        assertFalse(service.teachesActiveCourse(10L));
-    }
+  @Test
+  void activeCoursesOnly() {
+    when(repository.existsByTeacher_IdAndStatus(20L, CourseStatus.ACTIVE)).thenReturn(true);
+    assertTrue(service.teachesActiveCourse(20L));
+    assertFalse(service.teachesActiveCourse(10L));
+  }
 }

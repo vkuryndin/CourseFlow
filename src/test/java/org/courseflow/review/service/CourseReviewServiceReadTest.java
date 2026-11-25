@@ -24,41 +24,49 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 class CourseReviewServiceReadTest {
-    private final CourseReviewRepository repository = mock(CourseReviewRepository.class);
-    private final CourseGuard guard = mock(CourseGuard.class);
-    private final CourseReviewService service = new CourseReviewService(repository, guard, mock(EnrollmentAccess.class), mock(UserDirectory.class), mock(StudentAccess.class), CLOCK);
-    private final CourseReview review = id(new CourseReview(course(), student(), 5, "Good", NOW), 90);
+  private final CourseReviewRepository repository = mock(CourseReviewRepository.class);
+  private final CourseGuard guard = mock(CourseGuard.class);
+  private final CourseReviewService service =
+      new CourseReviewService(
+          repository,
+          guard,
+          mock(EnrollmentAccess.class),
+          mock(UserDirectory.class),
+          mock(StudentAccess.class),
+          CLOCK);
+  private final CourseReview review = id(new CourseReview(course(), student(), 5, "Good", NOW), 90);
 
-    @Test
-    void ownReviewIncludesRating() {
-        when(repository.findByCourse_IdAndStudent_Id(40L, 10L)).thenReturn(Optional.of(review));
-        assertEquals(5, service.getMyReview(40L, 10L).rating());
-    }
+  @Test
+  void ownReviewIncludesRating() {
+    when(repository.findByCourse_IdAndStudent_Id(40L, 10L)).thenReturn(Optional.of(review));
+    assertEquals(5, service.getMyReview(40L, 10L).rating());
+  }
 
-    @Test
-    void publicReviewMapsName() {
-        var page = PageRequest.of(0, 10, Sort.by("id"));
-        when(repository.findAllByCourse_Id(40L, page)).thenReturn(new PageImpl<>(List.of(review), page, 1));
-        var result = service.findByCourse(40L, 0, 10, "id", "asc");
-        assertEquals("Student", result.content().get(0).studentName());
-        assertEquals("Good", result.content().get(0).comment());
-        assertEquals(5, result.content().get(0).rating());
-    }
+  @Test
+  void publicReviewMapsName() {
+    var page = PageRequest.of(0, 10, Sort.by("id"));
+    when(repository.findAllByCourse_Id(40L, page))
+        .thenReturn(new PageImpl<>(List.of(review), page, 1));
+    var result = service.findByCourse(40L, 0, 10, "id", "asc");
+    assertEquals("Student", result.content().get(0).studentName());
+    assertEquals("Good", result.content().get(0).comment());
+    assertEquals(5, result.content().get(0).rating());
+  }
 
-    @Test
-    void ratingWithReviews() {
-        when(repository.countByCourse_Id(40L)).thenReturn(2L);
-        when(repository.findAverageRatingByCourseId(40L)).thenReturn(4.5);
-        var result = service.getRating(40L);
-        assertEquals(2L, result.reviewCount());
-        assertEquals(4.5, result.averageRating());
-    }
+  @Test
+  void ratingWithReviews() {
+    when(repository.countByCourse_Id(40L)).thenReturn(2L);
+    when(repository.findAverageRatingByCourseId(40L)).thenReturn(4.5);
+    var result = service.getRating(40L);
+    assertEquals(2L, result.reviewCount());
+    assertEquals(4.5, result.averageRating());
+  }
 
-    @Test
-    void emptyRatingIsNull() {
-        when(repository.findAverageRatingByCourseId(40L)).thenReturn(null);
-        var result = service.getRating(40L);
-        assertEquals(0L, result.reviewCount());
-        assertNull(result.averageRating());
-    }
+  @Test
+  void emptyRatingIsNull() {
+    when(repository.findAverageRatingByCourseId(40L)).thenReturn(null);
+    var result = service.getRating(40L);
+    assertEquals(0L, result.reviewCount());
+    assertNull(result.averageRating());
+  }
 }

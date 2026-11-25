@@ -8,15 +8,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/system")
 public class SystemStatusController {
 
-    private final SystemStatusService systemStatusService;
+  private final SystemStatusService systemStatusService;
 
-    public SystemStatusController(SystemStatusService systemStatusService) {
-        this.systemStatusService = systemStatusService;
-    }
+  public SystemStatusController(SystemStatusService systemStatusService) {
+    this.systemStatusService = systemStatusService;
+  }
 
-    @GetMapping("/status")
-    public SystemStatusResponse status() {
-        systemStatusService.checkDatabase();
-        return new SystemStatusResponse("CourseFlow", "UP", "CONNECTED");
-    }
+  @GetMapping("/status")
+  public SystemStatusResponse status() {
+    systemStatusService.checkDatabase();
+    return new SystemStatusResponse("CourseFlow", "UP", "CONNECTED");
+  }
 }

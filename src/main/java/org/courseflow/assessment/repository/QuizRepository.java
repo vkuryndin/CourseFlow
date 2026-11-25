@@ -1,24 +1,21 @@
 package org.courseflow.assessment.repository;
 
-import org.springframework.data.repository.query.Param;
-import org.springframework.data.jpa.repository.Query;
+import java.util.Optional;
 import org.courseflow.assessment.entity.Quiz;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-public interface QuizRepository
-        extends JpaRepository<Quiz, Long> {
+public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
-    Optional<Quiz> findByModule_Id(Long moduleId);
+  Optional<Quiz> findByModule_Id(Long moduleId);
 
-    boolean existsByModule_Id(Long moduleId);
+  boolean existsByModule_Id(Long moduleId);
 
-    Page<Quiz> findAllByModule_Course_Id(
-            Long courseId,
-            Pageable pageable
-    );
-    @Query("SELECT q.module.course.id FROM Quiz q WHERE q.id = :quizId")
-    Optional<Long> findCourseIdByQuizId(@Param("quizId") Long quizId);
+  Page<Quiz> findAllByModule_Course_Id(Long courseId, Pageable pageable);
+
+  @Query("SELECT q.module.course.id FROM Quiz q WHERE q.id = :quizId")
+  Optional<Long> findCourseIdByQuizId(@Param("quizId") Long quizId);
 }

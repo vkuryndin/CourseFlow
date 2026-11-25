@@ -1,7 +1,7 @@
 package org.courseflow.assessment.service;
 
-import java.time.Clock;
 import java.sql.Timestamp;
+import java.time.Clock;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -11,18 +11,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class ExpiredQuizAttemptsCleanup {
 
-    private final JdbcTemplate jdbcTemplate;
-    private final Clock clock;
+  private final JdbcTemplate jdbcTemplate;
+  private final Clock clock;
 
-    public ExpiredQuizAttemptsCleanup(JdbcTemplate jdbcTemplate, Clock clock) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.clock = clock;
-    }
+  public ExpiredQuizAttemptsCleanup(JdbcTemplate jdbcTemplate, Clock clock) {
+    this.jdbcTemplate = jdbcTemplate;
+    this.clock = clock;
+  }
 
-    @Scheduled(initialDelay = 60_000, fixedDelay = 60_000)
-    @Transactional
-    public void expireAttempts() {
-        jdbcTemplate.update("""
+  @Scheduled(initialDelay = 60_000, fixedDelay = 60_000)
+  @Transactional
+  public void expireAttempts() {
+    jdbcTemplate.update(
+        """
                 WITH expired AS (
                     SELECT id FROM quiz_submissions
                     WHERE status = 'IN_PROGRESS' AND expires_at <= ?
@@ -34,6 +35,7 @@ public class ExpiredQuizAttemptsCleanup {
                 SET status = 'EXPIRED', finished_at = s.expires_at
                 FROM expired e
                 WHERE s.id = e.id AND s.status = 'IN_PROGRESS'
-                """, Timestamp.from(clock.instant()));
-    }
+                """,
+        Timestamp.from(clock.instant()));
+  }
 }

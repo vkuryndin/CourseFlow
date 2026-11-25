@@ -30,10 +30,13 @@ class ArchitectureTest {
   private static final String REPOSITORY = "org.springframework.stereotype.Repository";
   private static final String DATA_REPOSITORY = "org.springframework.data.repository.Repository";
   private static final String COMPONENT = "org.springframework.stereotype.Component";
-  private static final String CONFIGURATION = "org.springframework.context.annotation.Configuration";
-  private static final String REST_CONTROLLER = "org.springframework.web.bind.annotation.RestController";
+  private static final String CONFIGURATION =
+      "org.springframework.context.annotation.Configuration";
+  private static final String REST_CONTROLLER =
+      "org.springframework.web.bind.annotation.RestController";
   private static final String CONTROLLER = "org.springframework.stereotype.Controller";
-  private static final String REST_ADVICE = "org.springframework.web.bind.annotation.RestControllerAdvice";
+  private static final String REST_ADVICE =
+      "org.springframework.web.bind.annotation.RestControllerAdvice";
   private static final String ADVICE = "org.springframework.web.bind.annotation.ControllerAdvice";
 
   // Reviewed existing directions, including bidirectional ORM and application-level collaboration.
@@ -41,15 +44,33 @@ class ArchitectureTest {
   private static final Map<String, Set<String>> MODULE_DEPENDENCIES =
       Map.ofEntries(
           Map.entry(APPLICATION, Set.of()),
-          Map.entry("assessment", Set.of("catalog", "common", "content", "identity", "learning", "security")),
+          Map.entry(
+              "assessment",
+              Set.of("catalog", "common", "content", "identity", "learning", "security")),
           Map.entry("auth", Set.of("common", "identity", "security")),
-          Map.entry("catalog", Set.of("common", "content", "identity", "learning", "review", "security")),
+          Map.entry(
+              "catalog", Set.of("common", "content", "identity", "learning", "review", "security")),
           Map.entry("common", Set.of("security")),
-          Map.entry("content", Set.of("assessment", "catalog", "common", "identity", "learning", "security")),
-          Map.entry("dashboard", Set.of("assessment", "catalog", "common", "content", "identity", "learning", "security")),
-          Map.entry("demo", Set.of("assessment", "auth", "catalog", "content", "identity", "learning", "review")),
+          Map.entry(
+              "content",
+              Set.of("assessment", "catalog", "common", "identity", "learning", "security")),
+          Map.entry(
+              "dashboard",
+              Set.of(
+                  "assessment",
+                  "catalog",
+                  "common",
+                  "content",
+                  "identity",
+                  "learning",
+                  "security")),
+          Map.entry(
+              "demo",
+              Set.of("assessment", "auth", "catalog", "content", "identity", "learning", "review")),
           Map.entry("identity", Set.of("auth", "catalog", "common", "learning", "security")),
-          Map.entry("learning", Set.of("assessment", "catalog", "common", "content", "identity", "security")),
+          Map.entry(
+              "learning",
+              Set.of("assessment", "catalog", "common", "content", "identity", "security")),
           Map.entry("review", Set.of("catalog", "common", "identity", "learning", "security")),
           Map.entry("security", Set.of("auth", "common", "identity")));
 
@@ -120,8 +141,14 @@ class ArchitectureTest {
       }
     }
     assertAll(
-        () -> assertTrue(actual.equals(MODULE_DEPENDENCIES.keySet()),
-            () -> "Expected modules " + new TreeSet<>(MODULE_DEPENDENCIES.keySet()) + "; imported " + actual),
+        () ->
+            assertTrue(
+                actual.equals(MODULE_DEPENDENCIES.keySet()),
+                () ->
+                    "Expected modules "
+                        + new TreeSet<>(MODULE_DEPENDENCIES.keySet())
+                        + "; imported "
+                        + actual),
         () -> assertNoViolations(violations));
   }
 
@@ -283,7 +310,8 @@ class ArchitectureTest {
           && !isSystem(type)
           && !module(type).equals("security")
           && !module(type).equals("demo")) {
-        violations.add(type.getName() + " must reside in a service or permitted infrastructure/API package");
+        violations.add(
+            type.getName() + " must reside in a service or permitted infrastructure/API package");
       }
     }
     assertNoViolations(violations);
@@ -326,7 +354,9 @@ class ArchitectureTest {
     newCyclicEdges.removeAll(cyclicEdges(MODULE_DEPENDENCIES));
     assertAll(
         () -> assertNoViolations(violations),
-        () -> assertTrue(newCyclicEdges.isEmpty(), () -> "New cyclic module edges: " + newCyclicEdges));
+        () ->
+            assertTrue(
+                newCyclicEdges.isEmpty(), () -> "New cyclic module edges: " + newCyclicEdges));
   }
 
   @Test
@@ -339,7 +369,9 @@ class ArchitectureTest {
       for (var constructor : type.getConstructors()) {
         for (JavaClass parameter : constructor.getRawParameterTypes()) {
           if (isProject(parameter) && isManagedType(parameter)) {
-            graph.computeIfAbsent(type.getName(), ignored -> new HashSet<>()).add(parameter.getName());
+            graph
+                .computeIfAbsent(type.getName(), ignored -> new HashSet<>())
+                .add(parameter.getName());
           }
         }
       }

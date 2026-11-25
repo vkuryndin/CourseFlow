@@ -10,12 +10,14 @@ import org.courseflow.learning.entity.EnrollmentStatus;
 import org.junit.jupiter.api.Test;
 
 class EnrollmentRepositoryDefaultTest {
-    private final EnrollmentRepository repository = mock(EnrollmentRepository.class, CALLS_REAL_METHODS);
+  private final EnrollmentRepository repository =
+      mock(EnrollmentRepository.class, CALLS_REAL_METHODS);
 
-    @Test
-    void activeEnrollmentDelegatesToStatusQuery() {
-        when(repository.existsByStudent_IdAndCourse_IdAndStatus(10L, 40L, EnrollmentStatus.ACTIVE)).thenReturn(true);
-        assertTrue(repository.hasActiveEnrollment(10L, 40L));
-        assertFalse(repository.hasActiveEnrollment(11L, 40L));
-    }
+  @Test
+  void activeEnrollmentDelegatesToStatusQuery() {
+    when(repository.existsByStudent_IdAndCourse_IdAndStatus(10L, 40L, EnrollmentStatus.ACTIVE))
+        .thenReturn(true);
+    assertTrue(repository.hasActiveEnrollment(10L, 40L));
+    assertFalse(repository.hasActiveEnrollment(11L, 40L));
+  }
 }

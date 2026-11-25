@@ -1,130 +1,104 @@
 package org.courseflow.assessment.entity;
 
 import jakarta.persistence.*;
-import org.courseflow.content.entity.Module;
 import java.util.ArrayList;
 import java.util.List;
+import org.courseflow.content.entity.Module;
 
 @Entity
 @Table(name = "quizzes")
 public class Quiz {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Version
-    @Column(nullable = false, columnDefinition = "bigint default 0")
-    private long version;
+  @Version
+  @Column(nullable = false, columnDefinition = "bigint default 0")
+  private long version;
 
-    public long getVersion() {
-        return version;
+  public long getVersion() {
+    return version;
+  }
+
+  @OneToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "module_id", nullable = false, unique = true)
+  private Module module;
+
+  @Column(nullable = false, length = 200)
+  private String title;
+
+  // Time limit in minutes
+  @Column(name = "time_limit", nullable = false)
+  private Integer timeLimit;
+
+  @Column(name = "max_attempts", nullable = false)
+  private Integer maxAttempts = 2;
+
+  @OneToMany(mappedBy = "quiz", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+  @OrderBy("position ASC, id ASC")
+  private List<Question> questions = new ArrayList<>();
+
+  protected Quiz() {}
+
+  public Quiz(Module module, String title, Integer timeLimit) {
+    this.module = module;
+    this.title = title;
+    setTimeLimit(timeLimit);
+  }
+
+  public Long getId() {
+    return id;
+  }
+
+  public Module getModule() {
+    return module;
+  }
+
+  public String getTitle() {
+    return title;
+  }
+
+  public Integer getTimeLimit() {
+    return timeLimit;
+  }
+
+  public Integer getMaxAttempts() {
+    return maxAttempts;
+  }
+
+  public List<Question> getQuestions() {
+    return List.copyOf(questions);
+  }
+
+  public void update(String title, Integer timeLimit, Integer maxAttempts) {
+    validateTimeLimit(timeLimit);
+
+    if (maxAttempts == null || maxAttempts < 1) {
+      throw new IllegalArgumentException("Max attempts must be at least 1");
     }
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "module_id", nullable = false, unique = true)
-    private Module module;
+    this.title = title;
+    this.timeLimit = timeLimit;
+    this.maxAttempts = maxAttempts;
+  }
 
-    @Column(nullable = false, length = 200)
-    private String title;
+  private void setTimeLimit(Integer timeLimit) {
+    validateTimeLimit(timeLimit);
+    this.timeLimit = timeLimit;
+  }
 
-    // Time limit in minutes
-    @Column(name = "time_limit", nullable = false)
-    private Integer timeLimit;
-
-    @Column(name = "max_attempts", nullable = false)
-    private Integer maxAttempts = 2;
-
-    @OneToMany(
-            mappedBy = "quiz",
-            fetch = FetchType.LAZY,
-            cascade = CascadeType.PERSIST
-    )
-    @OrderBy("position ASC, id ASC")
-    private List<Question> questions = new ArrayList<>();
-
-    protected Quiz() {
+  private static void validateTimeLimit(Integer timeLimit) {
+    if (timeLimit == null || timeLimit < 1) {
+      throw new IllegalArgumentException("Time limit must be at least 1 minute");
     }
+  }
 
-    public Quiz(
-            Module module,
-            String title,
-            Integer timeLimit
-    ) {
-        this.module = module;
-        this.title = title;
-        setTimeLimit(timeLimit);
-    }
+  public Question addQuestion(String text, QuestionType type, Integer position) {
+    Question question = new Question(this, text, type, position);
 
-    public Long getId() {
-        return id;
-    }
+    questions.add(question);
 
-    public Module getModule() {
-        return module;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public Integer getTimeLimit() {
-        return timeLimit;
-    }
-
-    public Integer getMaxAttempts() {
-        return maxAttempts;
-    }
-
-    public List<Question> getQuestions() {
-        return List.copyOf(questions);
-    }
-
-    public void update(
-            String title,
-            Integer timeLimit,
-            Integer maxAttempts
-    ) {
-        validateTimeLimit(timeLimit);
-
-        if (maxAttempts == null || maxAttempts < 1) {
-            throw new IllegalArgumentException(
-                    "Max attempts must be at least 1"
-            );
-        }
-
-        this.title = title;
-        this.timeLimit = timeLimit;
-        this.maxAttempts = maxAttempts;
-    }
-
-    private void setTimeLimit(Integer timeLimit) {
-        validateTimeLimit(timeLimit);
-        this.timeLimit = timeLimit;
-    }
-
-    private static void validateTimeLimit(Integer timeLimit) {
-        if (timeLimit == null || timeLimit < 1) {
-            throw new IllegalArgumentException(
-                    "Time limit must be at least 1 minute"
-            );
-        }
-    }
-
-    public Question addQuestion(
-            String text,
-            QuestionType type,
-            Integer position
-    ) {
-        Question question = new Question(
-                this,
-                text,
-                type,
-                position
-        );
-
-        questions.add(question);
-
-        return question;
-    }
+    return question;
+  }
 }

@@ -22,35 +22,51 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 class EnrollmentServiceReadTest {
-    private final EnrollmentRepository repository = mock(EnrollmentRepository.class);
-    private final CourseGuard guard = mock(CourseGuard.class);
-    private final EnrollmentService service = new EnrollmentService(repository, guard, mock(StudentAccess.class), CLOCK);
-    private final Enrollment enrollment = id(Enrollment.createForStudent(student(), course(), NOW), 90);
-    private final PageRequest page = PageRequest.of(0, 10, Sort.by("id"));
+  private final EnrollmentRepository repository = mock(EnrollmentRepository.class);
+  private final CourseGuard guard = mock(CourseGuard.class);
+  private final EnrollmentService service =
+      new EnrollmentService(repository, guard, mock(StudentAccess.class), CLOCK);
+  private final Enrollment enrollment =
+      id(Enrollment.createForStudent(student(), course(), NOW), 90);
+  private final PageRequest page = PageRequest.of(0, 10, Sort.by("id"));
 
-    @Test
-    void getExistingEnrollment() {
-        when(repository.findByStudent_IdAndCourse_Id(10L, 40L)).thenReturn(Optional.of(enrollment));
-        assertEquals(90L, service.getMyEnrollment(40L, 10L).id());
-    }
+  @Test
+  void getExistingEnrollment() {
+    when(repository.findByStudent_IdAndCourse_Id(10L, 40L)).thenReturn(Optional.of(enrollment));
+    assertEquals(90L, service.getMyEnrollment(40L, 10L).id());
+  }
 
-    @Test
-    void courseEnrollmentsAllStatuses() {
-        when(guard.find(40L)).thenReturn(enrollment.getCourse());
-        when(repository.findAllByCourse_Id(40L, page)).thenReturn(new PageImpl<>(List.of(enrollment), page, 1));
-        assertEquals("Student", service.getCourseEnrollments(40L, 20L, false, null, 0, 10, "id", "asc").content().get(0).studentName());
-    }
+  @Test
+  void courseEnrollmentsAllStatuses() {
+    when(guard.find(40L)).thenReturn(enrollment.getCourse());
+    when(repository.findAllByCourse_Id(40L, page))
+        .thenReturn(new PageImpl<>(List.of(enrollment), page, 1));
+    assertEquals(
+        "Student",
+        service
+            .getCourseEnrollments(40L, 20L, false, null, 0, 10, "id", "asc")
+            .content()
+            .get(0)
+            .studentName());
+  }
 
-    @Test
-    void courseEnrollmentsFilterStatus() {
-        when(guard.find(40L)).thenReturn(enrollment.getCourse());
-        when(repository.findAllByCourse_IdAndStatus(40L, EnrollmentStatus.ACTIVE, page)).thenReturn(new PageImpl<>(List.of(enrollment), page, 1));
-        assertEquals(1L, service.getCourseEnrollments(40L, 20L, false, EnrollmentStatus.ACTIVE, 0, 10, "id", "asc").totalElements());
-    }
+  @Test
+  void courseEnrollmentsFilterStatus() {
+    when(guard.find(40L)).thenReturn(enrollment.getCourse());
+    when(repository.findAllByCourse_IdAndStatus(40L, EnrollmentStatus.ACTIVE, page))
+        .thenReturn(new PageImpl<>(List.of(enrollment), page, 1));
+    assertEquals(
+        1L,
+        service
+            .getCourseEnrollments(40L, 20L, false, EnrollmentStatus.ACTIVE, 0, 10, "id", "asc")
+            .totalElements());
+  }
 
-    @Test
-    void studentEnrollmentsAllStatuses() {
-        when(repository.findAllByStudent_Id(10L, page)).thenReturn(new PageImpl<>(List.of(enrollment), page, 1));
-        assertEquals(40L, service.getMyEnrollments(10L, null, 0, 10, "id", "asc").content().get(0).courseId());
-    }
+  @Test
+  void studentEnrollmentsAllStatuses() {
+    when(repository.findAllByStudent_Id(10L, page))
+        .thenReturn(new PageImpl<>(List.of(enrollment), page, 1));
+    assertEquals(
+        40L, service.getMyEnrollments(10L, null, 0, 10, "id", "asc").content().get(0).courseId());
+  }
 }

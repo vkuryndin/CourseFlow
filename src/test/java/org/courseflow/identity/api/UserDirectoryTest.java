@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Set;
-
 import org.courseflow.common.exception.ResourceNotFoundException;
 import org.courseflow.identity.entity.User;
 import org.courseflow.identity.entity.UserRole;
@@ -19,32 +18,33 @@ import org.courseflow.identity.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
 class UserDirectoryTest {
-    private final UserRepository users = mock(UserRepository.class);
-    private final UserDirectory directory = new UserDirectory(users);
+  private final UserRepository users = mock(UserRepository.class);
+  private final UserDirectory directory = new UserDirectory(users);
 
-    @Test
-    void missingUserAndTeacherRejected() {
-        assertThrows(ResourceNotFoundException.class, () -> directory.requireUser(1L));
-        assertThrows(ResourceNotFoundException.class, () -> directory.requireStudentReference(1L));
-        assertThrows(ResourceNotFoundException.class, () -> directory.lockTeacherReference(1L));
-    }
+  @Test
+  void missingUserAndTeacherRejected() {
+    assertThrows(ResourceNotFoundException.class, () -> directory.requireUser(1L));
+    assertThrows(ResourceNotFoundException.class, () -> directory.requireStudentReference(1L));
+    assertThrows(ResourceNotFoundException.class, () -> directory.lockTeacherReference(1L));
+  }
 
-    @Test
-    void systemAdminCreationSetsRoleAndFlag() {
-        when(users.saveAndFlush(any(User.class))).thenAnswer((i) -> id(i.getArgument(0), 1));
-        User admin = directory.createSystemAdmin("admin@example.test", NOW);
+  @Test
+  void systemAdminCreationSetsRoleAndFlag() {
+    when(users.saveAndFlush(any(User.class))).thenAnswer((i) -> id(i.getArgument(0), 1));
+    User admin = directory.createSystemAdmin("admin@example.test", NOW);
 
-        assertTrue(admin.isSystemAdmin());
-        assertEquals(Set.of(UserRole.ADMIN), admin.getRoles());
-        assertEquals(NOW, admin.getCreatedAt());
-    }
+    assertTrue(admin.isSystemAdmin());
+    assertEquals(Set.of(UserRole.ADMIN), admin.getRoles());
+    assertEquals(NOW, admin.getCreatedAt());
+  }
 
-    @Test
-    void normalUserCreationRetainsRequestedRoles() {
-        when(users.saveAndFlush(any(User.class))).thenAnswer((i) -> id(i.getArgument(0), 1));
-        User user = directory.createUser("Student", "student@example.test", Set.of(UserRole.STUDENT), NOW);
+  @Test
+  void normalUserCreationRetainsRequestedRoles() {
+    when(users.saveAndFlush(any(User.class))).thenAnswer((i) -> id(i.getArgument(0), 1));
+    User user =
+        directory.createUser("Student", "student@example.test", Set.of(UserRole.STUDENT), NOW);
 
-        assertFalse(user.isSystemAdmin());
-        assertEquals(Set.of(UserRole.STUDENT), user.getRoles());
-    }
+    assertFalse(user.isSystemAdmin());
+    assertEquals(Set.of(UserRole.STUDENT), user.getRoles());
+  }
 }

@@ -10,27 +10,27 @@ import org.junit.jupiter.api.Test;
 
 class PublicEndpointsTest {
 
-    @Test
-    void publicGetTemplatesAreMatchedWithoutExposingLessonContent() {
-        assertTrue(PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}"));
-        assertFalse(PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}/lessons"));
-        assertFalse(PublicEndpoints.isPublicGet("/api/users/me"));
-        assertFalse(PublicEndpoints.isPublicGet("/api/admin/users"));
-    }
+  @Test
+  void publicGetTemplatesAreMatchedWithoutExposingLessonContent() {
+    assertTrue(PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}"));
+    assertFalse(PublicEndpoints.isPublicGet("/api/courses/{courseId}/modules/{moduleId}/lessons"));
+    assertFalse(PublicEndpoints.isPublicGet("/api/users/me"));
+    assertFalse(PublicEndpoints.isPublicGet("/api/admin/users"));
+  }
 
-    @Test
-    void passwordChangeRequiresAuthenticationButIsRateLimited() {
-        assertTrue(PublicEndpoints.isPublicPost("/api/auth/login"));
-        assertFalse(PublicEndpoints.isPublicPost("/api/auth/change-password"));
-        assertTrue(PublicEndpoints.isRateLimitedPost("/api/auth/change-password"));
-        assertFalse(PublicEndpoints.isRateLimitedPost("/api/auth/logout"));
-    }
+  @Test
+  void passwordChangeRequiresAuthenticationButIsRateLimited() {
+    assertTrue(PublicEndpoints.isPublicPost("/api/auth/login"));
+    assertFalse(PublicEndpoints.isPublicPost("/api/auth/change-password"));
+    assertTrue(PublicEndpoints.isRateLimitedPost("/api/auth/change-password"));
+    assertFalse(PublicEndpoints.isRateLimitedPost("/api/auth/logout"));
+  }
 
-    @Test
-    void startupRunnerDelegatesSessionInvalidation() {
-        SessionAccess access = mock(SessionAccess.class);
-        new AuthSessionStartupCleanup(access).run(null);
+  @Test
+  void startupRunnerDelegatesSessionInvalidation() {
+    SessionAccess access = mock(SessionAccess.class);
+    new AuthSessionStartupCleanup(access).run(null);
 
-        verify(access).invalidateAllOnStartup();
-    }
+    verify(access).invalidateAllOnStartup();
+  }
 }

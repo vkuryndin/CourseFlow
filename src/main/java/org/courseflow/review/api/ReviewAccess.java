@@ -9,9 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
 public class ReviewAccess {
-    private final CourseReviewRepository repository;
+  private final CourseReviewRepository repository;
 
-    public ReviewAccess(CourseReviewRepository repository) { this.repository = repository; }
+  public ReviewAccess(CourseReviewRepository repository) {
+    this.repository = repository;
+  }
 
-    public boolean hasReviews(Long courseId) { return repository.existsByCourse_Id(courseId); }
+  public boolean hasReviews(Long courseId) {
+    return repository.existsByCourse_Id(courseId);
+  }
 }

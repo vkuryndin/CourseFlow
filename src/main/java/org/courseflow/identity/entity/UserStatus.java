@@ -1,10 +1,7 @@
-
 package org.courseflow.identity.entity;
 
 public enum UserStatus {
-
-    ACTIVE,
-    INACTIVE,
-    DELETED
-
+  ACTIVE,
+  INACTIVE,
+  DELETED
 }

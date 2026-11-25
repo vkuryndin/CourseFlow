@@ -1,108 +1,97 @@
 package org.courseflow.learning.entity;
 
 import jakarta.persistence.*;
-import org.courseflow.content.entity.Lesson;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.courseflow.content.entity.Lesson;
 
 @Entity
 @Table(name = "assignments")
 public class Assignment {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Version
-    @Column(nullable = false, columnDefinition = "bigint default 0")
-    private long version;
+  @Version
+  @Column(nullable = false, columnDefinition = "bigint default 0")
+  private long version;
 
-    public long getVersion() {
-        return version;
+  public long getVersion() {
+    return version;
+  }
+
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "lesson_id", nullable = false)
+  private Lesson lesson;
+
+  @Column(nullable = false, length = 200)
+  private String title;
+
+  @Column(nullable = false, columnDefinition = "text")
+  private String description;
+
+  @Column(name = "due_at", nullable = false)
+  private Instant dueAt;
+
+  @Column(name = "max_score", nullable = false)
+  private Integer maxScore;
+
+  @OneToMany(mappedBy = "assignment", fetch = FetchType.LAZY)
+  private List<Submission> submissions = new ArrayList<>();
+
+  protected Assignment() {}
+
+  public Assignment(
+      Lesson lesson, String title, String description, Instant dueAt, Integer maxScore) {
+    this.lesson = lesson;
+    this.title = title;
+    this.description = description;
+    this.dueAt = dueAt;
+    this.maxScore = maxScore;
+  }
+
+  public Long getId() {
+    return id;
+  }
+
+  public Lesson getLesson() {
+    return lesson;
+  }
+
+  public String getTitle() {
+    return title;
+  }
+
+  public String getDescription() {
+    return description;
+  }
+
+  public Instant getDueAt() {
+    return dueAt;
+  }
+
+  public Integer getMaxScore() {
+    return maxScore;
+  }
+
+  public List<Submission> getSubmissions() {
+    return List.copyOf(submissions);
+  }
+
+  /** Only extend the deadline; leave the assignment definition and submissions intact. */
+  public void extendDeadline(Instant newDueAt) {
+    if (newDueAt == null || !newDueAt.isAfter(dueAt)) {
+      throw new IllegalArgumentException("New deadline must be later than the current deadline");
     }
+    this.dueAt = newDueAt;
+  }
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "lesson_id", nullable = false)
-    private Lesson lesson;
-
-    @Column(nullable = false, length = 200)
-    private String title;
-
-    @Column(nullable = false, columnDefinition = "text")
-    private String description;
-
-    @Column(name = "due_at", nullable = false)
-    private Instant dueAt;
-
-    @Column(name = "max_score", nullable = false)
-    private Integer maxScore;
-
-    @OneToMany(mappedBy = "assignment", fetch = FetchType.LAZY)
-    private List<Submission> submissions = new ArrayList<>();
-
-    protected Assignment() {
-    }
-
-    public Assignment(
-            Lesson lesson,
-            String title,
-            String description,
-            Instant dueAt,
-            Integer maxScore
-    ) {
-        this.lesson = lesson;
-        this.title = title;
-        this.description = description;
-        this.dueAt = dueAt;
-        this.maxScore = maxScore;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Lesson getLesson() {
-        return lesson;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public Instant getDueAt() {
-        return dueAt;
-    }
-
-    public Integer getMaxScore() {
-        return maxScore;
-    }
-
-    public List<Submission> getSubmissions() {
-        return List.copyOf(submissions);
-    }
-
-    /** Only extend the deadline; leave the assignment definition and submissions intact. */
-    public void extendDeadline(Instant newDueAt) {
-        if (newDueAt == null || !newDueAt.isAfter(dueAt)) {
-            throw new IllegalArgumentException("New deadline must be later than the current deadline");
-        }
-        this.dueAt = newDueAt;
-    }
-
-    public void updateDetails(
-            String title,
-            String description,
-            Instant dueAt,
-            Integer maxScore
-    ) {
-        this.title = title;
-        this.description = description;
-        this.dueAt = dueAt;
-        this.maxScore = maxScore;
-    }
+  public void updateDetails(String title, String description, Instant dueAt, Integer maxScore) {
+    this.title = title;
+    this.description = description;
+    this.dueAt = dueAt;
+    this.maxScore = maxScore;
+  }
 }

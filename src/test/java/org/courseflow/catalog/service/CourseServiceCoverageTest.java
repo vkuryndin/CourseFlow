@@ -34,44 +34,64 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
 class CourseServiceCoverageTest {
-    private final CourseRepository courses = mock(CourseRepository.class);
-    private final CategoryRepository categories = mock(CategoryRepository.class);
-    private final CourseGuard guard = mock(CourseGuard.class);
-    private final UserDirectory users = mock(UserDirectory.class);
-    private final CourseService service = new CourseService(courses, categories, users, mock(ContentStructure.class), mock(ReviewAccess.class), mock(EnrollmentAccess.class), mock(LessonScheduleChecks.class), CLOCK, guard);
-    private final Course course = course();
-    private final LocalDate date = LocalDate.of(2026, 2, 1);
+  private final CourseRepository courses = mock(CourseRepository.class);
+  private final CategoryRepository categories = mock(CategoryRepository.class);
+  private final CourseGuard guard = mock(CourseGuard.class);
+  private final UserDirectory users = mock(UserDirectory.class);
+  private final CourseService service =
+      new CourseService(
+          courses,
+          categories,
+          users,
+          mock(ContentStructure.class),
+          mock(ReviewAccess.class),
+          mock(EnrollmentAccess.class),
+          mock(LessonScheduleChecks.class),
+          CLOCK,
+          guard);
+  private final Course course = course();
+  private final LocalDate date = LocalDate.of(2026, 2, 1);
 
-    @Test
-    void updatesDetailsWithoutChangingTeacher() {
-        when(guard.lockEditable(eq(40L), eq(20L), eq(false), anyString())).thenReturn(course);
-        when(categories.findByIdForShare(30L)).thenReturn(Optional.of(category()));
-        var response = service.update(40L, new UpdateCourseRequest(" New ", " Details ", 30L, 20L, 45, date, 0L), 20L, false);
-        assertEquals("New", response.title());
-        assertEquals("Details", response.description());
-        assertEquals(45, response.duration());
-        assertEquals(20L, response.teacherId());
-        verify(courses).flush();
-    }
+  @Test
+  void updatesDetailsWithoutChangingTeacher() {
+    when(guard.lockEditable(eq(40L), eq(20L), eq(false), anyString())).thenReturn(course);
+    when(categories.findByIdForShare(30L)).thenReturn(Optional.of(category()));
+    var response =
+        service.update(
+            40L, new UpdateCourseRequest(" New ", " Details ", 30L, 20L, 45, date, 0L), 20L, false);
+    assertEquals("New", response.title());
+    assertEquals("Details", response.description());
+    assertEquals(45, response.duration());
+    assertEquals(20L, response.teacherId());
+    verify(courses).flush();
+  }
 
-    @Test
-    void unknownCategoryCannotBeUsed() {
-        assertThrows(ResourceNotFoundException.class, () -> service.create(new CreateCourseRequest("Title", "Text", 99L, 20L, 30, date), 20L, false));
-        verifyNoInteractions(courses);
-    }
+  @Test
+  void unknownCategoryCannotBeUsed() {
+    assertThrows(
+        ResourceNotFoundException.class,
+        () ->
+            service.create(
+                new CreateCourseRequest("Title", "Text", 99L, 20L, 30, date), 20L, false));
+    verifyNoInteractions(courses);
+  }
 
-    @Test
-    void adminCanCreateForTeacher() {
-        when(categories.findByIdForShare(30L)).thenReturn(Optional.of(category()));
-        when(users.lockTeacherReference(20L)).thenReturn(teacher());
-        when(courses.save(any(Course.class))).thenAnswer(i -> id(i.getArgument(0), 90));
-        assertEquals(20L, service.create(new CreateCourseRequest("Title", "Text", 30L, 20L, 30, date), 1L, true).teacherId());
-    }
+  @Test
+  void adminCanCreateForTeacher() {
+    when(categories.findByIdForShare(30L)).thenReturn(Optional.of(category()));
+    when(users.lockTeacherReference(20L)).thenReturn(teacher());
+    when(courses.save(any(Course.class))).thenAnswer(i -> id(i.getArgument(0), 90));
+    assertEquals(
+        20L,
+        service
+            .create(new CreateCourseRequest("Title", "Text", 30L, 20L, 30, date), 1L, true)
+            .teacherId());
+  }
 
-    @Test
-    void deleteTranslatesConstraintViolation() {
-        when(guard.lockOwned(40L, 20L, false)).thenReturn(course);
-        doThrow(new DataIntegrityViolationException("related")).when(courses).flush();
-        assertThrows(BusinessConflictException.class, () -> service.delete(40L, 20L, false));
-    }
+  @Test
+  void deleteTranslatesConstraintViolation() {
+    when(guard.lockOwned(40L, 20L, false)).thenReturn(course);
+    doThrow(new DataIntegrityViolationException("related")).when(courses).flush();
+    assertThrows(BusinessConflictException.class, () -> service.delete(40L, 20L, false));
+  }
 }

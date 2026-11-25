@@ -17,26 +17,29 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 class CourseTagServiceCoverageTest {
-    private final CourseRepository courses = mock(CourseRepository.class);
-    private final TagRepository tags = mock(TagRepository.class);
-    private final CourseGuard guard = mock(CourseGuard.class);
-    private final CourseTagService service = new CourseTagService(courses, tags, guard);
+  private final CourseRepository courses = mock(CourseRepository.class);
+  private final TagRepository tags = mock(TagRepository.class);
+  private final CourseGuard guard = mock(CourseGuard.class);
+  private final CourseTagService service = new CourseTagService(courses, tags, guard);
 
-    @Test
-    void courseTagPageMapsTag() {
-        when(courses.existsById(40L)).thenReturn(true);
-        var page = PageRequest.of(0, 10, Sort.by("name", "id"));
-        when(tags.findByCourseId(40L, page)).thenReturn(new PageImpl<>(List.of(id(new Tag("JPA"), 90)), page, 1));
-        assertEquals("JPA", service.findCourseTags(40L, 0, 10).content().get(0).name());
-    }
+  @Test
+  void courseTagPageMapsTag() {
+    when(courses.existsById(40L)).thenReturn(true);
+    var page = PageRequest.of(0, 10, Sort.by("name", "id"));
+    when(tags.findByCourseId(40L, page))
+        .thenReturn(new PageImpl<>(List.of(id(new Tag("JPA"), 90)), page, 1));
+    assertEquals("JPA", service.findCourseTags(40L, 0, 10).content().get(0).name());
+  }
 
-    @Test
-    void missingTagCannotBeAdded() {
-        assertThrows(ResourceNotFoundException.class, () -> service.addTagToCourse(40L, 90L, 20L, false));
-    }
+  @Test
+  void missingTagCannotBeAdded() {
+    assertThrows(
+        ResourceNotFoundException.class, () -> service.addTagToCourse(40L, 90L, 20L, false));
+  }
 
-    @Test
-    void missingTagCannotBeRemoved() {
-        assertThrows(ResourceNotFoundException.class, () -> service.removeTagFromCourse(40L, 90L, 20L, false));
-    }
+  @Test
+  void missingTagCannotBeRemoved() {
+    assertThrows(
+        ResourceNotFoundException.class, () -> service.removeTagFromCourse(40L, 90L, 20L, false));
+  }
 }

@@ -35,82 +35,96 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 
 class LessonSessionServiceCoverageTest {
-    private final LessonRepository lessons = mock(LessonRepository.class);
-    private final LessonSessionRepository sessions = mock(LessonSessionRepository.class);
-    private final CourseGuard guard = mock(CourseGuard.class);
-    private final ContentAccessService access = mock(ContentAccessService.class);
-    private final UserDirectory users = mock(UserDirectory.class);
-    private final LessonSessionService service = new LessonSessionService(sessions, lessons, access, guard, users, CLOCK);
-    private final Lesson lesson = lesson();
-    private final LessonSession session = id(lesson.addSession(NOW.plusSeconds(60), NOW.plusSeconds(120), LessonSessionFormat.OFFLINE, null), 90);
-    private final Authentication auth = mock(Authentication.class);
+  private final LessonRepository lessons = mock(LessonRepository.class);
+  private final LessonSessionRepository sessions = mock(LessonSessionRepository.class);
+  private final CourseGuard guard = mock(CourseGuard.class);
+  private final ContentAccessService access = mock(ContentAccessService.class);
+  private final UserDirectory users = mock(UserDirectory.class);
+  private final LessonSessionService service =
+      new LessonSessionService(sessions, lessons, access, guard, users, CLOCK);
+  private final Lesson lesson = lesson();
+  private final LessonSession session =
+      id(
+          lesson.addSession(
+              NOW.plusSeconds(60), NOW.plusSeconds(120), LessonSessionFormat.OFFLINE, null),
+          90);
+  private final Authentication auth = mock(Authentication.class);
 
-    private void setup() {
-        when(lessons.findCourseId(60L)).thenReturn(Optional.of(40L));
-        when(lessons.findById(60L)).thenReturn(Optional.of(lesson));
-        when(guard.lockEditable(eq(40L), eq(20L), eq(false), anyString())).thenReturn(lesson.getModule().getCourse());
-        when(sessions.findByIdAndLesson_Id(90L, 60L)).thenReturn(Optional.of(session));
-    }
+  private void setup() {
+    when(lessons.findCourseId(60L)).thenReturn(Optional.of(40L));
+    when(lessons.findById(60L)).thenReturn(Optional.of(lesson));
+    when(guard.lockEditable(eq(40L), eq(20L), eq(false), anyString()))
+        .thenReturn(lesson.getModule().getCourse());
+    when(sessions.findByIdAndLesson_Id(90L, 60L)).thenReturn(Optional.of(session));
+  }
 
-    @Test
-    void findByLessonReturnsOrderedPage() {
-        setup();
-        var page = PageRequest.of(0, 10, Sort.by("startsAt", "id"));
-        when(sessions.findAllByLesson_Id(60L, page)).thenReturn(new PageImpl<>(List.of(session), page, 1));
-        assertEquals(90L, service.findByLesson(60L, 0, 10, 10L, auth).content().get(0).id());
-        verify(access).checkLessonAccess(60L, 10L, auth);
-    }
+  @Test
+  void findByLessonReturnsOrderedPage() {
+    setup();
+    var page = PageRequest.of(0, 10, Sort.by("startsAt", "id"));
+    when(sessions.findAllByLesson_Id(60L, page))
+        .thenReturn(new PageImpl<>(List.of(session), page, 1));
+    assertEquals(90L, service.findByLesson(60L, 0, 10, 10L, auth).content().get(0).id());
+    verify(access).checkLessonAccess(60L, 10L, auth);
+  }
 
-    @Test
-    void getByIdMapsSession() {
-        setup();
-        assertEquals(NOW.plusSeconds(60), service.getById(60L, 90L, 10L, auth).startsAt());
-    }
+  @Test
+  void getByIdMapsSession() {
+    setup();
+    assertEquals(NOW.plusSeconds(60), service.getById(60L, 90L, 10L, auth).startsAt());
+  }
 
-    @Test
-    void getMissingSessionRejected() {
-        setup();
-        assertThrows(ResourceNotFoundException.class, () -> service.getById(60L, 99L, 10L, auth));
-    }
+  @Test
+  void getMissingSessionRejected() {
+    setup();
+    assertThrows(ResourceNotFoundException.class, () -> service.getById(60L, 99L, 10L, auth));
+  }
 
-    @Test
-    void updateChangesTimeAndFormat() {
-        setup();
-        var request = new CreateLessonSessionRequest(NOW.plusSeconds(180), NOW.plusSeconds(240), LessonSessionFormat.ONLINE, "https://example.test/meeting", 0L);
-        var result = service.update(60L, 90L, request, 20L, false);
-        assertEquals(LessonSessionFormat.ONLINE, result.format());
-        assertEquals(request.startsAt(), result.startsAt());
-        assertEquals(request.meetingUrl(), result.meetingUrl());
-        verify(users).lockTeacherReference(20L);
-        verify(sessions).flush();
-    }
+  @Test
+  void updateChangesTimeAndFormat() {
+    setup();
+    var request =
+        new CreateLessonSessionRequest(
+            NOW.plusSeconds(180),
+            NOW.plusSeconds(240),
+            LessonSessionFormat.ONLINE,
+            "https://example.test/meeting",
+            0L);
+    var result = service.update(60L, 90L, request, 20L, false);
+    assertEquals(LessonSessionFormat.ONLINE, result.format());
+    assertEquals(request.startsAt(), result.startsAt());
+    assertEquals(request.meetingUrl(), result.meetingUrl());
+    verify(users).lockTeacherReference(20L);
+    verify(sessions).flush();
+  }
 
-    @Test
-    void deleteRemovesSessionFromLesson() {
-        setup();
-        service.delete(60L, 90L, 20L, false);
-        assertTrue(lesson.getSessions().isEmpty());
-        verify(sessions).delete(session);
-        verify(sessions).flush();
-    }
+  @Test
+  void deleteRemovesSessionFromLesson() {
+    setup();
+    service.delete(60L, 90L, 20L, false);
+    assertTrue(lesson.getSessions().isEmpty());
+    verify(sessions).delete(session);
+    verify(sessions).flush();
+  }
 
-    @Test
-    void missingLessonCourseRejected() {
-        assertThrows(ResourceNotFoundException.class, () -> service.delete(60L, 90L, 20L, false));
-        verifyNoInteractions(sessions);
-    }
+  @Test
+  void missingLessonCourseRejected() {
+    assertThrows(ResourceNotFoundException.class, () -> service.delete(60L, 90L, 20L, false));
+    verifyNoInteractions(sessions);
+  }
 
-    @Test
-    void missingEditableSessionRejected() {
-        setup();
-        assertThrows(ResourceNotFoundException.class, () -> service.delete(60L, 99L, 20L, false));
-    }
+  @Test
+  void missingEditableSessionRejected() {
+    setup();
+    assertThrows(ResourceNotFoundException.class, () -> service.delete(60L, 99L, 20L, false));
+  }
 
-    @Test
-    void cannotMoveToPast() {
-        setup();
-        var request = new RescheduleLessonSessionRequest(NOW, NOW.plusSeconds(60), 0L);
-        assertThrows(BadRequestException.class, () -> service.reschedule(60L, 90L, request, 20L, false));
-        verify(sessions, never()).flush();
-    }
+  @Test
+  void cannotMoveToPast() {
+    setup();
+    var request = new RescheduleLessonSessionRequest(NOW, NOW.plusSeconds(60), 0L);
+    assertThrows(
+        BadRequestException.class, () -> service.reschedule(60L, 90L, request, 20L, false));
+    verify(sessions, never()).flush();
+  }
 }

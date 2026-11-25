@@ -14,7 +14,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Set;
-
 import org.courseflow.auth.entity.UserAccount;
 import org.courseflow.auth.repository.UserAccountRepository;
 import org.courseflow.common.exception.BusinessConflictException;
@@ -28,51 +27,73 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
 class AccountCreatorTest {
-    private final UserDirectory users = mock(UserDirectory.class);
-    private final UserAccountRepository accounts = mock(UserAccountRepository.class);
-    private final PasswordEncoder encoder = mock(PasswordEncoder.class);
-    private final PlatformTransactionManager tx = mock(PlatformTransactionManager.class);
-    private final AccountCreator creator = new AccountCreator(users, accounts, CLOCK, encoder, tx);
+  private final UserDirectory users = mock(UserDirectory.class);
+  private final UserAccountRepository accounts = mock(UserAccountRepository.class);
+  private final PasswordEncoder encoder = mock(PasswordEncoder.class);
+  private final PlatformTransactionManager tx = mock(PlatformTransactionManager.class);
+  private final AccountCreator creator = new AccountCreator(users, accounts, CLOCK, encoder, tx);
 
-    private void setup() {
-        when(tx.getTransaction(any(TransactionDefinition.class))).thenAnswer((i) -> new SimpleTransactionStatus());
-        when(encoder.encode("password")).thenReturn("hash");
-    }
+  private void setup() {
+    when(tx.getTransaction(any(TransactionDefinition.class)))
+        .thenAnswer((i) -> new SimpleTransactionStatus());
+    when(encoder.encode("password")).thenReturn("hash");
+  }
 
-    @Test
-    void rejectsExistingEmailBeforeHashing() {
-        when(users.emailInUse("student@example.test")).thenReturn(true);
+  @Test
+  void rejectsExistingEmailBeforeHashing() {
+    when(users.emailInUse("student@example.test")).thenReturn(true);
 
-        assertThrows(BusinessConflictException.class,
-                () -> creator.create("Student", " STUDENT@EXAMPLE.TEST ", Set.of(UserRole.STUDENT), "password",
-                false, User::getId));
-        verifyNoInteractions(encoder, accounts, tx);
-    }
-
-    @Test
-    void checksEmailAgainInsideTransaction() {
-        setup();
-        when(users.emailInUse("student@example.test")).thenReturn(false, true);
-
-        assertThrows(BusinessConflictException.class,
-                () -> creator.create("Student", "student@example.test", Set.of(UserRole.STUDENT), "password", false,
+    assertThrows(
+        BusinessConflictException.class,
+        () ->
+            creator.create(
+                "Student",
+                " STUDENT@EXAMPLE.TEST ",
+                Set.of(UserRole.STUDENT),
+                "password",
+                false,
                 User::getId));
-        verifyNoInteractions(accounts);
-    }
+    verifyNoInteractions(encoder, accounts, tx);
+  }
 
-    @Test
-    void createsUserAndAccountWithRequiredPasswordFlag() {
-        setup();
-        var user = student();
-        when(users.createUser("Student", "student@example.test", Set.of(UserRole.STUDENT), NOW)).thenReturn(user);
-        Long actual = creator.create(" Student ", " STUDENT@EXAMPLE.TEST ", Set.of(UserRole.STUDENT), "password",
-                true, User::getId);
+  @Test
+  void checksEmailAgainInsideTransaction() {
+    setup();
+    when(users.emailInUse("student@example.test")).thenReturn(false, true);
 
-        assertEquals(10L, actual);
-        var captor = org.mockito.ArgumentCaptor.forClass(UserAccount.class);
-        verify(accounts).saveAndFlush(captor.capture());
-        assertSame(user, captor.getValue().getUser());
-        assertEquals("hash", captor.getValue().getPasswordHash());
-        assertTrue(captor.getValue().isPasswordChangeRequired());
-    }
+    assertThrows(
+        BusinessConflictException.class,
+        () ->
+            creator.create(
+                "Student",
+                "student@example.test",
+                Set.of(UserRole.STUDENT),
+                "password",
+                false,
+                User::getId));
+    verifyNoInteractions(accounts);
+  }
+
+  @Test
+  void createsUserAndAccountWithRequiredPasswordFlag() {
+    setup();
+    var user = student();
+    when(users.createUser("Student", "student@example.test", Set.of(UserRole.STUDENT), NOW))
+        .thenReturn(user);
+    Long actual =
+        creator.create(
+            " Student ",
+            " STUDENT@EXAMPLE.TEST ",
+            Set.of(UserRole.STUDENT),
+            "password",
+            true,
+            User::getId);
+
+    assertEquals(10L, actual);
+    var captor = org.mockito.ArgumentCaptor.forClass(UserAccount.class);
+    verify(accounts).saveAndFlush(captor.capture());
+    assertSame(user, captor.getValue().getUser());
+    assertEquals("hash", captor.getValue().getPasswordHash());
+    assertTrue(captor.getValue().isPasswordChangeRequired());
+  }
 }

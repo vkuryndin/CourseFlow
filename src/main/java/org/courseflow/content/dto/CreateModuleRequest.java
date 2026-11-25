@@ -1,4 +1,3 @@
-
 package org.courseflow.content.dto;
 
 import jakarta.validation.constraints.Min;
@@ -7,17 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CreateModuleRequest(
-
-        @NotBlank
-        @Size(max = 200)
-        String title,
-
-        @Size(max = 2000)
-        String description,
-
-        @NotNull
-        @Min(1)
-        Integer position
-
-) {
-}
+    @NotBlank @Size(max = 200) String title,
+    @Size(max = 2000) String description,
+    @NotNull @Min(1) Integer position) {}

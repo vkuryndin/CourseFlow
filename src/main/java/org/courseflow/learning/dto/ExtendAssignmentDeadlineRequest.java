@@ -6,6 +6,4 @@ import jakarta.validation.constraints.PositiveOrZero;
 import java.time.Instant;
 
 public record ExtendAssignmentDeadlineRequest(
-        @NotNull @Future Instant dueAt,
-        @NotNull @PositiveOrZero Long version
-) {}
+    @NotNull @Future Instant dueAt, @NotNull @PositiveOrZero Long version) {}

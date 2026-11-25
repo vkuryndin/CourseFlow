@@ -9,32 +9,30 @@ import org.courseflow.auth.dto.ForgotPasswordRequest;
 import org.courseflow.auth.dto.ResetPasswordRequest;
 import org.junit.jupiter.api.Test;
 
-/**
- * Direct controller contract tests; no Spring MVC runtime.
- */
+/** Direct controller contract tests; no Spring MVC runtime. */
 class PasswordResetControllerTest {
-    private final AuthHttpOperations operations = mock(AuthHttpOperations.class);
-    private final PasswordResetController controller = new PasswordResetController(operations);
+  private final AuthHttpOperations operations = mock(AuthHttpOperations.class);
+  private final PasswordResetController controller = new PasswordResetController(operations);
 
-    @Test
-    void forgotPasswordDelegatesAndReturnsContract() {
-        ForgotPasswordRequest request = mock(ForgotPasswordRequest.class);
+  @Test
+  void forgotPasswordDelegatesAndReturnsContract() {
+    ForgotPasswordRequest request = mock(ForgotPasswordRequest.class);
 
-        var actual = controller.forgotPassword(request);
+    var actual = controller.forgotPassword(request);
 
-        assertEquals(202, actual.getStatusCode().value());
-        assertNull(actual.getBody());
-        verify(operations).forgotPassword(request);
-    }
+    assertEquals(202, actual.getStatusCode().value());
+    assertNull(actual.getBody());
+    verify(operations).forgotPassword(request);
+  }
 
-    @Test
-    void resetPasswordDelegatesAndReturnsContract() {
-        ResetPasswordRequest request = mock(ResetPasswordRequest.class);
+  @Test
+  void resetPasswordDelegatesAndReturnsContract() {
+    ResetPasswordRequest request = mock(ResetPasswordRequest.class);
 
-        var actual = controller.resetPassword(request);
+    var actual = controller.resetPassword(request);
 
-        assertEquals(204, actual.getStatusCode().value());
-        assertNull(actual.getBody());
-        verify(operations).resetPassword(request);
-    }
+    assertEquals(204, actual.getStatusCode().value());
+    assertNull(actual.getBody());
+    verify(operations).resetPassword(request);
+  }
 }

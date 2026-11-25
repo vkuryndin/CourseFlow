@@ -1,4 +1,3 @@
-
 package org.courseflow.auth.controller;
 
 import jakarta.validation.Valid;
@@ -16,27 +15,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class PasswordResetController {
 
-    private final AuthHttpOperations operations;
+  private final AuthHttpOperations operations;
 
-    public PasswordResetController(AuthHttpOperations operations) {
-        this.operations = operations;
-    }
+  public PasswordResetController(AuthHttpOperations operations) {
+    this.operations = operations;
+  }
 
-    @PostMapping("/forgot-password")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public ResponseEntity<Void> forgotPassword(
-            @Valid @RequestBody ForgotPasswordRequest request
-    ) {
-        operations.forgotPassword(request);
-        return ResponseEntity.accepted().build();
-    }
+  @PostMapping("/forgot-password")
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    operations.forgotPassword(request);
+    return ResponseEntity.accepted().build();
+  }
 
-    @PostMapping("/reset-password")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ResponseEntity<Void> resetPassword(
-            @Valid @RequestBody ResetPasswordRequest request
-    ) {
-        operations.resetPassword(request);
-        return ResponseEntity.noContent().build();
-    }
+  @PostMapping("/reset-password")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    operations.resetPassword(request);
+    return ResponseEntity.noContent().build();
+  }
 }

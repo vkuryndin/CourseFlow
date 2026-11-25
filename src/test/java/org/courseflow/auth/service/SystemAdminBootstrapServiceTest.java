@@ -26,77 +26,79 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class SystemAdminBootstrapServiceTest {
-    private final UserDirectory directory = mock(UserDirectory.class);
-    private final UserAccountRepository accounts = mock(UserAccountRepository.class);
-    private final PasswordEncoder encoder = mock(PasswordEncoder.class);
-    private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-    private final SystemAdminBootstrapService service = new SystemAdminBootstrapService(directory, accounts, encoder, CLOCK, jdbc);
+  private final UserDirectory directory = mock(UserDirectory.class);
+  private final UserAccountRepository accounts = mock(UserAccountRepository.class);
+  private final PasswordEncoder encoder = mock(PasswordEncoder.class);
+  private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+  private final SystemAdminBootstrapService service =
+      new SystemAdminBootstrapService(directory, accounts, encoder, CLOCK, jdbc);
 
-    private void configure(String email, String password) {
-        ReflectionTestUtils.setField(service, "adminEmail", email);
-        ReflectionTestUtils.setField(service, "adminPassword", password);
-    }
+  private void configure(String email, String password) {
+    ReflectionTestUtils.setField(service, "adminEmail", email);
+    ReflectionTestUtils.setField(service, "adminPassword", password);
+  }
 
-    @Test
-    void existingAdminSkipsCreation() {
-        when(directory.systemAdminExists()).thenReturn(true);
-        service.initialize();
-        verify(jdbc).execute("SELECT pg_advisory_xact_lock(62130001)");
-        verifyNoInteractions(accounts, encoder);
-    }
+  @Test
+  void existingAdminSkipsCreation() {
+    when(directory.systemAdminExists()).thenReturn(true);
+    service.initialize();
+    verify(jdbc).execute("SELECT pg_advisory_xact_lock(62130001)");
+    verifyNoInteractions(accounts, encoder);
+  }
 
-    @Test
-    void blankEmailRejected() {
-        configure("", "Valid-pass-1");
-        assertThrows(IllegalStateException.class, service::initialize);
-        verifyNoInteractions(accounts, encoder);
-    }
+  @Test
+  void blankEmailRejected() {
+    configure("", "Valid-pass-1");
+    assertThrows(IllegalStateException.class, service::initialize);
+    verifyNoInteractions(accounts, encoder);
+  }
 
-    @Test
-    void blankPasswordRejected() {
-        configure("admin@example.test", " ");
-        assertThrows(IllegalStateException.class, service::initialize);
-    }
+  @Test
+  void blankPasswordRejected() {
+    configure("admin@example.test", " ");
+    assertThrows(IllegalStateException.class, service::initialize);
+  }
 
-    @Test
-    void shortPasswordRejected() {
-        configure("admin@example.test", "short");
-        assertThrows(IllegalStateException.class, service::initialize);
-    }
+  @Test
+  void shortPasswordRejected() {
+    configure("admin@example.test", "short");
+    assertThrows(IllegalStateException.class, service::initialize);
+  }
 
-    @Test
-    void longUtf8PasswordRejected() {
-        configure("admin@example.test", "я".repeat(37));
-        assertThrows(IllegalStateException.class, service::initialize);
-    }
+  @Test
+  void longUtf8PasswordRejected() {
+    configure("admin@example.test", "я".repeat(37));
+    assertThrows(IllegalStateException.class, service::initialize);
+  }
 
-    @Test
-    void duplicateEmailRejected() {
-        configure(" ADMIN@EXAMPLE.TEST ", "Valid-pass-1");
-        when(directory.emailInUse("admin@example.test")).thenReturn(true);
-        assertThrows(IllegalStateException.class, service::initialize);
-        verifyNoInteractions(accounts, encoder);
-    }
+  @Test
+  void duplicateEmailRejected() {
+    configure(" ADMIN@EXAMPLE.TEST ", "Valid-pass-1");
+    when(directory.emailInUse("admin@example.test")).thenReturn(true);
+    assertThrows(IllegalStateException.class, service::initialize);
+    verifyNoInteractions(accounts, encoder);
+  }
 
-    @Test
-    void createsAdminWithEncodedPassword() {
-        configure(" ADMIN@EXAMPLE.TEST ", "Valid-pass-1");
-        User admin = id(new User("System Administrator", "admin@example.test", Set.of(UserRole.ADMIN), NOW), 1);
-        admin.markAsSystemAdmin();
-        when(directory.createSystemAdmin("admin@example.test", NOW)).thenReturn(admin);
-        when(encoder.encode("Valid-pass-1")).thenReturn("encoded-password");
-        service.initialize();
-        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
-        verify(accounts).saveAndFlush(captor.capture());
-        assertSame(admin, captor.getValue().getUser());
-        assertEquals("encoded-password", captor.getValue().getPasswordHash());
-        assertFalse(captor.getValue().isPasswordChangeRequired());
-    }
+  @Test
+  void createsAdminWithEncodedPassword() {
+    configure(" ADMIN@EXAMPLE.TEST ", "Valid-pass-1");
+    User admin =
+        id(new User("System Administrator", "admin@example.test", Set.of(UserRole.ADMIN), NOW), 1);
+    admin.markAsSystemAdmin();
+    when(directory.createSystemAdmin("admin@example.test", NOW)).thenReturn(admin);
+    when(encoder.encode("Valid-pass-1")).thenReturn("encoded-password");
+    service.initialize();
+    ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+    verify(accounts).saveAndFlush(captor.capture());
+    assertSame(admin, captor.getValue().getUser());
+    assertEquals("encoded-password", captor.getValue().getPasswordHash());
+    assertFalse(captor.getValue().isPasswordChangeRequired());
+  }
 
-    @Test
-    void runnerDelegatesInitialization() {
-        var initializer = mock(SystemAdminBootstrapService.class);
-        new SystemAdminBootstrap(initializer).run(mock(ApplicationArguments.class));
-        verify(initializer).initialize();
-    }
+  @Test
+  void runnerDelegatesInitialization() {
+    var initializer = mock(SystemAdminBootstrapService.class);
+    new SystemAdminBootstrap(initializer).run(mock(ApplicationArguments.class));
+    verify(initializer).initialize();
+  }
 }

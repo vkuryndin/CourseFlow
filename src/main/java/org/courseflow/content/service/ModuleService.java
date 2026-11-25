@@ -1,218 +1,172 @@
 package org.courseflow.content.service;
 
-import org.courseflow.catalog.service.CourseGuard;
-import org.courseflow.common.exception.EditVersion;
-import org.courseflow.common.api.Pagination;
+import org.courseflow.assessment.api.QuizAccess;
 import org.courseflow.catalog.entity.Course;
+import org.courseflow.catalog.service.CourseGuard;
 import org.courseflow.common.api.PageResponse;
+import org.courseflow.common.api.Pagination;
 import org.courseflow.common.exception.BusinessConflictException;
+import org.courseflow.common.exception.EditVersion;
 import org.courseflow.common.exception.ResourceNotFoundException;
+import org.courseflow.content.api.ContentStructure;
+import org.courseflow.content.dto.ChangeModulePositionRequest;
 import org.courseflow.content.dto.CreateModuleRequest;
 import org.courseflow.content.dto.ModuleResponse;
+import org.courseflow.content.dto.UpdateModuleRequest;
 import org.courseflow.content.entity.Module;
 import org.courseflow.content.repository.ModuleRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.courseflow.content.api.ContentStructure;
-import org.courseflow.assessment.api.QuizAccess;
-import org.courseflow.content.dto.UpdateModuleRequest;
-import org.courseflow.content.dto.ChangeModulePositionRequest;
-import org.springframework.dao.DataIntegrityViolationException;
 
 @Service
 public class ModuleService {
 
-    private final ModuleRepository moduleRepository;
-    private final CourseGuard courseGuard;
-    private final ContentStructure contentStructure;
-    private final QuizAccess quizAccess;
+  private final ModuleRepository moduleRepository;
+  private final CourseGuard courseGuard;
+  private final ContentStructure contentStructure;
+  private final QuizAccess quizAccess;
 
-    public ModuleService(
-            ModuleRepository moduleRepository,
-            CourseGuard courseGuard,
-            ContentStructure contentStructure,
-            QuizAccess quizAccess
-    ) {
-        this.moduleRepository = moduleRepository;
-        this.courseGuard = courseGuard;
-        this.contentStructure = contentStructure;
-        this.quizAccess = quizAccess;
+  public ModuleService(
+      ModuleRepository moduleRepository,
+      CourseGuard courseGuard,
+      ContentStructure contentStructure,
+      QuizAccess quizAccess) {
+    this.moduleRepository = moduleRepository;
+    this.courseGuard = courseGuard;
+    this.contentStructure = contentStructure;
+    this.quizAccess = quizAccess;
+  }
+
+  @Transactional
+  public ModuleResponse create(
+      Long courseId, CreateModuleRequest request, Long currentUserId, boolean isAdmin) {
+    Course course =
+        courseGuard.lockEditable(
+            courseId, currentUserId, isAdmin, "Cannot add modules to archived course");
+
+    if (moduleRepository.existsByCourse_IdAndPosition(courseId, request.position())) {
+      throw new BusinessConflictException("Module position is already occupied");
     }
 
-    @Transactional
-    public ModuleResponse create(
-            Long courseId,
-            CreateModuleRequest request,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
-                "Cannot add modules to archived course");
+    String title = request.title().trim();
 
-        if (moduleRepository.existsByCourse_IdAndPosition(
-                courseId, request.position()
-        )) {
-            throw new BusinessConflictException(
-                    "Module position is already occupied"
-            );
-        }
+    String description = request.description() == null ? null : request.description().trim();
 
-        String title = request.title().trim();
+    Module module = course.addModule(title, description, request.position());
 
-        String description = request.description() == null
-                ? null
-                : request.description().trim();
+    Module saved = moduleRepository.saveAndFlush(module);
 
-        Module module = course.addModule(
-                title,
-                description,
-                request.position()
-        );
+    return ModuleResponse.from(saved);
+  }
 
-        Module saved = moduleRepository.saveAndFlush(module);
+  @Transactional(readOnly = true)
+  public PageResponse<ModuleResponse> findByCourse(Long courseId, int page, int size) {
+    Pagination.validate(page, size);
 
-        return ModuleResponse.from(saved);
+    courseGuard.requireExists(courseId);
+
+    PageRequest pageable = PageRequest.of(page, size, Pagination.stableSort("position", "asc"));
+
+    Page<ModuleResponse> result =
+        moduleRepository.findByCourse_Id(courseId, pageable).map(ModuleResponse::from);
+
+    return PageResponse.from(result);
+  }
+
+  @Transactional(readOnly = true)
+  public ModuleResponse getById(Long courseId, Long moduleId) {
+    return ModuleResponse.from(findModule(courseId, moduleId));
+  }
+
+  @Transactional
+  public ModuleResponse update(
+      Long courseId,
+      Long moduleId,
+      UpdateModuleRequest request,
+      Long currentUserId,
+      boolean isAdmin) {
+    findEditableCourse(courseId, currentUserId, isAdmin);
+
+    Module module = findModule(courseId, moduleId);
+
+    String description = request.description() == null ? null : request.description().trim();
+
+    EditVersion.require(request.version(), module.getVersion());
+
+    module.updateDetails(request.title().trim(), description);
+
+    moduleRepository.flush();
+    return ModuleResponse.from(module);
+  }
+
+  @Transactional
+  public ModuleResponse changePosition(
+      Long courseId,
+      Long moduleId,
+      ChangeModulePositionRequest request,
+      Long currentUserId,
+      boolean isAdmin) {
+    findEditableCourse(courseId, currentUserId, isAdmin);
+
+    Module module = findModule(courseId, moduleId);
+
+    EditVersion.require(request.version(), module.getVersion());
+
+    int oldPosition = module.getPosition();
+    int newPosition = request.position();
+
+    if (oldPosition == newPosition) {
+      return ModuleResponse.from(module);
     }
 
-    @Transactional(readOnly = true)
-    public PageResponse<ModuleResponse> findByCourse(
-            Long courseId,
-            int page,
-            int size
-    ) {
-        Pagination.validate(page, size);
+    var affected =
+        moduleRepository.findByCourse_IdAndPositionBetweenOrderByPositionAsc(
+            courseId, Math.min(oldPosition, newPosition), Math.max(oldPosition, newPosition));
+    PositionMover.move(
+        module,
+        oldPosition,
+        newPosition,
+        affected,
+        Module::getPosition,
+        Module::changePosition,
+        () -> moduleRepository.findMaxPositionByCourseId(courseId),
+        moduleRepository::flush);
 
-        courseGuard.requireExists(courseId);
+    return ModuleResponse.from(module);
+  }
 
-        PageRequest pageable = PageRequest.of(
-                page,
-                size,
-                Pagination.stableSort("position", "asc")
-        );
+  @Transactional
+  public void delete(Long courseId, Long moduleId, Long currentUserId, boolean isAdmin) {
+    findEditableCourse(courseId, currentUserId, isAdmin);
 
-        Page<ModuleResponse> result = moduleRepository
-                .findByCourse_Id(courseId, pageable)
-                .map(ModuleResponse::from);
+    Module module = findModule(courseId, moduleId);
 
-        return PageResponse.from(result);
+    if (contentStructure.hasLessons(moduleId) || quizAccess.hasQuiz(moduleId)) {
+      throw new BusinessConflictException("Module has lessons or quiz and cannot be deleted");
     }
 
-    @Transactional(readOnly = true)
-    public ModuleResponse getById(
-            Long courseId,
-            Long moduleId
-    ) {
-        return ModuleResponse.from(
-                findModule(courseId, moduleId)
-        );
+    try {
+      moduleRepository.delete(module);
+      moduleRepository.flush();
+    } catch (DataIntegrityViolationException ex) {
+      throw new BusinessConflictException("Module has related records and cannot be deleted");
     }
+  }
 
-    @Transactional
-    public ModuleResponse update(
-            Long courseId,
-            Long moduleId,
-            UpdateModuleRequest request,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        findEditableCourse(courseId, currentUserId, isAdmin);
+  private Module findModule(Long courseId, Long moduleId) {
+    return moduleRepository
+        .findByIdAndCourse_Id(moduleId, courseId)
+        .orElseThrow(() -> new ResourceNotFoundException("Module not found: " + moduleId));
+  }
 
-        Module module = findModule(courseId, moduleId);
+  private Course findEditableCourse(Long courseId, Long currentUserId, boolean isAdmin) {
+    Course course =
+        courseGuard.lockEditable(
+            courseId, currentUserId, isAdmin, "Cannot modify an archived course");
 
-        String description = request.description() == null
-                ? null
-                : request.description().trim();
-
-        EditVersion.require(request.version(), module.getVersion());
-
-        module.updateDetails(
-                request.title().trim(),
-                description
-        );
-
-        moduleRepository.flush();
-        return ModuleResponse.from(module);
-    }
-
-    @Transactional
-    public ModuleResponse changePosition(
-            Long courseId,
-            Long moduleId,
-            ChangeModulePositionRequest request,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        findEditableCourse(courseId, currentUserId, isAdmin);
-
-        Module module = findModule(courseId, moduleId);
-
-        EditVersion.require(request.version(), module.getVersion());
-
-        int oldPosition = module.getPosition();
-        int newPosition = request.position();
-
-        if (oldPosition == newPosition) {
-            return ModuleResponse.from(module);
-        }
-
-        var affected = moduleRepository.findByCourse_IdAndPositionBetweenOrderByPositionAsc(
-                courseId, Math.min(oldPosition, newPosition), Math.max(oldPosition, newPosition));
-        PositionMover.move(module, oldPosition, newPosition, affected,
-                Module::getPosition, Module::changePosition,
-                () -> moduleRepository.findMaxPositionByCourseId(courseId),
-                moduleRepository::flush);
-
-        return ModuleResponse.from(module);
-    }
-
-    @Transactional
-    public void delete(
-            Long courseId,
-            Long moduleId,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        findEditableCourse(courseId, currentUserId, isAdmin);
-
-        Module module = findModule(courseId, moduleId);
-
-        if (contentStructure.hasLessons(moduleId) || quizAccess.hasQuiz(moduleId)) {
-            throw new BusinessConflictException(
-                    "Module has lessons or quiz and cannot be deleted"
-            );
-        }
-
-        try {
-            moduleRepository.delete(module);
-            moduleRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            throw new BusinessConflictException(
-                    "Module has related records and cannot be deleted"
-            );
-        }
-    }
-
-    private Module findModule(Long courseId, Long moduleId) {
-        return moduleRepository
-                .findByIdAndCourse_Id(moduleId, courseId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Module not found: " + moduleId
-                        )
-                );
-    }
-
-    private Course findEditableCourse(
-            Long courseId,
-            Long currentUserId,
-            boolean isAdmin
-    ) {
-        Course course = courseGuard.lockEditable(courseId, currentUserId, isAdmin,
-                "Cannot modify an archived course");
-
-        return course;
-    }
-
+    return course;
+  }
 }

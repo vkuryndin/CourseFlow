@@ -5,20 +5,21 @@ import org.courseflow.common.exception.BadRequestException;
 
 /** BCrypt accepts no more than 72 UTF-8 bytes, not 72 Unicode characters. */
 public final class PasswordBytes {
-    private static final int MAX_BYTES = 72;
-    private PasswordBytes() {}
+  private static final int MAX_BYTES = 72;
 
-    public static boolean fits(String password) {
-        return fits(password, MAX_BYTES);
-    }
+  private PasswordBytes() {}
 
-    public static boolean fits(String password, int maxBytes) {
-        return password.getBytes(StandardCharsets.UTF_8).length <= maxBytes;
-    }
+  public static boolean fits(String password) {
+    return fits(password, MAX_BYTES);
+  }
 
-    public static void requireFits(String password, String label) {
-        if (!fits(password)) {
-            throw new BadRequestException(label + " must not exceed 72 UTF-8 bytes");
-        }
+  public static boolean fits(String password, int maxBytes) {
+    return password.getBytes(StandardCharsets.UTF_8).length <= maxBytes;
+  }
+
+  public static void requireFits(String password, String label) {
+    if (!fits(password)) {
+      throw new BadRequestException(label + " must not exceed 72 UTF-8 bytes");
     }
+  }
 }

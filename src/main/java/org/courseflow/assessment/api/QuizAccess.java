@@ -9,9 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
 public class QuizAccess {
-    private final QuizRepository repository;
+  private final QuizRepository repository;
 
-    public QuizAccess(QuizRepository repository) { this.repository = repository; }
+  public QuizAccess(QuizRepository repository) {
+    this.repository = repository;
+  }
 
-    public boolean hasQuiz(Long moduleId) { return repository.existsByModule_Id(moduleId); }
+  public boolean hasQuiz(Long moduleId) {
+    return repository.existsByModule_Id(moduleId);
+  }
 }

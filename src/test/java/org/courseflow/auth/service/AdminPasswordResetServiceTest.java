@@ -12,28 +12,28 @@ import org.courseflow.identity.api.UserDirectory;
 import org.junit.jupiter.api.Test;
 
 class AdminPasswordResetServiceTest {
-    private final UserDirectory users = mock(UserDirectory.class);
-    private final PasswordResetService resets = mock(PasswordResetService.class);
-    private final AdminPasswordResetService service = new AdminPasswordResetService(users, resets);
+  private final UserDirectory users = mock(UserDirectory.class);
+  private final PasswordResetService resets = mock(PasswordResetService.class);
+  private final AdminPasswordResetService service = new AdminPasswordResetService(users, resets);
 
-    @Test
-    void activeUserReceivesResetLink() {
-        when(users.requireUser(10L)).thenReturn(student());
-        service.sendResetLink(10L);
+  @Test
+  void activeUserReceivesResetLink() {
+    when(users.requireUser(10L)).thenReturn(student());
+    service.sendResetLink(10L);
 
-        verify(resets).requestReset("student@example.test");
-    }
+    verify(resets).requestReset("student@example.test");
+  }
 
-    @Test
-    void inactiveOrEmailLessUserRejected() {
-        var user = student();
-        user.deactivate();
-        when(users.requireUser(10L)).thenReturn(user);
+  @Test
+  void inactiveOrEmailLessUserRejected() {
+    var user = student();
+    user.deactivate();
+    when(users.requireUser(10L)).thenReturn(user);
 
-        assertThrows(BusinessConflictException.class, () -> service.sendResetLink(10L));
-        user.activate();
-        user.updateDetails("Student", null);
-        assertThrows(BusinessConflictException.class, () -> service.sendResetLink(10L));
-        verifyNoInteractions(resets);
-    }
+    assertThrows(BusinessConflictException.class, () -> service.sendResetLink(10L));
+    user.activate();
+    user.updateDetails("Student", null);
+    assertThrows(BusinessConflictException.class, () -> service.sendResetLink(10L));
+    verifyNoInteractions(resets);
+  }
 }

@@ -1,4 +1,3 @@
-
 package org.courseflow.catalog.entity;
 
 import jakarta.persistence.*;
@@ -7,46 +6,45 @@ import jakarta.persistence.*;
 @Table(name = "categories")
 public class Category {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Version
-    @Column(nullable = false, columnDefinition = "bigint default 0")
-    private long version;
+  @Version
+  @Column(nullable = false, columnDefinition = "bigint default 0")
+  private long version;
 
-    public long getVersion() {
-        return version;
-    }
+  public long getVersion() {
+    return version;
+  }
 
-    @Column(nullable = false, unique = true, length = 100)
-    private String name;
+  @Column(nullable = false, unique = true, length = 100)
+  private String name;
 
-    @Column(length = 2000)
-    private String description;
+  @Column(length = 2000)
+  private String description;
 
-    protected Category() {
-    }
+  protected Category() {}
 
-    public Category(String name, String description) {
-        this.name = name;
-        this.description = description;
-    }
+  public Category(String name, String description) {
+    this.name = name;
+    this.description = description;
+  }
 
-    public Long getId() {
-        return id;
-    }
+  public Long getId() {
+    return id;
+  }
 
-    public String getName() {
-        return name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    public String getDescription() {
-        return description;
-    }
+  public String getDescription() {
+    return description;
+  }
 
-    public void update(String name, String description) {
-        this.name = name;
-        this.description = description;
-    }
+  public void update(String name, String description) {
+    this.name = name;
+    this.description = description;
+  }
 }

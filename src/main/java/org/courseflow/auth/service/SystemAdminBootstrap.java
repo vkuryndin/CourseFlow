@@ -1,4 +1,3 @@
-
 package org.courseflow.auth.service;
 
 import org.springframework.boot.ApplicationArguments;
@@ -8,16 +7,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class SystemAdminBootstrap implements ApplicationRunner {
 
-    private final SystemAdminBootstrapService bootstrapService;
+  private final SystemAdminBootstrapService bootstrapService;
 
-    public SystemAdminBootstrap(
-            SystemAdminBootstrapService bootstrapService
-    ) {
-        this.bootstrapService = bootstrapService;
-    }
+  public SystemAdminBootstrap(SystemAdminBootstrapService bootstrapService) {
+    this.bootstrapService = bootstrapService;
+  }
 
-    @Override
-    public void run(ApplicationArguments args) {
-        bootstrapService.initialize();
-    }
+  @Override
+  public void run(ApplicationArguments args) {
+    bootstrapService.initialize();
+  }
 }

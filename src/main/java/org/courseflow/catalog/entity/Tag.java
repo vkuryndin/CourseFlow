@@ -1,4 +1,3 @@
-
 package org.courseflow.catalog.entity;
 
 import jakarta.persistence.*;
@@ -7,38 +6,36 @@ import jakarta.persistence.*;
 @Table(name = "tags")
 public class Tag {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Version
-    @Column(nullable = false, columnDefinition = "bigint default 0")
-    private long version;
+  @Version
+  @Column(nullable = false, columnDefinition = "bigint default 0")
+  private long version;
 
-    public long getVersion() {
-        return version;
-    }
+  public long getVersion() {
+    return version;
+  }
 
-    @Column(nullable = false, unique = true, length = 50)
-    private String name;
+  @Column(nullable = false, unique = true, length = 50)
+  private String name;
 
-    protected Tag() {
-    }
+  protected Tag() {}
 
-    public Tag(String name) {
-        this.name = name;
-    }
+  public Tag(String name) {
+    this.name = name;
+  }
 
-    public Long getId() {
-        return id;
-    }
+  public Long getId() {
+    return id;
+  }
 
-    public String getName() {
-        return name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    public void rename(String newName) {
-        this.name = newName;
-    }
-
+  public void rename(String newName) {
+    this.name = newName;
+  }
 }

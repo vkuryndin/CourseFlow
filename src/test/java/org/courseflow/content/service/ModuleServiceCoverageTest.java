@@ -1,6 +1,5 @@
 package org.courseflow.content.service;
 
-import static org.courseflow.testing.Fixtures.id;
 import static org.courseflow.testing.Fixtures.module;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,59 +26,65 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 class ModuleServiceCoverageTest {
-    private final ModuleRepository repository = mock(ModuleRepository.class);
-    private final CourseGuard guard = mock(CourseGuard.class);
-    private final ContentStructure content = mock(ContentStructure.class);
-    private final QuizAccess quizzes = mock(QuizAccess.class);
-    private final ModuleService service = new ModuleService(repository, guard, content, quizzes);
-    private final Module module = module();
+  private final ModuleRepository repository = mock(ModuleRepository.class);
+  private final CourseGuard guard = mock(CourseGuard.class);
+  private final ContentStructure content = mock(ContentStructure.class);
+  private final QuizAccess quizzes = mock(QuizAccess.class);
+  private final ModuleService service = new ModuleService(repository, guard, content, quizzes);
+  private final Module module = module();
 
-    private void setup() {
-        when(repository.findByIdAndCourse_Id(50L, 40L)).thenReturn(Optional.of(module));
-    }
+  private void setup() {
+    when(repository.findByIdAndCourse_Id(50L, 40L)).thenReturn(Optional.of(module));
+  }
 
-    @Test
-    void findByCourseMapsModules() {
-        var page = PageRequest.of(0, 10, Sort.by("position", "id"));
-        when(repository.findByCourse_Id(40L, page)).thenReturn(new PageImpl<>(List.of(module), page, 1));
-        assertEquals(50L, service.findByCourse(40L, 0, 10).content().get(0).id());
-        verify(guard).requireExists(40L);
-    }
+  @Test
+  void findByCourseMapsModules() {
+    var page = PageRequest.of(0, 10, Sort.by("position", "id"));
+    when(repository.findByCourse_Id(40L, page))
+        .thenReturn(new PageImpl<>(List.of(module), page, 1));
+    assertEquals(50L, service.findByCourse(40L, 0, 10).content().get(0).id());
+    verify(guard).requireExists(40L);
+  }
 
-    @Test
-    void getByIdMapsModule() {
-        setup();
-        assertEquals("JPA", service.getById(40L, 50L).title());
-    }
+  @Test
+  void getByIdMapsModule() {
+    setup();
+    assertEquals("JPA", service.getById(40L, 50L).title());
+  }
 
-    @Test
-    void cannotDeleteWithQuiz() {
-        setup();
-        when(quizzes.hasQuiz(50L)).thenReturn(true);
-        assertThrows(BusinessConflictException.class, () -> service.delete(40L, 50L, 20L, false));
-        verify(repository, never()).delete(any(Module.class));
-    }
+  @Test
+  void cannotDeleteWithQuiz() {
+    setup();
+    when(quizzes.hasQuiz(50L)).thenReturn(true);
+    assertThrows(BusinessConflictException.class, () -> service.delete(40L, 50L, 20L, false));
+    verify(repository, never()).delete(any(Module.class));
+  }
 
-    @Test
-    void emptyModuleDeleted() {
-        setup();
-        service.delete(40L, 50L, 20L, false);
-        verify(repository).delete(module);
-        verify(repository).flush();
-    }
+  @Test
+  void emptyModuleDeleted() {
+    setup();
+    service.delete(40L, 50L, 20L, false);
+    verify(repository).delete(module);
+    verify(repository).flush();
+  }
 
-    @Test
-    void deleteTranslatesForeignKeyConflict() {
-        setup();
-        doThrow(new DataIntegrityViolationException("related")).when(repository).flush();
-        assertThrows(BusinessConflictException.class, () -> service.delete(40L, 50L, 20L, false));
-    }
+  @Test
+  void deleteTranslatesForeignKeyConflict() {
+    setup();
+    doThrow(new DataIntegrityViolationException("related")).when(repository).flush();
+    assertThrows(BusinessConflictException.class, () -> service.delete(40L, 50L, 20L, false));
+  }
 
-    @Test
-    void moveToFreePosition() {
-        setup();
-        when(repository.findByCourse_IdAndPositionBetweenOrderByPositionAsc(40L, 1, 3)).thenReturn(List.of(module));
-        assertEquals(3, service.changePosition(40L, 50L, new ChangeModulePositionRequest(3, 0L), 20L, false).position());
-        verify(repository).flush();
-    }
+  @Test
+  void moveToFreePosition() {
+    setup();
+    when(repository.findByCourse_IdAndPositionBetweenOrderByPositionAsc(40L, 1, 3))
+        .thenReturn(List.of(module));
+    assertEquals(
+        3,
+        service
+            .changePosition(40L, 50L, new ChangeModulePositionRequest(3, 0L), 20L, false)
+            .position());
+    verify(repository).flush();
+  }
 }

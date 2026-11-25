@@ -11,16 +11,25 @@ import org.springframework.transaction.annotation.Transactional;
 /** Session verification and the agreed startup invalidation policy. */
 @Service
 public class SessionAccess {
-    private final AuthSessionRepository sessions;
+  private final AuthSessionRepository sessions;
 
-    public SessionAccess(AuthSessionRepository sessions) { this.sessions = sessions; }
+  public SessionAccess(AuthSessionRepository sessions) {
+    this.sessions = sessions;
+  }
 
-    @Transactional(readOnly = true)
-    public List<String> activeRoles(UUID sessionId, Long userId, Instant now, boolean passwordChangeRequired) {
-        return sessions.findValidSessionRoles(sessionId, userId, UserStatus.ACTIVE, now, passwordChangeRequired)
-                .stream().map(Enum::name).sorted().toList();
-    }
+  @Transactional(readOnly = true)
+  public List<String> activeRoles(
+      UUID sessionId, Long userId, Instant now, boolean passwordChangeRequired) {
+    return sessions
+        .findValidSessionRoles(sessionId, userId, UserStatus.ACTIVE, now, passwordChangeRequired)
+        .stream()
+        .map(Enum::name)
+        .sorted()
+        .toList();
+  }
 
-    @Transactional
-    public void invalidateAllOnStartup() { sessions.deleteAllInBatch(); }
+  @Transactional
+  public void invalidateAllOnStartup() {
+    sessions.deleteAllInBatch();
+  }
 }

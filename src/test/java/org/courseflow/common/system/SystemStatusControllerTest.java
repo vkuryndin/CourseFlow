@@ -8,15 +8,15 @@ import org.junit.jupiter.api.Test;
 
 class SystemStatusControllerTest {
 
-    @Test
-    void returnsConnectedStatusAfterDatabaseCheck() {
-        var service = mock(SystemStatusService.class);
+  @Test
+  void returnsConnectedStatusAfterDatabaseCheck() {
+    var service = mock(SystemStatusService.class);
 
-        var response = new SystemStatusController(service).status();
+    var response = new SystemStatusController(service).status();
 
-        verify(service).checkDatabase();
-        assertEquals("CourseFlow", response.application());
-        assertEquals("UP", response.status());
-        assertEquals("CONNECTED", response.database());
-    }
+    verify(service).checkDatabase();
+    assertEquals("CourseFlow", response.application());
+    assertEquals("UP", response.status());
+    assertEquals("CONNECTED", response.database());
+  }
 }

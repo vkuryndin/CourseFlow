@@ -1,4 +1,3 @@
-
 package org.courseflow.assessment.dto;
 
 import jakarta.validation.constraints.Max;
@@ -8,15 +7,4 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CreateQuizRequest(
-
-        @NotBlank
-        @Size(max = 200)
-        String title,
-
-        @NotNull
-        @Min(1)
-        @Max(240)
-        Integer timeLimit
-
-) {
-}
+    @NotBlank @Size(max = 200) String title, @NotNull @Min(1) @Max(240) Integer timeLimit) {}

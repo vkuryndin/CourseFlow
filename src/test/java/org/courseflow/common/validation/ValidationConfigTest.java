@@ -10,18 +10,17 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 class ValidationConfigTest {
-    private record FutureValue(@Future Instant value) {
-    }
+  private record FutureValue(@Future Instant value) {}
 
-    @Test
-    void validatorUsesInjectedClock() {
-        var validator = new ValidationConfig().defaultValidator(CLOCK);
-        validator.afterPropertiesSet();
-        try {
-            assertTrue(validator.validate(new FutureValue(NOW.plusSeconds(1))).isEmpty());
-            assertFalse(validator.validate(new FutureValue(NOW)).isEmpty());
-        } finally {
-            validator.close();
-        }
+  @Test
+  void validatorUsesInjectedClock() {
+    var validator = new ValidationConfig().defaultValidator(CLOCK);
+    validator.afterPropertiesSet();
+    try {
+      assertTrue(validator.validate(new FutureValue(NOW.plusSeconds(1))).isEmpty());
+      assertFalse(validator.validate(new FutureValue(NOW)).isEmpty());
+    } finally {
+      validator.close();
     }
+  }
 }

@@ -10,17 +10,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
 public class CourseParticipation {
-    private final CourseRepository courses;
+  private final CourseRepository courses;
 
-    public CourseParticipation(CourseRepository courses) {
-        this.courses = courses;
-    }
+  public CourseParticipation(CourseRepository courses) {
+    this.courses = courses;
+  }
 
-    public boolean teachesAnyCourse(Long userId) {
-        return courses.existsByTeacher_Id(userId);
-    }
+  public boolean teachesAnyCourse(Long userId) {
+    return courses.existsByTeacher_Id(userId);
+  }
 
-    public boolean teachesActiveCourse(Long userId) {
-        return courses.existsByTeacher_IdAndStatus(userId, CourseStatus.ACTIVE);
-    }
+  public boolean teachesActiveCourse(Long userId) {
+    return courses.existsByTeacher_IdAndStatus(userId, CourseStatus.ACTIVE);
+  }
 }

@@ -6,79 +6,66 @@ import java.nio.file.Path;
 
 public final class DockerSshTunnel implements AutoCloseable {
 
-    private static final int LOCAL_PORT = 23750;
-    private static final int SSH_PORT = 22;
-    private static final int TIMEOUT_MS = 10_000;
+  private static final int LOCAL_PORT = 23750;
+  private static final int SSH_PORT = 22;
+  private static final int TIMEOUT_MS = 10_000;
 
-    private final Session session;
+  private final Session session;
 
-    private DockerSshTunnel(Session session) {
-        this.session = session;
+  private DockerSshTunnel(Session session) {
+    this.session = session;
+  }
+
+  public static DockerSshTunnel open() throws Exception {
+
+    String host = System.getenv("SSH_HOST");
+
+    // Local Docker or GitHub Actions
+    if (host == null || host.isBlank()) {
+      return new DockerSshTunnel(null);
     }
 
-    public static DockerSshTunnel open() throws Exception {
+    String user = requireEnvironment("SSH_USER");
+    String password = requireEnvironment("SSH_PASSWORD");
 
-        String host = System.getenv("SSH_HOST");
+    JSch jsch = new JSch();
 
-        // Local Docker or GitHub Actions
-        if (host == null || host.isBlank()) {
-            return new DockerSshTunnel(null);
-        }
+    jsch.setKnownHosts(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts").toString());
 
-        String user = requireEnvironment("SSH_USER");
-        String password = requireEnvironment("SSH_PASSWORD");
+    Session session = jsch.getSession(user, host, SSH_PORT);
 
-        JSch jsch = new JSch();
+    session.setPassword(password);
+    session.setConfig("StrictHostKeyChecking", "yes");
 
-        jsch.setKnownHosts(
-                Path.of(
-                        System.getProperty("user.home"),
-                        ".ssh",
-                        "known_hosts"
-                ).toString()
-        );
+    try {
+      session.connect(TIMEOUT_MS);
 
-        Session session = jsch.getSession(user, host, SSH_PORT);
+      session.setSocketForwardingL(
+          "127.0.0.1", LOCAL_PORT, "/var/run/docker.sock", null, TIMEOUT_MS);
 
-        session.setPassword(password);
-        session.setConfig("StrictHostKeyChecking", "yes");
+      return new DockerSshTunnel(session);
 
-        try {
-            session.connect(TIMEOUT_MS);
+    } catch (Exception exception) {
+      session.disconnect();
+      throw exception;
+    }
+  }
 
-            session.setSocketForwardingL(
-                    "127.0.0.1",
-                    LOCAL_PORT,
-                    "/var/run/docker.sock",
-                    null,
-                    TIMEOUT_MS
-            );
+  private static String requireEnvironment(String name) {
 
-            return new DockerSshTunnel(session);
+    String value = System.getenv(name);
 
-        } catch (Exception exception) {
-            session.disconnect();
-            throw exception;
-        }
+    if (value == null || value.isBlank()) {
+      throw new IllegalStateException("Missing environment variable: " + name);
     }
 
-    private static String requireEnvironment(String name) {
+    return value;
+  }
 
-        String value = System.getenv(name);
-
-        if (value == null || value.isBlank()) {
-            throw new IllegalStateException(
-                    "Missing environment variable: " + name
-            );
-        }
-
-        return value;
+  @Override
+  public void close() {
+    if (session != null) {
+      session.disconnect();
     }
-
-    @Override
-    public void close() {
-        if (session != null) {
-            session.disconnect();
-        }
-    }
+  }
 }

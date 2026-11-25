@@ -9,11 +9,15 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ApplicationLifecycleLogging {
-    private static final Logger log = LoggerFactory.getLogger(ApplicationLifecycleLogging.class);
+  private static final Logger log = LoggerFactory.getLogger(ApplicationLifecycleLogging.class);
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void ready() { log.info("event=application_ready"); }
+  @EventListener(ApplicationReadyEvent.class)
+  public void ready() {
+    log.info("event=application_ready");
+  }
 
-    @EventListener(ContextClosedEvent.class)
-    public void stopping() { log.info("event=application_shutdown_started"); }
+  @EventListener(ContextClosedEvent.class)
+  public void stopping() {
+    log.info("event=application_shutdown_started");
+  }
 }
