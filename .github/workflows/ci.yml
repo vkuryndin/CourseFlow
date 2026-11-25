@@ -24,7 +24,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
+      - uses: gradle/actions/setup-gradle@v6
       - name: Unit tests, architecture and code quality
         run: bash ./gradlew --no-daemon test spotlessCheck spotbugsMain checkstyleMain
       - name: Integration tests (PostgreSQL Testcontainers)

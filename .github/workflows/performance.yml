@@ -18,7 +18,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
+      - uses: gradle/actions/setup-gradle@v6
       - name: Run performance tests
         run: bash ./gradlew --no-daemon performanceTest
       - name: Upload performance reports
