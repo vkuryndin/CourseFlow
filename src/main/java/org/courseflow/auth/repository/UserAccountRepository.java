@@ -12,10 +12,6 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
   Optional<UserAccount> findByUser_Id(Long userId);
 
-  Optional<UserAccount> findByUser_Email(String email);
-
-  Optional<UserAccount> findByUser_EmailIgnoreCase(String email);
-
   @Query(
       """
         select new org.courseflow.auth.repository.AccountPasswordSnapshot(a.id, a.passwordHash)

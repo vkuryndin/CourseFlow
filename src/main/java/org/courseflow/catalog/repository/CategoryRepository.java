@@ -12,8 +12,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-  Optional<Category> findByName(String name);
-
   @Query("select (count(c) > 0) from Category c where lower(c.name) = lower(:name)")
   boolean existsByNameIgnoreCase(@Param("name") String name);
 

@@ -11,8 +11,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface LessonRepository extends JpaRepository<Lesson, Long> {
 
-  Page<Lesson> findAllByModule_Id(Long moduleId, Pageable pageable);
-
   @Query(
       value =
           """
@@ -25,13 +23,9 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
 
   boolean existsByModule_Id(Long moduleId);
 
-  Page<Lesson> findByModule_Id(Long moduleId, Pageable pageable);
-
   Optional<Lesson> findByIdAndModule_Id(Long id, Long moduleId);
 
   boolean existsByModule_IdAndPosition(Long moduleId, Integer position);
-
-  Optional<Lesson> findByModule_IdAndPosition(Long moduleId, Integer position);
 
   Optional<Lesson> findFirstByModule_IdOrderByPositionDescIdDesc(Long moduleId);
 

@@ -12,8 +12,6 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 
   Page<Assignment> findAllByLesson_Id(Long lessonId, Pageable pageable);
 
-  Page<Assignment> findAllByLesson_Module_Course_Id(Long courseId, Pageable pageable);
-
   boolean existsByLesson_Id(Long lessonId);
 
   @Query(

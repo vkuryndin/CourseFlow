@@ -55,7 +55,6 @@ dependencies {
 
     // Testcontainers
     testImplementation("org.testcontainers:testcontainers-postgresql")
-    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 
     // SSH connection to remote Docker
     testImplementation("com.github.mwiede:jsch:2.28.4")

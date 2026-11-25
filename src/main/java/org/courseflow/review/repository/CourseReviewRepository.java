@@ -16,8 +16,6 @@ public interface CourseReviewRepository extends JpaRepository<CourseReview, Long
   @EntityGraph(attributePaths = "student")
   Page<CourseReview> findAllByCourse_Id(Long courseId, Pageable pageable);
 
-  Page<CourseReview> findAllByStudent_Id(Long studentId, Pageable pageable);
-
   boolean existsByCourse_Id(Long courseId);
 
   long countByCourse_Id(Long courseId);

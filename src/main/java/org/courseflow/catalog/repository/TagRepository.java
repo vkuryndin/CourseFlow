@@ -12,8 +12,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface TagRepository extends JpaRepository<Tag, Long> {
 
-  Optional<Tag> findByName(String name);
-
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select t from Tag t where t.id = :id")
   Optional<Tag> findByIdForUpdate(@Param("id") Long id);
@@ -21,8 +19,6 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
   @Lock(LockModeType.PESSIMISTIC_READ)
   @Query("select t from Tag t where t.id = :id")
   Optional<Tag> findByIdForShare(@Param("id") Long id);
-
-  boolean existsByName(String name);
 
   Page<Tag> findByNameContainingIgnoreCase(String name, Pageable pageable);
 

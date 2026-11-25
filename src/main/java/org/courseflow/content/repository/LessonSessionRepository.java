@@ -13,11 +13,6 @@ public interface LessonSessionRepository extends JpaRepository<LessonSession, Lo
 
   Page<LessonSession> findAllByLesson_Id(Long lessonId, Pageable pageable);
 
-  Page<LessonSession> findAllByLesson_Module_Course_Id(Long courseId, Pageable pageable);
-
-  Page<LessonSession> findAllByLesson_Module_Course_IdAndStartsAtGreaterThanEqual(
-      Long courseId, Instant startsAt, Pageable pageable);
-
   boolean existsByLesson_Id(Long lessonId);
 
   boolean existsByLesson_Module_Course_IdAndEndsAtGreaterThan(Long courseId, Instant now);

@@ -21,8 +21,6 @@ public interface ModuleRepository extends JpaRepository<Module, Long> {
 
   Optional<Module> findByIdAndCourse_Id(Long id, Long courseId);
 
-  Optional<Module> findByCourse_IdAndPosition(Long courseId, Integer position);
-
   @Query(
       """
         SELECT COALESCE(MAX(m.position), 0)
