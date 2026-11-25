@@ -1,2864 +1,551 @@
+# CourseFlow — manual REST requests
+# Execute requests in order. The timed scenarios and email recovery require individual execution.
+
 @baseUrl = http://localhost:8080
+@admin_email = admin@courseflow.local
 @admin_password = 1234567890!qw
+@test_password = CourseFlowTest2026!
+@new_password = CourseFlowChanged2026!
 
+# Password recovery: enter an email address you can receive mail at and the token from the email.
+@reset_email = replace-me@example.com
+@reset_token = REPLACE_WITH_EMAIL_TOKEN
+@admin_reset_token = REPLACE_WITH_ADMIN_RESET_EMAIL_TOKEN
+@reset_final_password = CourseFlowResetAgain2026!
 
-@reset_email = vkuryndin@gmail.com
-@reset_token = 72kLhdF7lFApIokjXLb6bmHvmb9drsdZjyTAQCylyDg
-@reset_user_id = 6
+# Authentication and system
 
-### 1. Проверка Spring Boot и соединения с PostgreSQL
-GET {{baseUrl}}/api/system/status
-Accept: application/json
+### Login admin — 200
+< {%
+    [
+        "manual_active_enrollments_before", "manual_admin_id", "manual_admin_token", "manual_assignment2_id", "manual_assignment_id",
+        "manual_assignment_version", "manual_attempt1_id", "manual_attempt2_id", "manual_category_id", "manual_category_version",
+        "manual_course_id", "manual_course_start", "manual_course_version", "manual_due_at", "manual_enrollment_id",
+        "manual_expiry_attempt_id", "manual_expiry_module_id", "manual_expiry_quiz_id", "manual_expiry_quiz_version", "manual_extended_due",
+        "manual_lesson_id", "manual_lesson_version", "manual_module_id", "manual_module_version", "manual_overdue_assignment_id",
+        "manual_overdue_assignment_version", "manual_q1_correct_id", "manual_q1_wrong_id", "manual_q2_correct1_id", "manual_q2_correct2_id",
+        "manual_question1_id", "manual_question2_id", "manual_quiz_id", "manual_quiz_version", "manual_reset_old_token",
+        "manual_reset_user_id", "manual_review_id", "manual_run_id", "manual_session_end", "manual_session_id",
+        "manual_session_start", "manual_session_version", "manual_short_due", "manual_student_email", "manual_student_id",
+        "manual_student_token", "manual_submission_id", "manual_submission_version", "manual_tag_id", "manual_tag_version",
+        "manual_teacher_email", "manual_teacher_id", "manual_teacher_token", "manual_teacher_version", "manual_total_enrollments_before"
+    ].forEach(key => client.global.clear(key));
+    const run = Date.now().toString();
+    client.global.set("manual_run_id", run);
+    client.global.set("manual_student_email", "manual.student." + run + "@courseflow.local");
+    client.global.set("manual_teacher_email", "manual.teacher." + run + "@courseflow.local");
+    function day(n) { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+    client.global.set("manual_course_start", day(1));
+    client.global.set("manual_session_start", day(3) + "T10:00:00Z");
+    client.global.set("manual_session_end", day(3) + "T11:00:00Z");
+    client.global.set("manual_due_at", day(20) + "T18:00:00Z");
+    client.global.set("manual_extended_due", day(22) + "T18:00:00Z");
+%}
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
 
-### Ожидаем 200 OK:
-### {"application":"study-orm","status":"UP","database":"CONNECTED"}
+{"email":"{{admin_email}}","password":"{{admin_password}}"}
 
-### 2. Стандартная проверка здоровья приложения (Actuator)
+> {%
+    if (response.status === 200) {
+        client.global.set("manual_admin_token", String(response.body.accessToken));
+        client.global.set("manual_admin_id", String(response.body.userId));
+    }
+%}
+
+### Anonymous actuator health — 200
 GET {{baseUrl}}/actuator/health
-Accept: application/json
 
-### Ожидаем 200 OK и общий status = UP, db = UP
+### System status (ADMIN) — 200
+GET {{baseUrl}}/api/system/status
+Authorization: Bearer {{manual_admin_token}}
 
+### Admin system diagnostics — 200
+GET {{baseUrl}}/api/system/info
+Authorization: Bearer {{manual_admin_token}}
 
-### Existing endpoint: must work
-GET http://localhost:8080/api/system/status
-
-### Nonexistent endpoint: must return 404
-GET http://localhost:8080/api/does-not-exist
-
-
-
-### 1. Create category - expected 201
-POST http://localhost:8080/api/categories
+### Register student — 201
+POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-  "name": "Java Programming",
-  "description": "Courses about Java programming"
-}
-
-
-### 2. Create another category - expected 201
-POST http://localhost:8080/api/categories
-Content-Type: application/json
-
-{
-  "name": "Databases",
-  "description": "PostgreSQL, SQL and database design"
-}
-
-
-### 3. Get categories with pagination - expected 200
-GET http://localhost:8080/api/categories?page=0&size=10
-
-
-### 4. Search categories - expected 200
-GET http://localhost:8080/api/categories?search=Java
-
-
-### 5. Sort descending - expected 200
-GET http://localhost:8080/api/categories?sortBy=name&direction=desc
-
-
-### 6. Duplicate category - expected 409
-POST http://localhost:8080/api/categories
-Content-Type: application/json
-
-{
-  "name": "Java Programming",
-  "description": "Duplicate category"
-}
-
-
-### 7. Empty name - expected 400
-POST http://localhost:8080/api/categories
-Content-Type: application/json
-
-{
-  "name": "",
-  "description": "Invalid category"
-}
-
-
-### 8. Invalid page size - expected 400
-GET http://localhost:8080/api/categories?size=0
-
-
-### 9. Category not found - expected 404
-GET http://localhost:8080/api/categories/999999
-
-
-### 10. Invalid sorting field - expected 400
-GET http://localhost:8080/api/categories?sortBy=password
-
-
-
-### 1. Public categories - expected 200
-GET http://localhost:8080/api/categories?page=0&size=10
-
-
-### 2. System status - expected 200
-GET http://localhost:8080/api/system/status
-
-
-### 3. Create category without authentication - expected 401
-POST http://localhost:8080/api/categories
-Content-Type: application/json
-
-{
-  "name": "Security Test",
-  "description": "Test of protected endpoint"
-}
-
-
-
-### 1. Public categories - expected 200
-GET http://localhost:8080/api/categories?page=0&size=10
-
-
-### 2. System status - expected 200
-GET http://localhost:8080/api/system/status
-
-
-### 3. Protected endpoint without JWT - expected 401
-POST http://localhost:8080/api/categories
-Content-Type: application/json
-
-{
-  "name": "JWT Test",
-  "description": "Protected category"
-}
-
-
-### 4. Protected endpoint with invalid JWT - expected 401
-POST http://localhost:8080/api/categories
-Authorization: Bearer invalid.jwt.token
-Content-Type: application/json
-
-{
-  "name": "JWT Test",
-  "description": "Protected category"
-}
-
-
-
-### 1. Register STUDENT - expected 201
-POST http://localhost:8080/api/auth/register
-Content-Type: application/json
-
-{
-  "displayName": "Test Student",
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
-}
-
-
-### 2. Login - expected 200 and JWT
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
+  "displayName": "Manual student {{manual_run_id}}",
+  "email": "{{manual_student_email}}",
+  "password": "{{test_password}}"
 }
 
 > {%
-    client.global.set("courseflow_token", response.body.accessToken);
+    if (response.status === 201) {
+        client.global.set("manual_student_id", String(response.body.id));
+    }
 %}
 
-
-### 3. Access ADMIN-only endpoint as STUDENT - expected 403
-POST http://localhost:8080/api/categories
-Authorization: Bearer {{courseflow_token}}
+### Login student with initial password — 200
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "name": "Protected Category Test",
-  "description": "This operation should be forbidden"
-}
-
-
-### 4. Public catalog - expected 200
-GET http://localhost:8080/api/categories?page=0&size=10
-
-
-### 5. Incorrect password - expected 401
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "WrongPassword"
-}
-
-
-### 6. Duplicate registration - expected 409
-POST http://localhost:8080/api/auth/register
-Content-Type: application/json
-
-{
-  "displayName": "Another Student",
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
-}
-
-
-
-### 1. Login and save JWT
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
+  "email": "{{manual_student_email}}",
+  "password": "{{test_password}}"
 }
 
 > {%
-    client.global.set("courseflow_token", response.body.accessToken);
+    if (response.status === 200) {
+        client.global.set("manual_student_token", String(response.body.accessToken));
+        client.global.set("manual_student_id", String(response.body.userId));
+    }
 %}
 
+### Own user profile — 200
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{manual_student_token}}
 
-### 2. Logout - expected 204
-POST http://localhost:8080/api/auth/logout
-Authorization: Bearer {{courseflow_token}}
-
-
-### 3. Reuse revoked JWT - expected 401
-POST http://localhost:8080/api/categories
-Authorization: Bearer {{courseflow_token}}
+### Create teacher — 201
+POST {{baseUrl}}/api/users
+Authorization: Bearer {{manual_admin_token}}
 Content-Type: application/json
 
 {
-  "name": "Revoked JWT Test",
-  "description": "Must not be created"
-}
-
-
-### 1. Login as system ADMIN
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
+  "displayName": "Manual teacher {{manual_run_id}}",
+  "email": "{{manual_teacher_email}}",
+  "password": "{{test_password}}",
+  "passwordChangeRequired": false,
+  "roles": [
+    "STUDENT",
+    "TEACHER"
+  ]
 }
 
 > {%
-    client.global.set(
-        "courseflow_admin_token",
-        response.body.accessToken
-    );
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_teacher_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_teacher_id", String(response.body.id));
+    }
 %}
 
-
-### 2. Create category as ADMIN - expected 201
-POST http://localhost:8080/api/categories
-Authorization: Bearer {{courseflow_admin_token}}
+### Login teacher — 200
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "name": "Spring Security",
-  "description": "Authentication and authorization in Spring"
-}
-
-
-### 3. Logout ADMIN - expected 204
-POST http://localhost:8080/api/auth/logout
-Authorization: Bearer {{courseflow_admin_token}}
-
-
-### 4. Reuse old ADMIN JWT - expected 401
-POST http://localhost:8080/api/categories
-Authorization: Bearer {{courseflow_admin_token}}
-Content-Type: application/json
-
-{
-  "name": "Must Not Be Created",
-  "description": "Checking revoked token"
-}
-
-
-
-### 1. Login as STUDENT
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
+  "email": "{{manual_teacher_email}}",
+  "password": "{{test_password}}"
 }
 
 > {%
-    client.global.set("student_token", response.body.accessToken);
+    if (response.status === 200) {
+        client.global.set("manual_teacher_token", String(response.body.accessToken));
+        client.global.set("manual_teacher_id", String(response.body.userId));
+    }
 %}
 
+### Create own profile — 200
+PUT {{baseUrl}}/api/users/me/profile
+Authorization: Bearer {{manual_student_token}}
+Content-Type: application/json
 
-### 2. STUDENT: own profile - expected 200
-GET http://localhost:8080/api/users/me
-Authorization: Bearer {{student_token}}
+{"bio": "Learning Java and Hibernate", "avatarUrl": "https://example.org/avatar.png"}
 
+### Read persisted profile — 200
+GET {{baseUrl}}/api/users/me/profile
+Authorization: Bearer {{manual_student_token}}
 
-### 3. STUDENT: all users - expected 403
-GET http://localhost:8080/api/users
-Authorization: Bearer {{student_token}}
+### Admin filters and sorts users — 200
+GET {{baseUrl}}/api/users?q={{manual_run_id}}&status=ACTIVE&role=STUDENT&page=0&size=10&sortBy=displayName&direction=asc
+Authorization: Bearer {{manual_admin_token}}
 
+### Guest cannot read own user data — 401
+GET {{baseUrl}}/api/users/me
 
-### 4. STUDENT: another user - expected 403
-GET http://localhost:8080/api/users/1
-Authorization: Bearer {{student_token}}
+### Student cannot list users — 403
+GET {{baseUrl}}/api/users
+Authorization: Bearer {{manual_student_token}}
 
+# Catalog
 
-### 5. Login as ADMIN
-POST http://localhost:8080/api/auth/login
+### Create category — 201
+POST {{baseUrl}}/api/categories
+Authorization: Bearer {{manual_admin_token}}
 Content-Type: application/json
 
 {
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
+  "name": "Manual {{manual_run_id}}",
+  "description": "Manual category"
 }
 
 > {%
-    client.global.set("admin_token", response.body.accessToken);
+    if (response.status === 201) {
+        client.global.set("manual_category_id", String(response.body.id));
+        client.global.set("manual_category_version", String(response.body.version));
+    }
 %}
 
+### Public category list and search — 200
+GET {{baseUrl}}/api/categories?q=Manual%20{{manual_run_id}}&page=0&size=5&sortBy=name&direction=desc
 
-### 6. ADMIN: all users - expected 200
-GET http://localhost:8080/api/users?page=0&size=10
-Authorization: Bearer {{admin_token}}
+### Public category detail — 200
+GET {{baseUrl}}/api/categories/{{manual_category_id}}
 
-
-### 7. ADMIN: search by email - expected 200
-GET http://localhost:8080/api/users?q=student1
-Authorization: Bearer {{admin_token}}
-
-
-### 8. ADMIN: filter active students - expected 200
-GET http://localhost:8080/api/users?status=ACTIVE&role=STUDENT
-Authorization: Bearer {{admin_token}}
-
-
-### 9. ADMIN: list admins - expected 200
-GET http://localhost:8080/api/users?role=ADMIN
-Authorization: Bearer {{admin_token}}
-
-
-### 10. ADMIN: sorting and pagination - expected 200
-GET http://localhost:8080/api/users?page=0&size=5&sortBy=displayName&direction=desc
-Authorization: Bearer {{admin_token}}
-
-
-### 11. ADMIN: nonexistent user - expected 404
-GET http://localhost:8080/api/users/999999
-Authorization: Bearer {{admin_token}}
-
-
-### 12. Without JWT - expected 401
-GET http://localhost:8080/api/users/me
-
-
-
-
-### 1. Login ADMIN
-POST http://localhost:8080/api/auth/login
+### Create tag — 201
+POST {{baseUrl}}/api/tags
+Authorization: Bearer {{manual_admin_token}}
 Content-Type: application/json
 
 {
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
+  "name": "manual-{{manual_run_id}}"
 }
 
 > {%
-    client.global.set("admin_token", response.body.accessToken);
+    if (response.status === 201) {
+        client.global.set("manual_tag_id", String(response.body.id));
+        client.global.set("manual_tag_version", String(response.body.version));
+    }
 %}
 
-
-### 2. ADMIN creates TEACHER - expected 201
-POST http://localhost:8080/api/users
-Authorization: Bearer {{admin_token}}
+### Create main course — 201
+POST {{baseUrl}}/api/courses
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
-  "displayName": "Java Teacher",
-  "email": "teacher1@courseflow.local",
-  "password": "TeacherDemo2026!",
-  "roles": ["STUDENT", "TEACHER"]
-}
-
-> {%
-    client.global.set("teacher_id", response.body.id);
-%}
-
-
-### 3. Login TEACHER - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "teacher1@courseflow.local",
-  "password": "TeacherDemo2026!"
-}
-
-> {%
-    client.global.set("teacher_token", response.body.accessToken);
-%}
-
-
-### 4. TEACHER cannot list users - expected 403
-GET http://localhost:8080/api/users
-Authorization: Bearer {{teacher_token}}
-
-
-### 5. ADMIN promotes TEACHER to ADMIN - expected 200
-PUT http://localhost:8080/api/users/{{teacher_id}}/roles
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "roles": ["STUDENT", "TEACHER", "ADMIN"]
-}
-
-
-### 6. Old TEACHER token must be revoked - expected 401
-GET http://localhost:8080/api/users/me
-Authorization: Bearer {{teacher_token}}
-
-
-### 7. Login TEACHER again - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "teacher1@courseflow.local",
-  "password": "TeacherDemo2026!"
-}
-
-> {%
-    client.global.set("teacher_token", response.body.accessToken);
-%}
-
-
-### 8. New ADMIN can list users - expected 200
-GET http://localhost:8080/api/users
-Authorization: Bearer {{teacher_token}}
-
-
-### 9. Empty roles - expected 400
-PUT http://localhost:8080/api/users/{{teacher_id}}/roles
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "roles": []
-}
-
-
-
-
-### 1. Login ADMIN - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
-}
-
-> {%
-    client.global.set("admin_token", response.body.accessToken);
-    client.global.set("admin_id", response.body.userId);
-%}
-
-
-### 2. Create test STUDENT - expected 201
-POST http://localhost:8080/api/users
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "displayName": "Status Demo",
-  "email": "status-demo@courseflow.local",
-  "password": "StatusDemo2026!",
-  "roles": ["STUDENT"]
-}
-
-> {%
-    client.global.set("demo_user_id", response.body.id);
-%}
-
-
-### 3. Login STUDENT - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "status-demo@courseflow.local",
-  "password": "StatusDemo2026!"
-}
-
-> {%
-    client.global.set("demo_token", response.body.accessToken);
-%}
-
-
-### 4. ADMIN changes student details - expected 200
-PUT http://localhost:8080/api/users/{{demo_user_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "displayName": "Updated Status Demo",
-  "email": "status-updated@courseflow.local"
-}
-
-
-### 5. Old JWT after email change - expected 401
-GET http://localhost:8080/api/users/me
-Authorization: Bearer {{demo_token}}
-
-
-### 6. Login with new email - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "status-updated@courseflow.local",
-  "password": "StatusDemo2026!"
-}
-
-> {%
-    client.global.set("demo_token", response.body.accessToken);
-%}
-
-
-### 7. ADMIN deactivates student - expected 200
-POST http://localhost:8080/api/users/{{demo_user_id}}/deactivate
-Authorization: Bearer {{admin_token}}
-
-
-### 8. Old JWT after deactivation - expected 401
-GET http://localhost:8080/api/users/me
-Authorization: Bearer {{demo_token}}
-
-
-### 9. Login of inactive student - expected 401
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "status-updated@courseflow.local",
-  "password": "StatusDemo2026!"
-}
-
-
-### 10. ADMIN activates student - expected 200
-POST http://localhost:8080/api/users/{{demo_user_id}}/activate
-Authorization: Bearer {{admin_token}}
-
-
-### 11. Login after activation - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "status-updated@courseflow.local",
-  "password": "StatusDemo2026!"
-}
-
-> {%
-    client.global.set("demo_token", response.body.accessToken);
-%}
-
-
-### 12. System ADMIN deactivation - expected 409
-POST http://localhost:8080/api/users/{{admin_id}}/deactivate
-Authorization: Bearer {{admin_token}}
-
-
-### 13. STUDENT tries to deactivate a user - expected 403
-POST http://localhost:8080/api/users/{{demo_user_id}}/deactivate
-Authorization: Bearer {{demo_token}}
-
-
-### 14. Nonexistent user - expected 404
-POST http://localhost:8080/api/users/999999/deactivate
-Authorization: Bearer {{admin_token}}
-
-
-
-
-### 1. Login ADMIN - 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
-}
-
-> {%
-    client.global.set("admin_token", response.body.accessToken);
-    client.global.set("admin_id", response.body.userId);
-%}
-
-
-### 2. Create user for deletion test - 201
-POST http://localhost:8080/api/users
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "displayName": "Archive Demo",
-  "email": "archive-demo@courseflow.local",
-  "password": "ArchiveDemo2026!",
-  "roles": ["STUDENT"]
-}
-
-> {%
-    client.global.set("archive_user_id", response.body.id);
-%}
-
-
-### 3. Delete ACTIVE user - 409
-DELETE http://localhost:8080/api/users/{{archive_user_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 4. Deactivate user - 200
-POST http://localhost:8080/api/users/{{archive_user_id}}/deactivate
-Authorization: Bearer {{admin_token}}
-
-
-### 5. Delete INACTIVE user - 204
-DELETE http://localhost:8080/api/users/{{archive_user_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 6. Read archived User - 200
-GET http://localhost:8080/api/users/{{archive_user_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 7. Login with deleted account - 401
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "archive-demo@courseflow.local",
-  "password": "ArchiveDemo2026!"
-}
-
-
-### 8. Repeated DELETE - 204
-DELETE http://localhost:8080/api/users/{{archive_user_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 9. Reactivate deleted user - 409
-POST http://localhost:8080/api/users/{{archive_user_id}}/activate
-Authorization: Bearer {{admin_token}}
-
-
-### 10. Delete system ADMIN - 409
-DELETE http://localhost:8080/api/users/{{admin_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 11. Delete nonexistent user - 404
-DELETE http://localhost:8080/api/users/999999
-Authorization: Bearer {{admin_token}}
-
-
-### 12. List archived users - 200
-GET http://localhost:8080/api/users?status=DELETED
-Authorization: Bearer {{admin_token}}
-
-
-
-
-### 1. Login STUDENT - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
-}
-
-> {%
-    client.global.set("student_token", response.body.accessToken);
-%}
-
-
-### 2. Change password - expected 204
-POST http://localhost:8080/api/auth/change-password
-Authorization: Bearer {{student_token}}
-Content-Type: application/json
-
-{
-  "currentPassword": "StudyPass2026!",
-  "newPassword": "NewStudyPass2026!"
-}
-
-
-### 3. Old JWT must be invalid - expected 401
-GET http://localhost:8080/api/users/me
-Authorization: Bearer {{student_token}}
-
-
-### 4. Login with old password - expected 401
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
-}
-
-
-### 5. Login with new password - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "NewStudyPass2026!"
-}
-
-> {%
-    client.global.set("student_token", response.body.accessToken);
-%}
-
-
-### 6. Restore original password - expected 204
-POST http://localhost:8080/api/auth/change-password
-Authorization: Bearer {{student_token}}
-Content-Type: application/json
-
-{
-  "currentPassword": "NewStudyPass2026!",
-  "newPassword": "StudyPass2026!"
-}
-
-
-### 7. JWT after restoration - expected 401
-GET http://localhost:8080/api/users/me
-Authorization: Bearer {{student_token}}
-
-
-### 8. Login with original password - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "student1@courseflow.local",
-  "password": "StudyPass2026!"
-}
-
-> {%
-    client.global.set("student_token", response.body.accessToken);
-%}
-
-
-### 9. Incorrect current password - expected 400
-POST http://localhost:8080/api/auth/change-password
-Authorization: Bearer {{student_token}}
-Content-Type: application/json
-
-{
-  "currentPassword": "WrongPassword2026!",
-  "newPassword": "AnotherStudyPass2026!"
-}
-
-###--------------------------------------
-###Проверка сброса пароля пользователем
-###--------------------------------------
-
-
-### 1. Register test user - expected 201
-POST http://localhost:8080/api/auth/register
-Content-Type: application/json
-
-{
-  "displayName": "Password Reset Demo",
-  "email": "{{reset_email}}",
-  "password": "ResetTest2026!"
-}
-
-
-### 2. Login with original password - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{reset_email}}",
-  "password": "ResetTest2026!"
-}
-
-> {%
-    client.global.set("reset_demo_old_jwt",
-        response.body.accessToken);
-%}
-
-
-### 3. Request password reset - expected 202
-POST http://localhost:8080/api/auth/forgot-password
-Content-Type: application/json
-
-{
-  "email": "{{reset_email}}"
-}
-
-
-### 4. Repeat reset request - expected 202
-### No second email should be issued during cooldown
-POST http://localhost:8080/api/auth/forgot-password
-Content-Type: application/json
-
-{
-  "email": "{{reset_email}}"
-}
-
-
-### 5. Unknown email - expected 202
-POST http://localhost:8080/api/auth/forgot-password
-Content-Type: application/json
-
-{
-  "email": "nobody99999@courseflow.local"
-}
-
-
-### 6. Reset using token from email - expected 204
-POST http://localhost:8080/api/auth/reset-password
-Content-Type: application/json
-
-{
-  "token": "{{reset_token}}",
-  "newPassword": "ResetNewPass2026!"
-}
-
-
-### 7. Reuse the token - expected 400
-POST http://localhost:8080/api/auth/reset-password
-Content-Type: application/json
-
-{
-  "token": "{{reset_token}}",
-  "newPassword": "AnotherResetPass2026!"
-}
-
-
-### 8. Previously issued JWT - expected 401
-GET http://localhost:8080/api/users/me
-Authorization: Bearer {{reset_demo_old_jwt}}
-
-
-### 9. Login with old password - expected 401
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{reset_email}}",
-  "password": "ResetTest2026!"
-}
-
-
-### 10. Login with new password - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{reset_email}}",
-  "password": "ResetNewPass2026!"
-}
-
-
-### 11. Invalid token - expected 400
-POST http://localhost:8080/api/auth/reset-password
-Content-Type: application/json
-
-{
-  "token": "invalid-reset-token",
-  "newPassword": "AnotherResetPass2026!"
-}
-
-###--------------------------------------
-###Проверка сброса пароля администратором
-###--------------------------------------
-
-### ADMIN login - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
-}
-
-> {%
-    client.global.set("admin_token", response.body.accessToken);
-%}
-
-
-### Find user - expected 200
-GET http://localhost:8080/api/users?q={{reset_email}}
-Authorization: Bearer {{admin_token}}
-
-
-
-### 1. ADMIN requests password reset - 202
-POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset
-Authorization: Bearer {{admin_token}}
-
-
-### 2. Repeat immediately - 202
-### No second email should be sent during cooldown
-POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset
-Authorization: Bearer {{admin_token}}
-
-
-### 3. Nonexistent user - 404
-POST http://localhost:8080/api/users/999999/password-reset
-Authorization: Bearer {{admin_token}}
-
-
-### 4. Without authorization - 401
-POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset
-
-### 5. сбрасываем пароль
-POST http://localhost:8080/api/auth/reset-password
-Content-Type: application/json
-
-{
-  "token": "mk5fxSuD267icPLfJIYq745QFCQG_MbwVoBqbVFlrzk",
-  "newPassword": "AdminReset2026!"
-}
-
-### Проверяем вход с новым паролем
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{reset_email}}",
-  "password": "AdminReset2026!"
-}
-
-
-###--------------------------------------
-###Проверка создания курса
-###--------------------------------------
-
-
-
-### Categories
-GET http://localhost:8080/api/categories
-
-### Teachers
-GET http://localhost:8080/api/users?role=TEACHER
-Authorization: Bearer {{admin_token}}
-
-
-### 1. Create course - expected 201
-POST http://localhost:8080/api/courses
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Programming Basics",
-  "description": "Основы Java и ООП",
-  "categoryId": 1,
-  "teacherId": 3,
+  "title": "Manual course {{manual_run_id}}",
+  "description": "Manual course",
+  "categoryId": {{manual_category_id}},
+  "teacherId": {{manual_teacher_id}},
   "duration": 56,
-  "startDate": "2026-12-01"
+  "startDate": "{{manual_course_start}}"
 }
 
 > {%
-    client.global.set("course_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_course_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_course_id", String(response.body.id));
+    }
 %}
 
-
-### 2. Get course - expected 200
-GET http://localhost:8080/api/courses/{{course_id}}
-
-
-### 3. List courses - expected 200
-GET http://localhost:8080/api/courses?page=0&size=10
-
-
-### 4. Category not found - expected 404
-POST http://localhost:8080/api/courses
-Authorization: Bearer {{admin_token}}
+### Update main course — 200
+PUT {{baseUrl}}/api/courses/{{manual_course_id}}
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "title": "Invalid Category Course",
-  "description": "Проверка отсутствующей категории",
-  "categoryId": 999999,
-  "teacherId": 3,
-  "duration": 30,
-  "startDate": "2026-12-01"
-}
-
-
-### 5. Invalid duration - expected 400
-POST http://localhost:8080/api/courses
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Invalid Duration Course",
-  "description": "Проверка продолжительности",
-  "categoryId": 1,
-  "teacherId": 3,
-  "duration": 0,
-  "startDate": "2026-12-01"
-}
-
-
-### 6. Missing course - expected 404
-GET http://localhost:8080/api/courses/999999
-
-
-###--------------------------------------
-###Проверка обновления курса
-###--------------------------------------
-
-
-### 1. Update course - expected 200
-PUT http://localhost:8080/api/courses/{{course_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Advanced Java Programming",
-  "description": "Углублённое изучение Java и ООП",
-  "categoryId": 1,
-  "teacherId": 3,
-  "duration": 70,
-  "startDate": "2026-12-10"
-}
-
-
-### 2. Read updated course - expected 200
-GET http://localhost:8080/api/courses/{{course_id}}
-
-
-### 3. Search courses - expected 200
-GET http://localhost:8080/api/courses?q=Java
-
-
-### 4. Filter by category - expected 200
-GET http://localhost:8080/api/courses?categoryId=1
-
-
-### 5. Filter by teacher - expected 200
-GET http://localhost:8080/api/courses?teacherId=3
-
-
-### 6. Filter ACTIVE courses - expected 200
-GET http://localhost:8080/api/courses?status=ACTIVE
-
-
-### 7. Sort by title descending - expected 200
-GET http://localhost:8080/api/courses?sortBy=title&direction=desc
-
-
-### 8. Pagination - expected 200
-GET http://localhost:8080/api/courses?page=0&size=2
-
-
-### 9. Combined filters - expected 200
-GET http://localhost:8080/api/courses?q=Java&categoryId=1&status=ACTIVE&sortBy=startDate&direction=asc
-
-
-### 10. Invalid sort field - expected 400
-GET http://localhost:8080/api/courses?sortBy=unknown
-
-
-### 11. Invalid duration - expected 400
-PUT http://localhost:8080/api/courses/{{course_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Invalid Course",
-  "description": "Проверка валидации",
-  "categoryId": 1,
-  "teacherId": 3,
-  "duration": 0,
-  "startDate": "2026-12-10"
-}
-
-
-### 12. Missing course - expected 404
-PUT http://localhost:8080/api/courses/999999
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Missing Course",
-  "description": "Несуществующий курс",
-  "categoryId": 1,
-  "teacherId": 3,
-  "duration": 30,
-  "startDate": "2026-12-10"
-}
-
-###--------------------------------------
-###Проверка архивирования курса
-###--------------------------------------
-
-
-
-### 1. Create a temporary course - 201
-POST http://localhost:8080/api/courses
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Temporary Course For Archive Test",
-  "description": "Курс для проверки архивирования и удаления",
-  "categoryId": 1,
-  "teacherId": 3,
-  "duration": 14,
-  "startDate": "2026-12-01"
+{"version": {{manual_course_version}},
+  "title": "Manual updated course {{manual_run_id}}",
+  "description": "Manual course",
+  "categoryId": {{manual_category_id}},
+  "teacherId": {{manual_teacher_id}},
+  "duration": 56,
+  "startDate": "{{manual_course_start}}"
 }
 
 > {%
-    client.global.set(
-        "temporary_course_id",
-        response.body.id
-    );
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_course_version", String(response.body.version));
+    }
 %}
 
+### Public course detail — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}
 
-### 2. Archive course - 200
-POST http://localhost:8080/api/courses/{{temporary_course_id}}/archive
-Authorization: Bearer {{admin_token}}
+> {%
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_course_version", String(response.body.version));
+    }
+%}
 
+### Public filtered course list — 200
+GET {{baseUrl}}/api/courses?q={{manual_run_id}}&categoryId={{manual_category_id}}&teacherId={{manual_teacher_id}}&status=ACTIVE&page=0&size=10
 
-### 3. Archive again - 200
-POST http://localhost:8080/api/courses/{{temporary_course_id}}/archive
-Authorization: Bearer {{admin_token}}
+### Attach tag to course — 204
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/tags/{{manual_tag_id}}
+Authorization: Bearer {{manual_teacher_token}}
 
+### List attached tags — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/tags
 
-### 4. Read archived course - 200
-GET http://localhost:8080/api/courses/{{temporary_course_id}}
+### Public teacher search — 200
+GET {{baseUrl}}/api/teachers?q=Manual%20teacher%20{{manual_run_id}}&page=0&size=10
 
+### Public teacher identity — 200
+GET {{baseUrl}}/api/teachers/{{manual_teacher_id}}
 
-### 5. Filter archived courses - 200
-GET http://localhost:8080/api/courses?status=ARCHIVED&page=0&size=10
+# Course content and enrollment
 
-
-### 6. Delete course without dependencies - 204
-DELETE http://localhost:8080/api/courses/{{temporary_course_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 7. Read deleted course - 404
-GET http://localhost:8080/api/courses/{{temporary_course_id}}
-
-
-### 8. Delete missing course - 404
-DELETE http://localhost:8080/api/courses/999999
-Authorization: Bearer {{admin_token}}
-
-
-###--------------------------------------
-###Проверка тегов - создание, поиск
-###--------------------------------------
-
-
-### 1. Create tag - expected 201
-POST http://localhost:8080/api/tags
-Authorization: Bearer {{admin_token}}
+### Create module — 201
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/modules
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
-  "name": "spring-data-jpa"
+  "title": "Java fundamentals",
+  "description": "Java syntax",
+  "position": 1
 }
 
 > {%
-    client.global.set("tag_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_module_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_module_id", String(response.body.id));
+    }
 %}
 
-
-### 2. List tags - expected 200
-GET http://localhost:8080/api/tags?page=0&size=10
-
-
-### 3. Search tags - expected 200
-GET http://localhost:8080/api/tags?q=jpa
-
-
-### 4. Get tag - expected 200
-GET http://localhost:8080/api/tags/{{tag_id}}
-
-
-### 5. Duplicate tag - expected 409
-POST http://localhost:8080/api/tags
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "name": "spring-data-jpa"
-}
-
-
-### 6. Update tag - expected 200
-PUT http://localhost:8080/api/tags/{{tag_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "name": "hibernate-orm"
-}
-
-
-### 7. Search after update - expected 200
-GET http://localhost:8080/api/tags?q=hibernate&sortBy=name&direction=asc&page=0&size=5
-
-
-### 8. Invalid name - expected 400
-POST http://localhost:8080/api/tags
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "name": ""
-}
-
-
-### 9. Invalid pagination - expected 400
-GET http://localhost:8080/api/tags?page=-1&size=10
-
-
-### 10. Delete unused tag - expected 204
-DELETE http://localhost:8080/api/tags/{{tag_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 11. Read deleted tag - expected 404
-GET http://localhost:8080/api/tags/{{tag_id}}
-
-
-###--------------------------------------
-###Проверка тегов - назначение на курс
-###--------------------------------------
-
-
-### 1. Create first tag - 201
-POST http://localhost:8080/api/tags
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "name": "java-core"
-}
-
-> {%
-    client.global.set("tag_1_id", response.body.id);
-%}
-
-
-### 2. Create second tag - 201
-POST http://localhost:8080/api/tags
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "name": "spring-framework"
-}
-
-> {%
-    client.global.set("tag_2_id", response.body.id);
-%}
-
-
-### 3. Add first tag - 204
-POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 4. Add second tag - 204
-POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_2_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 5. Add first tag again - 204
-POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 6. List course tags - 200
-GET http://localhost:8080/api/courses/{{course_id}}/tags?page=0&size=1
-
-
-### 7. Try deleting a used tag - 409
-DELETE http://localhost:8080/api/tags/{{tag_1_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 8. Remove tag from course - 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 9. Remove tag again - 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 10. Delete unused tag - 204
-DELETE http://localhost:8080/api/tags/{{tag_1_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 11. List remaining tags - 200
-GET http://localhost:8080/api/courses/{{course_id}}/tags?page=0&size=10
-
-
-
-###--------------------------------------
-###Создание модулей
-###--------------------------------------
-
-### 1. Login ADMIN - 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
-}
-
-> {%
-    client.global.set("admin_token", response.body.accessToken);
-    client.global.set("admin_id", response.body.userId);
-%}
-
-
-
-### 1. Create module - 201
-POST http://localhost:8080/api/courses/3/modules
-Authorization: Bearer {{admin_token}}
+### Create lesson — 201
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/modules/{{manual_module_id}}/lessons
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
   "title": "Introduction to Java",
-  "description": "Java syntax and basic concepts",
-  "position": 1
-}
-
-
-### 2. Create second module - 201
-POST http://localhost:8080/api/courses/3/modules
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Object-Oriented Programming",
-  "description": "Classes, inheritance and polymorphism",
-  "position": 2
-}
-
-
-### 3. List modules - 200
-GET http://localhost:8080/api/courses/3/modules?page=0&size=10
-
-
-### 4. Pagination - 200
-GET http://localhost:8080/api/courses/3/modules?page=0&size=1
-
-
-### 5. Duplicate position - 409
-POST http://localhost:8080/api/courses/3/modules
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Another module",
-  "position": 1
-}
-
-
-### 6. Invalid position - 400
-POST http://localhost:8080/api/courses/3/modules
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Invalid module",
-  "position": 0
-}
-
-
-### 1. Get module - 200
-GET http://localhost:8080/api/courses/3/modules/1
-
-
-### 2. Update module - 200
-PUT http://localhost:8080/api/courses/3/modules/1
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Fundamentals",
-  "description": "Updated Java fundamentals course module"
-}
-
-
-### 3. Swap positions - 200
-PATCH http://localhost:8080/api/courses/3/modules/1/position
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "position": 2
-}
-
-
-### 4. Check new order - 200
-GET http://localhost:8080/api/courses/3/modules?page=0&size=10
-
-
-### 5. Invalid position - 400
-PATCH http://localhost:8080/api/courses/3/modules/1/position
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "position": 0
-}
-
-
-### 6. Delete empty module - 204
-DELETE http://localhost:8080/api/courses/3/modules/2
-Authorization: Bearer {{admin_token}}
-
-
-### 7. Deleted module - 404
-GET http://localhost:8080/api/courses/3/modules/2
-
-
-
-### 1. Create lesson - 201
-POST http://localhost:8080/api/courses/3/modules/1/lessons
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Variables",
-  "content": "Primitive types, variables and operators",
-  "videoUrl": null,
+  "content": "JVM, JDK and JRE",
+  "videoUrl": "https://example.org/java",
   "position": 1
 }
 
 > {%
-    client.global.set("lesson_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_lesson_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_lesson_id", String(response.body.id));
+    }
 %}
 
-
-### 2. Create second lesson - 201
-POST http://localhost:8080/api/courses/3/modules/1/lessons
-Authorization: Bearer {{admin_token}}
+### Create session — 201
+POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/sessions
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
-  "title": "Control Flow",
-  "content": "If statements, switch and loops",
-  "videoUrl": null,
-  "position": 2
-}
-
-
-### 3. Get all lessons - 200
-GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=10
-
-
-### 4. Pagination - 200
-GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=1
-
-
-### 5. Get lesson by ID - 200
-GET http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}
-
-
-### 6. Duplicate position - 409
-POST http://localhost:8080/api/courses/3/modules/1/lessons
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Duplicate lesson",
-  "content": "Test",
-  "position": 1
-}
-
-
-### 7. Invalid position - 400
-POST http://localhost:8080/api/courses/3/modules/1/lessons
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Invalid lesson",
-  "content": "Test",
-  "position": 0
-}
-
-###lessons
-
-### 1. Update lesson - 200
-PUT http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Variables and Types",
-  "content": "Primitive types, variables, operators and type casting",
-  "videoUrl": null
-}
-
-
-### 2. Swap lesson positions - 200
-PATCH http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}/position
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "position": 2
-}
-
-
-### 3. Verify lesson order - 200
-GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=10
-
-
-### 4. Invalid position - 400
-PATCH http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}/position
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "position": 0
-}
-
-
-### 5. Create temporary lesson - 201
-POST http://localhost:8080/api/courses/3/modules/1/lessons
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Temporary Lesson",
-  "content": "Temporary test content",
-  "position": 99
-}
-
-> {%
-    client.global.set("temp_lesson_id", response.body.id);
-%}
-
-
-### 6. Delete temporary lesson - 204
-DELETE http://localhost:8080/api/courses/3/modules/1/lessons/{{temp_lesson_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 7. Verify deleted lesson - 404
-GET http://localhost:8080/api/courses/3/modules/1/lessons/{{temp_lesson_id}}
-
-###lessons
-
-### Create first session - 201
-POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T10:00:00+04:00",
-  "endsAt": "2026-12-02T11:00:00+04:00",
+  "startsAt": "{{manual_session_start}}",
+  "endsAt": "{{manual_session_end}}",
   "format": "ONLINE",
   "meetingUrl": "https://example.org/meeting/java"
 }
 
 > {%
-    client.global.set("session_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_session_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_session_id", String(response.body.id));
+    }
 %}
 
+### Session detail — 200
+GET {{baseUrl}}/api/lessons/{{manual_lesson_id}}/sessions/{{manual_session_id}}
+Authorization: Bearer {{manual_teacher_token}}
 
-### Create adjacent session - 201
-POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T11:00:00+04:00",
-  "endsAt": "2026-12-02T12:00:00+04:00",
-  "format": "OFFLINE",
-  "meetingUrl": null
-}
-
-
-### Overlapping session - 409
-POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T10:30:00+04:00",
-  "endsAt": "2026-12-02T11:30:00+04:00",
-  "format": "ONLINE",
-  "meetingUrl": null
-}
-
-
-### Invalid time range - 400
-POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T12:00:00+04:00",
-  "endsAt": "2026-12-02T10:00:00+04:00",
-  "format": "ONLINE",
-  "meetingUrl": null
-}
-
-
-### List sessions - 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=0&size=10
-
-
-### First page - 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=0&size=1
-
-
-### Second page - 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=1&size=1
-
-
-### Get session by ID - 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
-
-
-###lessons sessions
-
-
-### Update session - 200
-PUT http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T10:00:00+04:00",
-  "endsAt": "2026-12-02T11:00:00+04:00",
-  "format": "ONLINE",
-  "meetingUrl": "https://example.org/meeting/java-updated"
-}
-
-
-### Reschedule session - 200
-PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T12:00:00+04:00",
-  "endsAt": "2026-12-02T13:00:00+04:00"
-}
-
-
-### Overlapping reschedule - 409
-PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T11:30:00+04:00",
-  "endsAt": "2026-12-02T12:30:00+04:00"
-}
-
-### Invalid interval - 400
-PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-02T15:00:00+04:00",
-  "endsAt": "2026-12-02T14:00:00+04:00"
-}
-
-
-
-### Create temporary session - 201
-POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-03T14:00:00+04:00",
-  "endsAt": "2026-12-03T15:00:00+04:00",
-  "format": "OFFLINE",
-  "meetingUrl": null
-}
+### Enroll student — 201
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments
+Authorization: Bearer {{manual_student_token}}
 
 > {%
-    client.global.set("temp_session_id", response.body.id);
+    if (response.status === 201) {
+        client.global.set("manual_enrollment_id", String(response.body.id));
+    }
 %}
 
+### Repeat enrollment idempotently — 200
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments
+Authorization: Bearer {{manual_student_token}}
 
-### Delete temporary session - 204
-DELETE http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}
-Authorization: Bearer {{admin_token}}
+### My enrollment — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments/me
+Authorization: Bearer {{manual_student_token}}
 
+### Course roster — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments?status=ACTIVE&page=0&size=10
+Authorization: Bearer {{manual_teacher_token}}
 
-### Verify deletion - 404
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}
+### Student reads enrolled modules — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/modules
+Authorization: Bearer {{manual_student_token}}
 
-### Reassign course teacher - 200
-PUT http://localhost:8080/api/courses/1/teacher
-Authorization: Bearer {{admin_token}}
+### Student reads enrolled lessons — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/modules/{{manual_module_id}}/lessons
+Authorization: Bearer {{manual_student_token}}
+
+### Student reads schedule — 200
+GET {{baseUrl}}/api/lessons/{{manual_lesson_id}}/sessions
+Authorization: Bearer {{manual_student_token}}
+
+# Assignments and grading
+
+### Create assignment — 201
+POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
-  "teacherId": 3
-}
-
-### Get all users — ADMIN
-GET http://localhost:8080/api/users?page=0&size=100
-Authorization: Bearer {{admin_token}}
-
-### Courses sorted by title DESC — 200
-GET http://localhost:8080/api/courses?page=0&size=10&sortBy=title&direction=desc
-
-### GET lessons without JWT — expected 401
-GET http://localhost:8080/api/courses/3/modules/1/lessons
-
-### TEACHER cannot list users — expected 403
-GET http://localhost:8080/api/users?page=0&size=10
-Authorization: Bearer {{teacher_token}}
-
-### Users without authorization — expected 401
-GET http://localhost:8080/api/users?page=0&size=10
-
-
-
-### =========================================================
-### STAGE 5.1.1 — ENROLLMENT
-### Setup + functional tests
-### =========================================================
-
-@enrollment_test_password = CourseFlowTest2026!
-@enrollment_teacher_email = enrollment.teacher.20261123@courseflow.local
-@enrollment_student_email = enrollment.student.20261123@courseflow.local
-
-
-### =========================================================
-### SETUP — CREATE TEST DATA
-### =========================================================
-
-### 1. Login ADMIN - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
-}
-
-> {%
-    client.global.set("admin_token", response.body.accessToken);
-    client.global.set("admin_id", response.body.userId);
-%}
-
-
-
-### 1. Create teacher with STUDENT + TEACHER roles — 201
-POST http://localhost:8080/api/users
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "displayName": "Enrollment Test Teacher",
-  "email": "{{enrollment_teacher_email}}",
-  "password": "{{enrollment_test_password}}",
-  "roles": ["STUDENT", "TEACHER"]
-}
-
-> {%
-    client.global.set("enrollment_teacher_id", response.body.id);
-%}
-
-
-### 2. Create student — 201
-POST http://localhost:8080/api/users
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "displayName": "Enrollment Test Student",
-  "email": "{{enrollment_student_email}}",
-  "password": "{{enrollment_test_password}}",
-  "roles": ["STUDENT"]
-}
-
-> {%
-    client.global.set("enrollment_student_id", response.body.id);
-%}
-
-
-### 3. Create category — 201
-POST http://localhost:8080/api/categories
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "name": "Enrollment Testing 20261123",
-  "description": "Test category for Enrollment"
-}
-
-> {%
-    client.global.set("enrollment_category_id", response.body.id);
-%}
-
-
-### 4. Create course — 201
-POST http://localhost:8080/api/courses
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Enrollment Test Course 20261123",
-  "description": "Course for testing student enrollment",
-  "categoryId": {{enrollment_category_id}},
-  "teacherId": {{enrollment_teacher_id}},
-  "duration": 56,
-  "startDate": "2026-12-01"
-}
-
-> {%
-    client.global.set("enrollment_course_id", response.body.id);
-%}
-
-
-### 5. Login as student — 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{enrollment_student_email}}",
-  "password": "{{enrollment_test_password}}"
-}
-
-> {%
-    client.global.set("enrollment_student_token", response.body.accessToken);
-%}
-
-
-### 6. Login as teacher — 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{enrollment_teacher_email}}",
-  "password": "{{enrollment_test_password}}"
-}
-
-> {%
-    client.global.set("enrollment_teacher_token", response.body.accessToken);
-%}
-
-
-### =========================================================
-### ENROLLMENT — POSITIVE TESTS
-### =========================================================
-
-### 7. First enrollment — expected 201 Created
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.global.set("enrollment_id", response.body.id);
-%}
-
-
-### 8. Duplicate enrollment — expected 200 OK
-### Must return the SAME enrollment ID
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 9. Get my enrollment — expected 200, ACTIVE
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 10. Withdraw from course — expected 204 No Content
-DELETE http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 11. Check withdrawal — expected 200, WITHDRAWN
-### endedAt must NOT be null
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 12. Re-enroll after withdrawal — expected 200, ACTIVE
-### Must reuse the SAME enrollment ID
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 13. Check reactivation — expected 200, ACTIVE
-### endedAt must be null
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### ENROLLMENT — NEGATIVE TESTS
-### =========================================================
-
-### 14. Teacher enrolls in own course — expected 409
-### Teacher has STUDENT + TEACHER roles
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 15. ADMIN without STUDENT role — expected 403
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{admin_token}}
-
-
-### 16. Enrollment without JWT — expected 401
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-
-
-### 17. Enroll in nonexistent course — expected 404
-POST http://localhost:8080/api/courses/999999/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### ARCHIVED COURSE
-### Run these LAST — course status will change
-### =========================================================
-
-### 18. Archive test course — expected 200
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/archive
-Authorization: Bearer {{admin_token}}
-
-
-### 19. Check archived course — expected 200, ARCHIVED
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}
-
-
-### 20. Enroll in archived course — expected 409
-POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 21. Enrollment history after archive — expected 200
-### Existing enrollment must remain ACTIVE
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-
-### =========================================================
-### STAGE 5.1.2 — ENROLLMENT LISTS
-### =========================================================
-
-### 1. Teacher gets students of own course — 200
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?page=0&size=10
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 2. Teacher gets ACTIVE students — 200
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?status=ACTIVE&page=0&size=10
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 3. Teacher gets WITHDRAWN students — 200
-### Expected: empty content
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?status=WITHDRAWN
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 4. ADMIN gets course enrollments — 200
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{admin_token}}
-
-
-### 5. Student gets own courses — 200
-GET http://localhost:8080/api/users/me/enrollments?page=0&size=10
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 6. Student filters own ACTIVE enrollments — 200
-GET http://localhost:8080/api/users/me/enrollments?status=ACTIVE
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 7. Student filters own WITHDRAWN enrollments — 200
-### Expected: empty content
-GET http://localhost:8080/api/users/me/enrollments?status=WITHDRAWN
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 8. Pagination and sorting — 200
-GET http://localhost:8080/api/users/me/enrollments?page=0&size=1&sortBy=enrolledAt&direction=desc
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### NEGATIVE TESTS
-### =========================================================
-
-### 9. Student cannot list all course participants — 403
-GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 10. Teacher cannot list another teacher's course — 403
-### Course 3 belongs to another teacher
-GET http://localhost:8080/api/courses/3/enrollments
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 11. ADMIN without STUDENT role cannot use student endpoint — 403
-GET http://localhost:8080/api/users/me/enrollments
-Authorization: Bearer {{admin_token}}
-
-
-### 12. Unauthenticated user — 401
-GET http://localhost:8080/api/users/me/enrollments
-
-
-### 13. Invalid page — 400
-GET http://localhost:8080/api/users/me/enrollments?page=-1
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 14. Invalid size — 400
-GET http://localhost:8080/api/users/me/enrollments?size=101
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 15. Invalid sort field — 400
-GET http://localhost:8080/api/users/me/enrollments?sortBy=passwordHash
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 16. Invalid status — 400
-GET http://localhost:8080/api/users/me/enrollments?status=UNKNOWN
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 17. Nonexistent course — 404
-GET http://localhost:8080/api/courses/999999/enrollments
-Authorization: Bearer {{admin_token}}
-
-
-### =========================================================
-### STAGE 5.1.3 — COURSE MATERIAL ACCESS
-### =========================================================
-
-
-### =========================================================
-### STAGE 5.1.3 — CREATE TEST DATA
-### Course -> Module -> Lesson -> LessonSession
-### =========================================================
-
-### 1. Create ACTIVE course — expected 201
-POST http://localhost:8080/api/courses
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Enrollment Access Test Course",
-  "description": "Course for testing access to learning materials",
-  "categoryId": {{enrollment_category_id}},
-  "teacherId": {{enrollment_teacher_id}},
-  "duration": 56,
-  "startDate": "2026-12-01"
-}
-
-> {%
-    client.global.set("course_id", response.body.id);
-%}
-
-
-### 2. Create module — expected 201
-POST http://localhost:8080/api/courses/{{course_id}}/modules
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Module 1 - Java Basics",
-  "description": "Introduction to Java programming",
-  "position": 1
-}
-
-> {%
-    client.global.set("module_id", response.body.id);
-%}
-
-
-### 3. Create lesson — expected 201
-POST http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Lesson 1 - Introduction to Java",
-  "content": "Java fundamentals, JVM, JDK and JRE.",
-  "videoUrl": "https://example.com/java-introduction",
-  "position": 1
-}
-
-> {%
-    client.global.set("lesson_id", response.body.id);
-%}
-
-
-### 4. Create ONLINE lesson session — expected 201
-POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "startsAt": "2026-12-08T10:00:00+04:00",
-  "endsAt": "2026-12-08T11:00:00+04:00",
-  "format": "ONLINE",
-  "meetingUrl": "https://meet.example.com/courseflow-lesson1"
-}
-
-> {%
-    client.global.set("session_id", response.body.id);
-%}
-
-
-### =========================================================
-### REFRESH TEST USER TOKENS
-### =========================================================
-
-### 1. Login ADMIN - expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@courseflow.local",
-  "password": "{{admin_password}}"
-}
-
-> {%
-    client.global.set("admin_token", response.body.accessToken);
-    client.global.set("admin_id", response.body.userId);
-%}
-
-
-### 5. Login as STUDENT — expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{enrollment_student_email}}",
-  "password": "{{enrollment_test_password}}"
-}
-
-> {%
-    client.global.set("enrollment_student_token", response.body.accessToken);
-%}
-
-
-### 6. Login as TEACHER — expected 200
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "{{enrollment_teacher_email}}",
-  "password": "{{enrollment_test_password}}"
-}
-
-> {%
-    client.global.set("enrollment_teacher_token", response.body.accessToken);
-%}
-
-
-
-### 1. Guest cannot read lessons — expected 401
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
-
-
-### 2. Guest cannot read sessions — expected 401
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-
-
-### 3. ADMIN can read lessons — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
-Authorization: Bearer {{admin_token}}
-
-
-### 4. ADMIN can read lesson details — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 5. ADMIN can read sessions — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{admin_token}}
-
-
-### 6. ADMIN can read session details — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 7. Enroll test student — expected 201 or 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 8. Enrolled student reads lessons — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 9. Enrolled student reads lesson details — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 10. Enrolled student reads sessions — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 11. Withdraw test student — expected 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 12. Withdrawn student cannot read lessons — 403
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 13. Withdrawn student cannot read lesson details — 403
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 14. Withdrawn student cannot read sessions — 403
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 15. Withdrawn student cannot read session details — 403
-GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 16. Reactivate enrollment — expected 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 17. Reactivated student reads lessons — 200
-GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons
-Authorization: Bearer {{enrollment_student_token}}
-
-
-
-### =========================================================
-### STAGE 5.2.1 — ASSIGNMENT CREATE / READ
-### =========================================================
-
-### 1. ADMIN creates assignment — expected 201
-POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Homework 1",
-  "description": "Explain the difference between JDK, JRE and JVM.",
-  "dueAt": "2026-12-20T18:00:00+04:00",
+  "title": "Java homework 1",
+  "description": "Explain JVM, JDK and JRE",
+  "dueAt": "{{manual_due_at}}",
   "maxScore": 100
 }
 
 > {%
-    client.test("Assignment created", function () {
-        client.assert(response.status === 201, "Expected 201");
-    });
-    client.global.set("assignment_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_assignment_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_assignment_id", String(response.body.id));
+    }
 %}
 
-
-### 2. Get assignment by ID — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 3. List assignments — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments?page=0&size=10
-Authorization: Bearer {{admin_token}}
-
-
-### 4. TEACHER creates assignment — expected 201
-POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
-Authorization: Bearer {{enrollment_teacher_token}}
+### Update assignment — 200
+PUT {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments/{{manual_assignment_id}}
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "title": "Java Homework 2",
-  "description": "Write a short explanation of Java primitive types.",
-  "dueAt": "2026-12-22T18:00:00+04:00",
-  "maxScore": 50
-}
-
-
-### 5. STUDENT lists assignments — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 6. STUDENT reads assignment details — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 7. STUDENT cannot create assignment — expected 403
-POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "title": "Unauthorized Homework",
-  "description": "This assignment must not be created.",
-  "dueAt": "2026-12-23T18:00:00+04:00",
+{"version": {{manual_assignment_version}},
+  "title": "Java homework 1 updated",
+  "description": "Explain JVM, JDK and JRE",
+  "dueAt": "{{manual_due_at}}",
   "maxScore": 100
 }
 
+> {%
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_assignment_version", String(response.body.version));
+    }
+%}
 
-### 8. Guest cannot read assignments — expected 401
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments
-
-
-### 9. Invalid maxScore — expected 400
-POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
-Authorization: Bearer {{admin_token}}
+### Create second assignment — 201
+POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
-  "title": "Invalid Homework",
-  "description": "Invalid maximum score.",
-  "dueAt": "2026-12-23T18:00:00+04:00",
-  "maxScore": 0
-}
-
-
-### 10. Nonexistent assignment — expected 404
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/999999
-Authorization: Bearer {{admin_token}}
-
-
-### 11. Sort assignments by dueAt DESC — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments?page=0&size=10&sortBy=dueAt&direction=desc
-Authorization: Bearer {{admin_token}}
-
-
-### =========================================================
-### STAGE 5.2.2 — ASSIGNMENT UPDATE / DELETE
-### =========================================================
-
-### 1. Teacher updates assignment — expected 200
-PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Homework 1 - Updated",
-  "description": "Explain JVM, JDK and JRE with examples.",
-  "dueAt": "2026-12-25T18:00:00+04:00",
-  "maxScore": 100
-}
-
-
-### 2. Read updated assignment — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 3. Student cannot update assignment — expected 403
-PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "title": "Unauthorized Update",
-  "description": "Student must not update assignments.",
-  "dueAt": "2026-12-26T18:00:00+04:00",
-  "maxScore": 100
-}
-
-
-### 4. Invalid maxScore — expected 400
-PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Invalid Assignment",
-  "description": "Invalid score.",
-  "dueAt": "2026-12-26T18:00:00+04:00",
-  "maxScore": 0
-}
-
-
-### 5. Create temporary assignment — expected 201
-POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Temporary Assignment for Deletion",
-  "description": "This assignment will be deleted during testing.",
-  "dueAt": "2026-12-28T18:00:00+04:00",
+  "title": "Java homework 2",
+  "description": "Explain primitive types",
+  "dueAt": "{{manual_due_at}}",
   "maxScore": 50
 }
 
 > {%
-    client.global.set("assignment_delete_id", response.body.id);
+    if (response.status === 201) {
+        client.global.set("manual_assignment2_id", String(response.body.id));
+    }
 %}
 
+### List assignments — 200
+GET {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments
+Authorization: Bearer {{manual_student_token}}
 
-### 6. Delete temporary assignment — expected 204
-DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_delete_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 7. Read deleted assignment — expected 404
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_delete_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 8. Student cannot delete main assignment — expected 403
-DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 9. Main assignment still exists — expected 200
-GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### =========================================================
-### STAGE 5.2.3 — STUDENT SUBMISSION
-### =========================================================
-
-### 1. No submission yet — expected 404
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 2. Student submits homework — expected 201
-POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{enrollment_student_token}}
+### Submit homework — 201
+POST {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
 {
-  "content": "JDK is the development kit. JRE provides the runtime environment. JVM executes Java bytecode."
+  "content": "JDK provides tools; JRE provides runtime; JVM executes bytecode."
 }
 
 > {%
-    client.test("Submission created", function () {
-        client.assert(response.status === 201, "Expected 201");
-        client.assert(response.body.status === "SUBMITTED");
-        client.assert(response.body.score === null);
-    });
-    client.global.set("submission_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_submission_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_submission_id", String(response.body.id));
+    }
 %}
 
+### Read own submission — 200
+GET {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions/me
+Authorization: Bearer {{manual_student_token}}
 
-### 3. Student reads own submission — expected 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
-Authorization: Bearer {{enrollment_student_token}}
+### Teacher lists pending work — 200
+GET {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions?status=SUBMITTED
+Authorization: Bearer {{manual_teacher_token}}
 
-
-### 4. Duplicate submission — expected 409
-POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{enrollment_student_token}}
+### Grade homework — 200
+PUT {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions/{{manual_submission_id}}/grade
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "content": "Attempting to submit the same homework twice."
-}
-
-
-### 5. Teacher without STUDENT role cannot submit — 403
-POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "content": "Teacher must not submit a student solution."
-}
-
-
-### 6. Guest cannot submit — expected 401
-POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Content-Type: application/json
-
-{
-  "content": "Unauthorized submission."
-}
-
-
-### 7. Empty content — expected 400
-POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "content": "   "
-}
-
-
-### 8. Unknown assignment — expected 404
-POST http://localhost:8080/api/assignments/999999/submissions
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "content": "Solution for a nonexistent assignment."
-}
-
-
-### 9. Teacher cannot update submitted assignment — 409
-PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "title": "Cannot modify submitted homework",
-  "description": "This operation must be rejected.",
-  "dueAt": "2026-12-28T18:00:00+04:00",
-  "maxScore": 100
-}
-
-
-### 10. ADMIN cannot delete submitted assignment — 409
-DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 11. Withdraw student — expected 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 12. Withdrawn student cannot submit new work — 403
-POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "content": "Attempt after enrollment withdrawal."
-}
-
-
-### 13. Withdrawn student can still read own work — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 14. Restore enrollment — expected 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 15. Previously submitted work still exists — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-
-### =========================================================
-### STAGE 5.2.4 — SUBMISSION GRADING
-### =========================================================
-
-### 1. TEACHER lists all submissions — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 2. TEACHER filters SUBMITTED works — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?status=SUBMITTED&page=0&size=10
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 3. ADMIN lists submissions — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{admin_token}}
-
-
-### 4. STUDENT cannot list all submissions — 403
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 5. TEACHER grades submission — 200
-PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "score": 85,
-  "feedback": "Good explanation of JDK, JRE and JVM. Add more practical examples."
-}
-
-> {%
-    client.test("Submission graded", function () {
-        client.assert(response.status === 200, "Expected 200");
-        client.assert(response.body.status === "GRADED");
-        client.assert(response.body.score === 85);
-    });
-%}
-
-
-### 6. STUDENT sees own grade — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 7. TEACHER filters GRADED submissions — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?status=GRADED
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 8. Score above maxScore — 400
-PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "score": 101,
-  "feedback": "Invalid score."
-}
-
-
-### 9. Negative score — 400
-PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "score": -1,
-  "feedback": "Negative scores are forbidden."
-}
-
-
-### 10. STUDENT cannot grade own submission — 403
-PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "score": 100,
-  "feedback": "Trying to grade my own work."
-}
-
-
-### 11. TEACHER corrects previous grade — 200
-PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
+{"version": {{manual_submission_version}},
   "score": 90,
-  "feedback": "Grade corrected after additional review."
+  "feedback": "Good explanation"
 }
 
+> {%
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_submission_version", String(response.body.version));
+    }
+%}
 
-### 12. STUDENT sees corrected grade — 200
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me
-Authorization: Bearer {{enrollment_student_token}}
+### Admin extends deadline — 200
+PATCH {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments/{{manual_assignment_id}}/deadline
+Authorization: Bearer {{manual_admin_token}}
+Content-Type: application/json
 
+{"dueAt":"{{manual_extended_due}}","version":{{manual_assignment_version}}}
 
-### 13. Nonexistent submission — 404
-PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/999999/grade
-Authorization: Bearer {{admin_token}}
+> {%
+    if (response.status === 200) client.global.set("manual_assignment_version", String(response.body.version));
+%}
+
+### Teacher regrades an already graded submission — 200
+PUT {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions/{{manual_submission_id}}/grade
+Authorization: Bearer {{manual_teacher_token}}
+Content-Type: application/json
+
+{"version":{{manual_submission_version}},"score":95,"feedback":"Revised evaluation"}
+
+> {%
+    if (response.status === 200) client.global.set("manual_submission_version", String(response.body.version));
+%}
+
+# Quizzes
+
+### Create quiz — 201
+POST {{baseUrl}}/api/modules/{{manual_module_id}}/quiz
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
-  "score": 50,
-  "feedback": "Submission does not exist."
-}
-
-
-### 14. Invalid pagination — 400
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?page=-1
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 15. Unknown sort field — 400
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?sortBy=unknown
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 16. Guest cannot list submissions — 401
-GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions
-
-
-
-### =========================================================
-### STAGE 5.3.1 — QUIZ CREATE / READ
-### =========================================================
-
-### 1. ADMIN creates Quiz — expected 201
-POST http://localhost:8080/api/modules/{{module_id}}/quiz
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Fundamentals Quiz",
+  "title": "Java quiz",
   "timeLimit": 20
 }
 
 > {%
-    client.test("Quiz created", function () {
-        client.assert(response.status === 201, "Expected 201");
-        client.assert(response.body.maxAttempts === 2, "Expected 2 attempts");
-    });
-    client.global.set("quiz_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_quiz_version", String(response.body.version));
+    }
+    if (response.status === 201) {
+        client.global.set("manual_quiz_id", String(response.body.id));
+    }
 %}
 
-
-### 2. ADMIN gets Quiz by ID — expected 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 3. STUDENT gets Quiz by module — expected 200
-GET http://localhost:8080/api/modules/{{module_id}}/quiz
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 4. STUDENT gets Quiz by ID — expected 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 5. Duplicate Quiz for same module — expected 409
-POST http://localhost:8080/api/modules/{{module_id}}/quiz
-Authorization: Bearer {{admin_token}}
+### Update quiz settings — 200
+PUT {{baseUrl}}/api/quizzes/{{manual_quiz_id}}
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "title": "Duplicate Java Quiz",
-  "timeLimit": 30
-}
-
-
-### 6. STUDENT cannot create Quiz — expected 403
-POST http://localhost:8080/api/modules/{{module_id}}/quiz
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "title": "Unauthorized Quiz",
-  "timeLimit": 20
-}
-
-
-### 7. Guest cannot access Quiz — expected 401
-GET http://localhost:8080/api/modules/{{module_id}}/quiz
-
-
-### 8. Invalid time limit — expected 400
-POST http://localhost:8080/api/modules/{{module_id}}/quiz
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Invalid Quiz",
-  "timeLimit": 0
-}
-
-
-### 9. Unknown module — expected 404
-POST http://localhost:8080/api/modules/999999/quiz
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Missing Module Quiz",
-  "timeLimit": 20
-}
-
-
-### 10. Unknown Quiz — expected 404
-GET http://localhost:8080/api/quizzes/999999
-Authorization: Bearer {{admin_token}}
-
-
-### 11. TEACHER creates second module — expected 201
-POST http://localhost:8080/api/courses/{{course_id}}/modules
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "title": "Module 2 - Java Collections",
-  "description": "Collections and generics",
-  "position": 2
+{"version": {{manual_quiz_version}},
+  "title": "Java quiz updated",
+  "timeLimit": 30,
+  "maxAttempts": 2
 }
 
 > {%
-    client.test("Second module created", function () {
-        client.assert(response.status === 201, "Expected 201");
-    });
-    client.global.set("quiz_teacher_module_id", response.body.id);
+    if (response.status >= 200 && response.status < 300 && response.body && typeof response.body.version === "number") {
+        client.global.set("manual_quiz_version", String(response.body.version));
+    }
 %}
 
-
-### 12. TEACHER creates Quiz — expected 201
-POST http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz
-Authorization: Bearer {{enrollment_teacher_token}}
+### Create single choice question — 201
+POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
-  "title": "Java Collections Quiz",
-  "timeLimit": 15
-}
-
-> {%
-    client.test("Teacher Quiz created", function () {
-        client.assert(response.status === 201, "Expected 201");
-    });
-    client.global.set("quiz_teacher_quiz_id", response.body.id);
-%}
-
-
-### 13. STUDENT reads teacher's Quiz — expected 200
-GET http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### STAGE 5.3.2 — QUIZ QUESTIONS AND ANSWER OPTIONS
-### =========================================================
-
-### 1. ADMIN creates SINGLE_CHOICE question — 201
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Which Java data type is primitive?",
+  "text": "Which type is primitive?",
   "type": "SINGLE_CHOICE",
   "position": 1,
   "options": [
@@ -2878,1908 +565,452 @@ Content-Type: application/json
 }
 
 > {%
-    client.test("Single choice question created", function () {
-        client.assert(response.status === 201);
-    });
-
-    client.global.set("question_1_id", response.body.id);
-
-    client.global.set("question_1_correct_option_id",
-        response.body.options.find(o => o.correct === true).id);
-
-    client.global.set("question_1_wrong_option_id",
-        response.body.options.find(o => o.correct === false).id);
-%}
-
-
-### 2. TEACHER creates MULTIPLE_CHOICE question — 201
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "text": "Which Java data types are primitive?",
-  "type": "MULTIPLE_CHOICE",
-  "position": 2,
-  "options": [
-    {
-      "text": "int",
-      "correct": true
-    },
-    {
-      "text": "double",
-      "correct": true
-    },
-    {
-      "text": "String",
-      "correct": false
-    },
-    {
-      "text": "Object",
-      "correct": false
+    if (response.status === 201) {
+        client.global.set("manual_question1_id", String(response.body.id));
+        client.global.set("manual_q1_correct_id", String(response.body.options.find(o => o.text === "int").id));
+        client.global.set("manual_q1_wrong_id", String(response.body.options.find(o => o.text === "String").id));
     }
-  ]
-}
-
-> {%
-    client.test("Multiple choice question created", function () {
-        client.assert(response.status === 201);
-    });
-
-    client.global.set("question_2_id", response.body.id);
-
-    let correct = response.body.options.filter(o => o.correct);
-
-    client.global.set("question_2_correct_option_1_id",
-        correct[0].id);
-
-    client.global.set("question_2_correct_option_2_id",
-        correct[1].id);
-
-    client.global.set("question_2_wrong_option_id",
-        response.body.options.find(o => !o.correct).id);
 %}
 
-
-### 3. ADMIN gets questions with correct answers — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
-Authorization: Bearer {{admin_token}}
-
-
-### 4. TEACHER gets questions with correct answers — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 5. STUDENT reads questions without correct answers — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Correct answers are hidden", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.length === 2);
-
-        response.body.forEach(question => {
-            question.options.forEach(option => {
-                client.assert(!("correct" in option),
-                    "Correct answer leaked to student");
-            });
-        });
-    });
-%}
-
-
-### 6. STUDENT cannot access management endpoint — 403
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 7. Duplicate question position — 409
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Duplicate position question",
-  "type": "SINGLE_CHOICE",
-  "position": 1,
-  "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": false}
-  ]
-}
-
-
-### 8. SINGLE_CHOICE with two correct answers — 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Invalid single choice question",
-  "type": "SINGLE_CHOICE",
-  "position": 3,
-  "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": true}
-  ]
-}
-
-
-### 9. MULTIPLE_CHOICE with one correct answer — 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Invalid multiple choice question",
-  "type": "MULTIPLE_CHOICE",
-  "position": 3,
-  "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": false}
-  ]
-}
-
-
-### 10. Question with one option — 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Not enough answer options",
-  "type": "SINGLE_CHOICE",
-  "position": 3,
-  "options": [
-    {"text": "Answer A", "correct": true}
-  ]
-}
-
-
-### 11. STUDENT cannot create question — 403
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "text": "Unauthorized question",
-  "type": "SINGLE_CHOICE",
-  "position": 3,
-  "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": false}
-  ]
-}
-
-
-### 12. Unknown Quiz — 404
-GET http://localhost:8080/api/quizzes/999999/questions
-Authorization: Bearer {{admin_token}}
-
-
-### 13. Guest cannot read questions — 401
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-
-
-### 14. Withdraw student — 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 15. Withdrawn student cannot read questions — 403
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 16. Reactivate enrollment — 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 17. Student can read questions again — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{enrollment_student_token}}
-
-
-
-### =========================================================
-### STAGE 5.3.2b — QUIZ AND QUESTION UPDATE / DELETE
-### =========================================================
-
-### 1. TEACHER updates Quiz settings — 200
-PUT http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Fundamentals Quiz - Updated",
-  "timeLimit": 30,
-  "maxAttempts": 3
-}
-
-
-### 2. STUDENT reads updated Quiz — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Quiz settings updated", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.timeLimit === 30);
-        client.assert(response.body.maxAttempts === 3);
-    });
-%}
-
-
-### 3. Invalid maxAttempts — 400
-PUT http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Invalid Quiz",
-  "timeLimit": 20,
-  "maxAttempts": 0
-}
-
-
-### 4. STUDENT cannot update Quiz — 403
-PUT http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "title": "Unauthorized update",
-  "timeLimit": 20,
-  "maxAttempts": 5
-}
-
-
-### 5. Restore original Quiz settings — 200
-PUT http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Java Fundamentals Quiz",
-  "timeLimit": 20,
-  "maxAttempts": 2
-}
-
-
-### 6. Create temporary question — 201
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Temporary test question",
-  "type": "SINGLE_CHOICE",
-  "position": 3,
-  "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": false}
-  ]
-}
-
-> {%
-    client.test("Temporary question created", function () {
-        client.assert(response.status === 201);
-    });
-    client.global.set("question_temp_id", response.body.id);
-%}
-
-
-### 7. TEACHER updates temporary question — 200
-PUT http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
+### Create multiple choice question — 201
+POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
 {
   "text": "Which collections implement List?",
   "type": "MULTIPLE_CHOICE",
-  "position": 3,
-  "options": [
-    {"text": "ArrayList", "correct": true},
-    {"text": "LinkedList", "correct": true},
-    {"text": "HashSet", "correct": false}
-  ]
-}
-
-> {%
-    client.test("Question updated", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.type === "MULTIPLE_CHOICE");
-        client.assert(response.body.options.length === 3);
-    });
-%}
-
-
-### 8. Read updated questions — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
-Authorization: Bearer {{admin_token}}
-
-
-### 9. Update to occupied position — 409
-PUT http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Duplicate position",
-  "type": "SINGLE_CHOICE",
-  "position": 1,
-  "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": false}
-  ]
-}
-
-
-### 10. STUDENT cannot delete question — 403
-DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 11. TEACHER deletes temporary question — 204
-DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 12. Main Quiz contains only original two questions — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
-Authorization: Bearer {{admin_token}}
-
-> {%
-    client.test("Temporary question deleted", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.length === 2);
-    });
-%}
-
-
-### 13. Delete nonexistent question — 404
-DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/999999
-Authorization: Bearer {{admin_token}}
-
-
-### 14. STUDENT cannot delete Quiz — 403
-DELETE http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### DELETE SECONDARY QUIZ WITH RELATED QUESTIONS
-### =========================================================
-
-### 15. Create question in secondary Quiz — 201
-POST http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Question for Quiz deletion test",
-  "type": "SINGLE_CHOICE",
-  "position": 1,
-  "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": false}
-  ]
-}
-
-
-### 16. Delete secondary Quiz with questions — 204
-DELETE http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 17. Deleted Quiz is not available — 404
-GET http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 18. Secondary module has no Quiz — 404
-GET http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz
-Authorization: Bearer {{admin_token}}
-
-
-### 19. Main Quiz still exists — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 20. Original questions and answers still exist — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage
-Authorization: Bearer {{admin_token}}
-
-
-### =========================================================
-### STAGE 5.3.3 — QUIZ ATTEMPTS
-### =========================================================
-
-### 1. Create Quiz with 1 minute time limit — 201
-POST http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "title": "Quiz Attempt Lifecycle Test",
-  "timeLimit": 1
-}
-
-> {%
-    client.global.set("quiz_attempt_test_id", response.body.id);
-%}
-
-
-### 2. Cannot start empty Quiz — 409
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 3. Create question for attempt testing — 201
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "text": "Which Java type is primitive?",
-  "type": "SINGLE_CHOICE",
-  "position": 1,
-  "options": [
-    {"text": "int", "correct": true},
-    {"text": "String", "correct": false}
-  ]
-}
-
-> {%
-    client.global.set("attempt_test_question_id", response.body.id);
-%}
-
-
-### 4. Guest cannot start Quiz — 401
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-
-
-### 5. ADMIN without STUDENT role cannot start Quiz — 403
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{admin_token}}
-
-
-### 6. Withdraw student — 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 7. Withdrawn student cannot start Quiz — 403
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 8. Restore enrollment — 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### FIRST ATTEMPT
-### Execute requests 9-11 within one minute
-### =========================================================
-
-### 9. Student starts first attempt — 201
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("First attempt created", function () {
-        client.assert(response.status === 201);
-        client.assert(response.body.attemptNumber === 1);
-        client.assert(response.body.status === "IN_PROGRESS");
-        client.assert(response.body.score === null);
-    });
-
-    client.global.set("quiz_attempt_1_id", response.body.id);
-%}
-
-
-### 10. Repeated start returns existing attempt — 200
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Existing attempt returned", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.attemptNumber === 1);
-        client.assert(
-            String(response.body.id) ===
-            String(client.global.get("quiz_attempt_1_id"))
-        );
-    });
-%}
-
-
-### 11. Student reads own attempt — 200
-GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### PROTECT QUIZ HISTORY
-### =========================================================
-
-### 12. Teacher cannot update Quiz after attempt — 409
-PUT http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "title": "Cannot modify Quiz",
-  "timeLimit": 20,
-  "maxAttempts": 5
-}
-
-
-### 13. ADMIN cannot delete Quiz after attempt — 409
-DELETE http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}
-Authorization: Bearer {{admin_token}}
-
-
-### 14. Teacher cannot add question after attempt — 409
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "text": "New question after attempt",
-  "type": "SINGLE_CHOICE",
   "position": 2,
   "options": [
-    {"text": "Answer A", "correct": true},
-    {"text": "Answer B", "correct": false}
-  ]
-}
-
-
-### 15. Teacher cannot delete question after attempt — 409
-DELETE http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions/{{attempt_test_question_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### =========================================================
-### WAIT UNTIL FIRST ATTEMPT EXPIRES
-### Check expiresAt returned by request 9
-### =========================================================
-
-### 16. Read expired first attempt — 200
-GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("First attempt expired", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.status === "EXPIRED");
-    });
-%}
-
-
-### 17. Student starts second attempt — 201
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Second attempt created", function () {
-        client.assert(response.status === 201);
-        client.assert(response.body.attemptNumber === 2);
-        client.assert(response.body.status === "IN_PROGRESS");
-    });
-
-    client.global.set("quiz_attempt_2_id", response.body.id);
-%}
-
-
-### 18. Repeated start returns second attempt — 200
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Existing second attempt returned", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.attemptNumber === 2);
-        client.assert(
-            String(response.body.id) ===
-            String(client.global.get("quiz_attempt_2_id"))
-        );
-    });
-%}
-
-
-### =========================================================
-### WAIT UNTIL SECOND ATTEMPT EXPIRES
-### Check expiresAt returned by request 17
-### =========================================================
-
-### 19. Third attempt is forbidden — 409
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 20. Read expired second attempt — 200
-GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_2_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Second attempt expired", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.status === "EXPIRED");
-    });
-%}
-
-
-### 21. Nonexistent attempt — 404
-GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/999999
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 22. Attempt belongs to another Quiz — 404
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 23. Unknown Quiz — 404
-POST http://localhost:8080/api/quizzes/999999/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### STAGE 5.3.4 — QUIZ SUBMISSION AND AUTOMATIC GRADING
-### =========================================================
-
-### 1. Start first attempt — expected 201
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("First attempt started", function () {
-        client.assert(response.status === 201);
-        client.assert(response.body.attemptNumber === 1);
-    });
-
-    client.global.set("grading_attempt_1_id", response.body.id);
-%}
-
-
-### 2. Answer option belongs to another question — 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": [
     {
-      "questionId": {{question_1_id}},
-      "optionIds": [
-        {{question_2_correct_option_1_id}}
-      ]
-    }
-  ]
-}
-
-
-### 3. Duplicate question — expected 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": [
-    {
-      "questionId": {{question_1_id}},
-      "optionIds": [{{question_1_correct_option_id}}]
+      "text": "ArrayList",
+      "correct": true
     },
     {
-      "questionId": {{question_1_id}},
-      "optionIds": [{{question_1_wrong_option_id}}]
-    }
-  ]
-}
-
-
-### 4. Duplicate answer option — expected 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": [
+      "text": "LinkedList",
+      "correct": true
+    },
     {
-      "questionId": {{question_2_id}},
-      "optionIds": [
-        {{question_2_correct_option_1_id}},
-        {{question_2_correct_option_1_id}}
-      ]
+      "text": "HashSet",
+      "correct": false
     }
   ]
 }
-
-
-### 5. SINGLE_CHOICE with two options — expected 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": [
-    {
-      "questionId": {{question_1_id}},
-      "optionIds": [
-        {{question_1_correct_option_id}},
-        {{question_1_wrong_option_id}}
-      ]
-    }
-  ]
-}
-
-
-### 6. Unknown question — expected 400
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": [
-    {
-      "questionId": 999999,
-      "optionIds": [{{question_1_correct_option_id}}]
-    }
-  ]
-}
-
-
-### 7. Attempt is still active — expected 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}
-Authorization: Bearer {{enrollment_student_token}}
 
 > {%
-    client.test("Invalid requests did not finish attempt", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.status === "IN_PROGRESS");
-        client.assert(response.body.score === null);
-    });
+    if (response.status === 201) {
+        client.global.set("manual_question2_id", String(response.body.id));
+        client.global.set("manual_q2_correct1_id", String(response.body.options.find(o => o.text === "ArrayList").id));
+        client.global.set("manual_q2_correct2_id", String(response.body.options.find(o => o.text === "LinkedList").id));
+    }
 %}
 
+### Teacher reads questions with answers — 200
+GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions/manage
+Authorization: Bearer {{manual_teacher_token}}
 
-### =========================================================
-### SUBMIT FIRST ATTEMPT — ALL ANSWERS CORRECT
-### =========================================================
+### Start first attempt — 201
+POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts
+Authorization: Bearer {{manual_student_token}}
 
-### 8. Submit correct answers — expected 200, score 100
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
+> {%
+    if (response.status === 201) {
+        client.global.set("manual_attempt1_id", String(response.body.id));
+    }
+%}
+
+### Student reads questions without correct flags — 200
+GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions
+Authorization: Bearer {{manual_student_token}}
+
+### Submit perfect attempt — 200
+POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt1_id}}/submit
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
 {
   "answers": [
     {
-      "questionId": {{question_1_id}},
+      "questionId": {{manual_question1_id}},
       "optionIds": [
-        {{question_1_correct_option_id}}
+        {{manual_q1_correct_id}}
       ]
     },
     {
-      "questionId": {{question_2_id}},
+      "questionId": {{manual_question2_id}},
       "optionIds": [
-        {{question_2_correct_option_1_id}},
-        {{question_2_correct_option_2_id}}
+        {{manual_q2_correct1_id}},
+        {{manual_q2_correct2_id}}
       ]
     }
   ]
 }
 
-> {%
-    client.test("Perfect result", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.status === "SUBMITTED");
-        client.assert(response.body.score === 100);
-        client.assert(response.body.finishedAt !== null);
-    });
-%}
-
-
-### 9. Read completed attempt — expected 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 10. Cannot submit completed attempt again — 409
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": []
-}
-
-
-### =========================================================
-### SECOND ATTEMPT — PARTIALLY CORRECT RESULT
-### =========================================================
-
-### 11. Start second attempt — expected 201
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
+### Start second attempt — 201
+POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts
+Authorization: Bearer {{manual_student_token}}
 
 > {%
-    client.test("Second attempt started", function () {
-        client.assert(response.status === 201);
-        client.assert(response.body.attemptNumber === 2);
-    });
-
-    client.global.set("grading_attempt_2_id", response.body.id);
+    if (response.status === 201) {
+        client.global.set("manual_attempt2_id", String(response.body.id));
+    }
 %}
 
-
-### 12. Submit partially correct answers — 200, score 50
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
+### Submit partial result — 200
+POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt2_id}}/submit
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
 {
   "answers": [
     {
-      "questionId": {{question_1_id}},
+      "questionId": {{manual_question1_id}},
       "optionIds": [
-        {{question_1_correct_option_id}}
+        {{manual_q1_wrong_id}}
       ]
     },
     {
-      "questionId": {{question_2_id}},
+      "questionId": {{manual_question2_id}},
       "optionIds": [
-        {{question_2_correct_option_1_id}}
+        {{manual_q2_correct1_id}},
+        {{manual_q2_correct2_id}}
       ]
     }
   ]
 }
 
-> {%
-    client.test("Partial result", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.status === "SUBMITTED");
-        client.assert(response.body.score === 50);
-    });
-%}
-
-
-### 13. Read second attempt — expected 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 14. Third attempt exceeds limit — expected 409
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### SECURITY AND DEADLINE CHECKS
-### =========================================================
-
-### 15. ADMIN without STUDENT role cannot submit — 403
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "answers": []
-}
-
-
-### 16. Guest cannot submit — expected 401
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit
-Content-Type: application/json
-
-{
-  "answers": []
-}
-
-
-### 17. Cannot submit expired attempt — expected 409
-POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": []
-}
-
-
-### 18. Attempt does not belong to specified Quiz — 404
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": []
-}
-
-
-### 19. Nonexistent attempt — expected 404
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/999999/submit
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "answers": []
-}
-
-
-
-### =========================================================
-### STAGE 5.3.5 — QUIZ HISTORY AND RESULTS
-### =========================================================
-
-### 1. STUDENT reads own attempt history — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 2. STUDENT filters submitted attempts — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?status=SUBMITTED
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 3. STUDENT sorts attempts by score DESC — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?sortBy=score&direction=desc
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 4. STUDENT reads first attempt details — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/result
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("First attempt result", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.attempt.score === 100);
-        client.assert(response.body.selectedAnswers.length === 3);
-
-        response.body.selectedAnswers.forEach(answer => {
-            client.assert(!("correct" in answer));
-            client.assert(!("isCorrect" in answer));
-        });
-    });
-%}
-
-
-### 5. STUDENT reads second attempt details — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/result
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Second attempt result", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.attempt.score === 50);
-        client.assert(response.body.selectedAnswers.length === 2);
-    });
-%}
-
-
-### 6. STUDENT reads expired attempts — 200
-GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/me?status=EXPIRED
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 7. STUDENT cannot list all student results — 403
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 8. STUDENT cannot access management details — 403
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/manage
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### TEACHER AND ADMIN RESULTS
-### =========================================================
-
-### 9. TEACHER lists Quiz results — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 10. TEACHER filters results by student — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?studentId={{enrollment_student_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 11. TEACHER filters submitted attempts — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?status=SUBMITTED&sortBy=score&direction=desc
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 12. TEACHER reads first page — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?page=0&size=1&sortBy=score&direction=desc
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 13. TEACHER reads second page — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?page=1&size=1&sortBy=score&direction=desc
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 14. TEACHER reads detailed attempt result — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/manage
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 15. ADMIN lists Quiz results — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-Authorization: Bearer {{admin_token}}
-
-
-### 16. ADMIN reads detailed attempt result — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/manage
-Authorization: Bearer {{admin_token}}
-
-
-### =========================================================
-### VALIDATION AND SECURITY
-### =========================================================
-
-### 17. Unknown sort field — 400
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?sortBy=unknown
-Authorization: Bearer {{admin_token}}
-
-
-### 18. Invalid pagination — 400
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?page=-1
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 19. Invalid status — 400
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?status=UNKNOWN
-Authorization: Bearer {{admin_token}}
-
-
-### 20. Nonexistent attempt — 404
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/999999/result
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 21. Attempt belongs to another Quiz — 404
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}/result
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 22. Guest cannot read results — 401
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-
-
-### =========================================================
-### PRESERVE STUDENT HISTORY AFTER WITHDRAWAL
-### =========================================================
-
-### 23. Withdraw student — 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 24. Withdrawn student can read own history — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 25. Withdrawn student can read own result — 200
-GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/result
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 26. Withdrawn student cannot start Quiz — 403
-POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 27. Restore enrollment — 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-
-### =========================================================
-### STAGE 5.4 — COURSE REVIEWS AND RATING
-### =========================================================
-
-### 1. Guest reads empty course rating — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
-
-
-### 2. Student has no review yet — 404
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 3. Student creates review — 201
-POST http://localhost:8080/api/courses/{{course_id}}/reviews
-Authorization: Bearer {{enrollment_student_token}}
+### Student attempt history — 200
+GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/me?status=SUBMITTED&page=0&size=10
+Authorization: Bearer {{manual_student_token}}
+
+### Teacher quiz results — 200
+GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts?status=SUBMITTED
+Authorization: Bearer {{manual_teacher_token}}
+
+### Own attempt detail — 200
+GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt1_id}}/result
+Authorization: Bearer {{manual_student_token}}
+
+### Management attempt detail — 200
+GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt1_id}}/manage
+Authorization: Bearer {{manual_teacher_token}}
+
+# Reviews and learning history
+
+### Create review — 201
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/reviews
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
 {
   "rating": 5,
-  "comment": "Excellent course with useful lessons and assignments."
+  "comment": "Excellent course"
 }
 
 > {%
-    client.test("Review created", function () {
-        client.assert(response.status === 201);
-        client.assert(response.body.rating === 5);
-    });
-
-    client.global.set("course_review_id", response.body.id);
+    if (response.status === 201) {
+        client.global.set("manual_review_id", String(response.body.id));
+    }
 %}
 
-
-### 4. Student reads own review — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 5. Guest reads public reviews — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews
-
-
-### 6. Guest reads course rating — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
-
-> {%
-    client.test("Initial course rating", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.reviewCount === 1);
-        client.assert(response.body.averageRating === 5);
-    });
-%}
-
-
-### 7. Duplicate review — 409
-POST http://localhost:8080/api/courses/{{course_id}}/reviews
-Authorization: Bearer {{enrollment_student_token}}
+### Update own review — 200
+PUT {{baseUrl}}/api/courses/{{manual_course_id}}/reviews/me
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
 {
   "rating": 4,
-  "comment": "Second review must not be created."
+  "comment": "Good course"
 }
 
+### Read own review — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/reviews/me
+Authorization: Bearer {{manual_student_token}}
 
-### 8. Student updates own review — 200
-PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
+### Public course reviews — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/reviews?page=0&size=10
 
-{
-  "rating": 4,
-  "comment": "Good course, but more practical examples would be useful."
-}
+### Public aggregate rating — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/reviews/rating
+
+### Gradebook with both assessment types — 200
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/gradebook?enrollmentStatus=ACTIVE&page=0&size=10
+Authorization: Bearer {{manual_teacher_token}}
+
+### Student progress — 200
+GET {{baseUrl}}/api/users/me/progress?courseId={{manual_course_id}}
+Authorization: Bearer {{manual_student_token}}
+
+### Student dashboard — 200
+GET {{baseUrl}}/api/dashboard/student
+Authorization: Bearer {{manual_student_token}}
+
+### Teacher dashboard — 200
+GET {{baseUrl}}/api/dashboard/teacher
+Authorization: Bearer {{manual_teacher_token}}
+
+### Admin dashboard — 200
+GET {{baseUrl}}/api/dashboard/admin
+Authorization: Bearer {{manual_admin_token}}
 
 > {%
-    client.test("Review updated", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.rating === 4);
-        client.assert(
-            String(response.body.id) ===
-            String(client.global.get("course_review_id"))
-        );
-    });
+    if (response.status === 200) {
+        client.global.set("manual_active_enrollments_before", String(response.body.enrollments.active));
+        client.global.set("manual_total_enrollments_before", String(response.body.enrollments.total));
+    }
 %}
 
+### My current assignments — 200
+GET {{baseUrl}}/api/users/me/assignments?courseId={{manual_course_id}}
+Authorization: Bearer {{manual_student_token}}
 
-### 9. Course rating is recalculated — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
+### My graded submissions — 200
+GET {{baseUrl}}/api/users/me/submissions?courseId={{manual_course_id}}&status=GRADED
+Authorization: Bearer {{manual_student_token}}
+
+### My quiz attempt history — 200
+GET {{baseUrl}}/api/users/me/quiz-attempts?courseId={{manual_course_id}}&status=SUBMITTED&page=0&size=1
+Authorization: Bearer {{manual_student_token}}
+
+### Withdraw from course — 204
+DELETE {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments/me
+Authorization: Bearer {{manual_student_token}}
+
+### Progress history retained — 200
+GET {{baseUrl}}/api/users/me/progress?courseId={{manual_course_id}}
+Authorization: Bearer {{manual_student_token}}
+
+### Restore enrollment — 200
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments
+Authorization: Bearer {{manual_student_token}}
+
+# OpenAPI
+
+### OpenAPI document — 200
+GET {{baseUrl}}/v3/api-docs
+Accept: application/json
+
+### Swagger UI static page — 200
+GET {{baseUrl}}/swagger-ui/index.html
+Accept: text/html
+
+# Quiz expiration
+
+### Create module for expiration test — 201
+POST {{baseUrl}}/api/courses/{{manual_course_id}}/modules
+Authorization: Bearer {{manual_teacher_token}}
+Content-Type: application/json
+
+{"title":"Quiz expiration","description":"Timed quiz","position":2}
 
 > {%
-    client.test("Updated course rating", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.reviewCount === 1);
-        client.assert(response.body.averageRating === 4);
-    });
+    if (response.status === 201) client.global.set("manual_expiry_module_id", String(response.body.id));
 %}
 
-
-### 10. Invalid rating above maximum — 400
-PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
+### Create one-minute quiz — 201
+POST {{baseUrl}}/api/modules/{{manual_expiry_module_id}}/quiz
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "rating": 6,
-  "comment": "Invalid rating."
-}
-
-
-### 11. Invalid rating below minimum — 400
-PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "rating": 0
-}
-
-
-### 12. Guest cannot create review — 401
-POST http://localhost:8080/api/courses/{{course_id}}/reviews
-Content-Type: application/json
-
-{
-  "rating": 5,
-  "comment": "Unauthorized review."
-}
-
-
-### 13. Teacher cannot review own course — 403
-POST http://localhost:8080/api/courses/{{course_id}}/reviews
-Authorization: Bearer {{enrollment_teacher_token}}
-Content-Type: application/json
-
-{
-  "rating": 5,
-  "comment": "Teacher cannot review own course."
-}
-
-
-### 14. ADMIN without STUDENT role cannot review — 403
-POST http://localhost:8080/api/courses/{{course_id}}/reviews
-Authorization: Bearer {{admin_token}}
-Content-Type: application/json
-
-{
-  "rating": 5
-}
-
-
-### 15. Sort reviews by rating — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews?page=0&size=10&sortBy=rating&direction=desc
-
-
-### 16. Invalid sort field — 400
-GET http://localhost:8080/api/courses/{{course_id}}/reviews?sortBy=unknown
-
-
-### 17. Invalid pagination — 400
-GET http://localhost:8080/api/courses/{{course_id}}/reviews?page=-1
-
-
-### 18. Unknown course — 404
-GET http://localhost:8080/api/courses/999999/reviews/rating
-
-
-### =========================================================
-### ENROLLMENT ACCESS
-### =========================================================
-
-### 19. Withdraw student — 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 20. Withdrawn student cannot update review — 403
-PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-Content-Type: application/json
-
-{
-  "rating": 3
-}
-
-
-### 21. Withdrawn student can read own review — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 22. Restore enrollment — 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### =========================================================
-### DELETE REVIEW
-### =========================================================
-
-### 23. Student deletes own review — 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 24. Deleted review no longer exists — 404
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 25. Course has no rating after deletion — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
+{"title":"Timed quiz","timeLimit":1}
 
 > {%
-    client.test("Empty course rating", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.reviewCount === 0);
-        client.assert(response.body.averageRating == null);
-    });
+    if (response.status === 201) {
+        client.global.set("manual_expiry_quiz_id", String(response.body.id));
+        client.global.set("manual_expiry_quiz_version", String(response.body.version));
+    }
 %}
 
-
-### 26. Recreate review without comment — 201
-POST http://localhost:8080/api/courses/{{course_id}}/reviews
-Authorization: Bearer {{enrollment_student_token}}
+### Set one permitted attempt — 200
+PUT {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "rating": 5
-}
+{"version":{{manual_expiry_quiz_version}},"title":"Timed quiz","timeLimit":1,"maxAttempts":1}
 
-> {%
-    client.global.set("course_review_id", response.body.id);
-%}
-
-
-### 27. Update final review — 200
-PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me
-Authorization: Bearer {{enrollment_student_token}}
+### Create question for timed quiz — 201
+POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/questions
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "rating": 5,
-  "comment": "Excellent course. Recommended for Java beginners."
-}
+{"text":"Which type is primitive?","type":"SINGLE_CHOICE","position":1,"options":[{"text":"int","correct":true},{"text":"String","correct":false}]}
 
-
-### 28. Verify final course rating — 200
-GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating
-
-
-
-
-### =========================================================
-### STAGE 5.5 — COURSE GRADEBOOK
-### =========================================================
-
-### 1. TEACHER reads own course gradebook — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 2. ADMIN reads course gradebook — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook
-Authorization: Bearer {{admin_token}}
-
-
-### 3. Only assignments — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=ASSIGNMENT
-Authorization: Bearer {{enrollment_teacher_token}}
+### Start timed attempt — 201
+POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts
+Authorization: Bearer {{manual_student_token}}
 
 > {%
-    client.test("Assignment columns only", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.columns.length > 0);
-        client.assert(
-            response.body.columns.every(
-                column => column.type === "ASSIGNMENT"
-            )
-        );
-    });
+    if (response.status === 201) client.global.set("manual_expiry_attempt_id", String(response.body.id));
 %}
 
-
-### 4. Only quizzes — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=QUIZ
-Authorization: Bearer {{enrollment_teacher_token}}
-
-> {%
-    client.test("Quiz columns only", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.columns.length > 0);
-        client.assert(
-            response.body.columns.every(
-                column => column.type === "QUIZ"
-            )
-        );
-    });
-%}
-
-
-### 5. Filter by module — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?moduleId={{module_id}}
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 6. Filter ACTIVE students — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 7. Filter WITHDRAWN students — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 8. Students with graded assignments — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=GRADED
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 9. Students with assignments awaiting review — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=SUBMITTED
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 10. Students with unsubmitted assignments — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=NOT_SUBMITTED
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 11. Search nonexistent student — empty page, 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?q=NonexistentStudent999999
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 12. Sort students by name — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=studentName&direction=asc
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 13. Sort students by ID descending — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=studentId&direction=desc
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 14. First page with one student — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=0&size=1
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 15. Second page — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=1&size=1
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### =========================================================
-### VALIDATION
-### =========================================================
-
-### 16. Invalid page — expected 400
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=-1
-Authorization: Bearer {{admin_token}}
-
-
-### 17. Invalid page size — expected 400
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?size=101
-Authorization: Bearer {{admin_token}}
-
-
-### 18. Unknown sort field — expected 400
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=unknown
-Authorization: Bearer {{admin_token}}
-
-
-### 19. Invalid sort direction — expected 400
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?direction=unknown
-Authorization: Bearer {{admin_token}}
-
-
-### 20. Unknown module — expected 404
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?moduleId=999999
-Authorization: Bearer {{admin_token}}
-
-
-### 21. Unknown course — expected 404
-GET http://localhost:8080/api/courses/999999/gradebook
-Authorization: Bearer {{admin_token}}
-
-
-### 22. Invalid combination of filters — 400
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=QUIZ&reviewStatus=GRADED
-Authorization: Bearer {{admin_token}}
-
-
-### =========================================================
-### SECURITY
-### =========================================================
-
-### 23. STUDENT cannot view gradebook — 403
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 24. Guest cannot view gradebook — 401
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook
-
-
-### 25. Teacher cannot view another teacher's course — 403
-GET http://localhost:8080/api/courses/3/gradebook
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### =========================================================
-### PRESERVE EDUCATIONAL HISTORY
-### =========================================================
-
-### 26. Withdraw student — expected 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 27. Withdrawn student remains in gradebook — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 28. Student no longer in ACTIVE list — 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-### 29. Restore enrollment — expected 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 30. Verify final gradebook — expected 200
-GET http://localhost:8080/api/courses/{{course_id}}/gradebook
-Authorization: Bearer {{enrollment_teacher_token}}
-
-
-
-### =========================================================
-### STAGE 5.6 — STUDENT LEARNING PROGRESS
-### =========================================================
-
-### 1. Student reads progress for all courses — 200
-GET http://localhost:8080/api/users/me/progress
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 2. Student reads progress for specific course — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Course progress calculated", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.content.length === 1);
-
-        let progress = response.body.content[0];
-
-        client.assert(progress.totalAssessments === 4);
-        client.assert(progress.completedAssessments === 2);
-        client.assert(progress.progressPercent === 50);
-        client.assert(progress.performancePercent === 95);
-    });
-%}
-
-
-### 3. Verify assignment results — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Assignment results are correct", function () {
-
-        client.assert(response.status === 200);
-
-        let progress = response.body.content[0];
-
-        let graded = progress.assignments.find(
-            a => String(a.assignmentId) ===
-                String(client.global.get("assignment_id"))
-        );
-
-        client.assert(graded != null);
-        client.assert(graded.status === "GRADED");
-        client.assert(graded.score === 90);
-
-        client.assert(progress.assignments.some(
-            a => a.status === "NOT_SUBMITTED"
-        ));
-    });
-%}
-
-
-### 4. Verify Quiz best result — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Best Quiz result is correct", function () {
-
-        client.assert(response.status === 200);
-
-        let progress = response.body.content[0];
-
-        let quiz = progress.quizzes.find(
-            q => String(q.quizId) ===
-                String(client.global.get("quiz_id"))
-        );
-
-        client.assert(quiz != null);
-        client.assert(quiz.status === "COMPLETED");
-        client.assert(quiz.bestScore === 100);
-        client.assert(quiz.attemptsUsed === 2);
-        client.assert(quiz.maxAttempts === 2);
-    });
-%}
-
-
-### 5. Verify expired Quiz attempts — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Expired Quiz does not count as completed",
-        function () {
-
-            client.assert(response.status === 200);
-
-            let progress = response.body.content[0];
-
-            let quiz = progress.quizzes.find(
-                q => String(q.quizId) ===
-                    String(client.global.get("quiz_attempt_test_id"))
-            );
-
-            client.assert(quiz != null);
-            client.assert(quiz.status === "NOT_COMPLETED");
-            client.assert(quiz.bestScore === null);
-            client.assert(quiz.attemptsUsed === 2);
-        });
-%}
-
-
-### 6. Verify upcoming deadlines — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Upcoming deadlines contain unsubmitted work",
-        function () {
-
-            client.assert(response.status === 200);
-
-            let progress = response.body.content[0];
-
-            client.assert(progress.upcomingDeadlines.length === 1);
-
-            client.assert(progress.upcomingDeadlines.every(
-                a => a.status === "NOT_SUBMITTED"
-            ));
-        });
-%}
-
-
-### 7. Filter active enrollments — 200
-GET http://localhost:8080/api/users/me/progress?enrollmentStatus=ACTIVE
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 8. Filter withdrawn enrollments — 200
-GET http://localhost:8080/api/users/me/progress?enrollmentStatus=WITHDRAWN
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 9. Sort courses by title — 200
-GET http://localhost:8080/api/users/me/progress?sortBy=courseTitle&direction=asc
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 10. Sort courses by ID descending — 200
-GET http://localhost:8080/api/users/me/progress?sortBy=courseId&direction=desc
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 11. First page — 200
-GET http://localhost:8080/api/users/me/progress?page=0&size=1
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 12. Second page — 200
-GET http://localhost:8080/api/users/me/progress?page=1&size=1
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 13. Unknown course — empty page, 200
-GET http://localhost:8080/api/users/me/progress?courseId=999999
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Unknown course returns empty page", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.content.length === 0);
-        client.assert(response.body.totalElements === 0);
-    });
-%}
-
-
-### =========================================================
-### VALIDATION AND SECURITY
-### =========================================================
-
-### 14. Invalid courseId — 400
-GET http://localhost:8080/api/users/me/progress?courseId=0
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 15. Invalid page — 400
-GET http://localhost:8080/api/users/me/progress?page=-1
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 16. Invalid page size — 400
-GET http://localhost:8080/api/users/me/progress?size=101
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 17. Unknown sort field — 400
-GET http://localhost:8080/api/users/me/progress?sortBy=unknown
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 18. Invalid direction — 400
-GET http://localhost:8080/api/users/me/progress?direction=unknown
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 19. Invalid enrollment status — 400
-GET http://localhost:8080/api/users/me/progress?enrollmentStatus=UNKNOWN
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 20. Guest cannot read progress — 401
-GET http://localhost:8080/api/users/me/progress
-
-
-### 21. ADMIN without STUDENT role cannot read progress — 403
-GET http://localhost:8080/api/users/me/progress
-Authorization: Bearer {{admin_token}}
-
-
-### =========================================================
-### PRESERVE PROGRESS AFTER WITHDRAWAL
-### =========================================================
-
-### 22. Withdraw student — 204
-DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 23. Withdrawn student retains educational history — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Progress preserved after withdrawal", function () {
-
-        client.assert(response.status === 200);
-
-        let progress = response.body.content[0];
-
-        client.assert(progress.enrollmentStatus === "WITHDRAWN");
-        client.assert(progress.progressPercent === 50);
-        client.assert(progress.performancePercent === 95);
-        client.assert(progress.upcomingDeadlines.length === 0);
-    });
-%}
-
-
-### 24. Withdrawn course excluded from active filter — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}&enrollmentStatus=ACTIVE
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Withdrawn course is not active", function () {
-        client.assert(response.status === 200);
-        client.assert(response.body.content.length === 0);
-    });
-%}
-
-
-### 25. Restore enrollment — 200
-POST http://localhost:8080/api/courses/{{course_id}}/enrollments
-Authorization: Bearer {{enrollment_student_token}}
-
-
-### 26. Verify final progress — 200
-GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}
-Authorization: Bearer {{enrollment_student_token}}
-
-> {%
-    client.test("Final progress is correct", function () {
-
-        client.assert(response.status === 200);
-
-        let progress = response.body.content[0];
-
-        client.assert(progress.enrollmentStatus === "ACTIVE");
-        client.assert(progress.progressPercent === 50);
-        client.assert(progress.performancePercent === 95);
-        client.assert(progress.upcomingDeadlines.length === 1);
-    });
-%}
-
-
-### проверка отправки e-mail и смены пароля!
-
-@resetBaseUrl = http://localhost:8080
-@resetEmail = vkuryndin@gmail.com
-@resetOldPassword = CourseFlowTest2026!
-@resetNewPassword = CourseFlowChanged2026!
-@resetToken = WC1D_UbtmsBY3K-Is4vRVwWJtMJoZt1FDLmaHKnxrEg
-
-### S04-01. Register test user
-POST {{resetBaseUrl}}/api/auth/register
+# Execute the following requests after expiresAt has passed.
+
+### Read expired attempt — 200, EXPIRED
+GET {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts/{{manual_expiry_attempt_id}}
+Authorization: Bearer {{manual_student_token}}
+
+### Reject submission after expiry — 409
+POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts/{{manual_expiry_attempt_id}}/submit
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
-{
-  "displayName": "Password Reset Test",
-  "email": "{{resetEmail}}",
-  "password": "{{resetOldPassword}}"
-}
+{"answers":[]}
 
-### S04-02. Forgot password - existing email
-POST {{resetBaseUrl}}/api/auth/forgot-password
+### Reject new attempt after limit is exhausted — 409
+POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts
+Authorization: Bearer {{manual_student_token}}
+
+# Overdue assignment and deadline reopening
+
+### Create assignment with a near deadline — 201
+< {%
+    client.global.set("manual_short_due", new Date(Date.now() + 120000).toISOString());
+%}
+POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "email": "{{resetEmail}}"
-}
+{"title":"Deadline reopening","description":"Submit after the deadline is extended","dueAt":"{{manual_short_due}}","maxScore":100}
 
-### S04-02. Forgot password - existing email
-POST {{resetBaseUrl}}/api/auth/forgot-password
+> {%
+    if (response.status === 201) {
+        client.global.set("manual_overdue_assignment_id", String(response.body.id));
+        client.global.set("manual_overdue_assignment_version", String(response.body.version));
+    }
+%}
+
+### Gradebook before deadline — 200, no overdue assignment
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=OVERDUE&moduleId={{manual_module_id}}
+Authorization: Bearer {{manual_teacher_token}}
+
+# Execute after dueAt has passed.
+
+### Gradebook after deadline — 200, assignment overdue
+GET {{baseUrl}}/api/courses/{{manual_course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=OVERDUE&moduleId={{manual_module_id}}
+Authorization: Bearer {{manual_teacher_token}}
+
+### Reopen assignment by extending deadline — 200
+PATCH {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments/{{manual_overdue_assignment_id}}/deadline
+Authorization: Bearer {{manual_teacher_token}}
 Content-Type: application/json
 
-{
-  "email": "{{resetEmail}}"
-}
+{"dueAt":"{{manual_extended_due}}","version":{{manual_overdue_assignment_version}}}
 
-### S04-03. Forgot password - unknown email
-POST {{resetBaseUrl}}/api/auth/forgot-password
+### Submit homework after deadline extension — 201
+POST {{baseUrl}}/api/assignments/{{manual_overdue_assignment_id}}/submissions
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
-{
-  "email": "nonexistent-{{$uuid}}@example.com"
-}
+{"content":"Submission after deadline extension"}
 
-### S04-04. Reset password
-POST {{resetBaseUrl}}/api/auth/reset-password
+# Session lifecycle
+
+### Change student password — 204
+POST {{baseUrl}}/api/auth/change-password
+Authorization: Bearer {{manual_student_token}}
 Content-Type: application/json
 
-{
-  "token": "{{resetToken}}",
-  "newPassword": "{{resetNewPassword}}"
-}
+{"currentPassword":"{{test_password}}","newPassword":"{{new_password}}"}
 
-### S04-05. Login with old password
-POST {{resetBaseUrl}}/api/auth/login
+### Previous JWT rejected after password change — 401
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{manual_student_token}}
+
+### Login with changed password — 200
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
-{
-  "email": "{{resetEmail}}",
-  "password": "{{resetOldPassword}}"
-}
+{"email":"{{manual_student_email}}","password":"{{new_password}}"}
 
-### S04-06. Login with new password
-POST {{resetBaseUrl}}/api/auth/login
+> {%
+    if (response.status === 200) client.global.set("manual_student_token", String(response.body.accessToken));
+%}
+
+### Logout student — 204
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{manual_student_token}}
+
+### Logged out JWT rejected — 401
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{manual_student_token}}
+
+# Password recovery by email
+# Use an unused mailbox address for this account. Run the requests in this section individually.
+
+### Register password recovery user — 201
+POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
-{
-  "email": "{{resetEmail}}",
-  "password": "{{resetNewPassword}}"
-}
+{"displayName":"Password recovery test","email":"{{reset_email}}","password":"{{test_password}}"}
 
-### S04-07. Reuse reset token
-POST {{resetBaseUrl}}/api/auth/reset-password
+> {%
+    if (response.status === 201) client.global.set("manual_reset_user_id", String(response.body.id));
+%}
+
+### Login before password reset — 200
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
-{
-  "token": "{{resetToken}}",
-  "newPassword": "AnotherPassword2026!"
-}
+{"email":"{{reset_email}}","password":"{{test_password}}"}
+
+> {%
+    if (response.status === 200) client.global.set("manual_reset_old_token", String(response.body.accessToken));
+%}
+
+### Request password reset email — 202
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{"email":"{{reset_email}}"}
+
+### Request reset for unknown email — 202
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{"email":"unknown-{{$uuid}}@example.com"}
+
+### Reset password using the token from email — 204
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{"token":"{{reset_token}}","newPassword":"{{new_password}}"}
+
+### Reject previously issued JWT — 401
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{manual_reset_old_token}}
+
+### Reject old password after reset — 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{reset_email}}","password":"{{test_password}}"}
+
+### Login with reset password — 200
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{reset_email}}","password":"{{new_password}}"}
+
+### Reject used reset token — 400
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{"token":"{{reset_token}}","newPassword":"{{reset_final_password}}"}
+
+# Wait for the two-minute email cooldown before requesting another reset link.
+
+### Admin sends password reset email — 202
+POST {{baseUrl}}/api/users/{{manual_reset_user_id}}/password-reset
+Authorization: Bearer {{manual_admin_token}}
+
+### Reset password using the administrator-requested link — 204
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{"token":"{{admin_reset_token}}","newPassword":"{{reset_final_password}}"}
+
+### Login after administrator-requested reset — 200
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{reset_email}}","password":"{{reset_final_password}}"}

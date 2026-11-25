@@ -2862,540 +2862,118 @@ HTTP-контракт контроллера: делегирование, пар
 
 ### 8.15. HTTP Client
 
-[`requests_auto.http`](../requests_auto.http) содержит 394 последовательных запроса с проверками ответов. Их названия соответствуют каталогу `CourseFlowRegressionIT` выше. [`requests.http`](../requests.http) содержит ручные проверки и отдельные примеры вызовов API. Ниже приведён указатель запросов по порядку расположения в файле; связанные комментарии и настройки находятся в исходном сценарии.
+[`requests_auto.http`](../requests_auto.http) содержит 400 последовательных REST-запросов с проверками ответов: 394 сценария из `CourseFlowRegressionIT` и 6 дополнительных проверок системной диагностики и публичного списка преподавателей. Сценарий выполняется в профиле `dev` командой Run All Requests in File в IntelliJ IDEA. Для каждого запуска создаётся новый набор тестовых данных.
 
-| № | Запрос | Назначение (заголовок сценария) |
-|---:|---|---|
-| 1 | [`GET {{baseUrl}}/api/system/status`](../requests.http#L10) | 1. Проверка Spring Boot и соединения с PostgreSQL |
-| 2 | [`GET {{baseUrl}}/actuator/health`](../requests.http#L17) | 2. Стандартная проверка здоровья приложения (Actuator) |
-| 3 | [`GET http://localhost:8080/api/system/status`](../requests.http#L24) | Existing endpoint: must work |
-| 4 | [`GET http://localhost:8080/api/does-not-exist`](../requests.http#L27) | Nonexistent endpoint: must return 404 |
-| 5 | [`POST http://localhost:8080/api/categories`](../requests.http#L32) | 1. Create category - expected 201 |
-| 6 | [`POST http://localhost:8080/api/categories`](../requests.http#L42) | 2. Create another category - expected 201 |
-| 7 | [`GET http://localhost:8080/api/categories?page=0&size=10`](../requests.http#L52) | 3. Get categories with pagination - expected 200 |
-| 8 | [`GET http://localhost:8080/api/categories?search=Java`](../requests.http#L56) | 4. Search categories - expected 200 |
-| 9 | [`GET http://localhost:8080/api/categories?sortBy=name&direction=desc`](../requests.http#L60) | 5. Sort descending - expected 200 |
-| 10 | [`POST http://localhost:8080/api/categories`](../requests.http#L64) | 6. Duplicate category - expected 409 |
-| 11 | [`POST http://localhost:8080/api/categories`](../requests.http#L74) | 7. Empty name - expected 400 |
-| 12 | [`GET http://localhost:8080/api/categories?size=0`](../requests.http#L84) | 8. Invalid page size - expected 400 |
-| 13 | [`GET http://localhost:8080/api/categories/999999`](../requests.http#L88) | 9. Category not found - expected 404 |
-| 14 | [`GET http://localhost:8080/api/categories?sortBy=password`](../requests.http#L92) | 10. Invalid sorting field - expected 400 |
-| 15 | [`GET http://localhost:8080/api/categories?page=0&size=10`](../requests.http#L97) | 1. Public categories - expected 200 |
-| 16 | [`GET http://localhost:8080/api/system/status`](../requests.http#L101) | 2. System status - expected 200 |
-| 17 | [`POST http://localhost:8080/api/categories`](../requests.http#L105) | 3. Create category without authentication - expected 401 |
-| 18 | [`GET http://localhost:8080/api/categories?page=0&size=10`](../requests.http#L116) | 1. Public categories - expected 200 |
-| 19 | [`GET http://localhost:8080/api/system/status`](../requests.http#L120) | 2. System status - expected 200 |
-| 20 | [`POST http://localhost:8080/api/categories`](../requests.http#L124) | 3. Protected endpoint without JWT - expected 401 |
-| 21 | [`POST http://localhost:8080/api/categories`](../requests.http#L134) | 4. Protected endpoint with invalid JWT - expected 401 |
-| 22 | [`POST http://localhost:8080/api/auth/register`](../requests.http#L146) | 1. Register STUDENT - expected 201 |
-| 23 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L157) | 2. Login - expected 200 and JWT |
-| 24 | [`POST http://localhost:8080/api/categories`](../requests.http#L171) | 3. Access ADMIN-only endpoint as STUDENT - expected 403 |
-| 25 | [`GET http://localhost:8080/api/categories?page=0&size=10`](../requests.http#L182) | 4. Public catalog - expected 200 |
-| 26 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L186) | 5. Incorrect password - expected 401 |
-| 27 | [`POST http://localhost:8080/api/auth/register`](../requests.http#L196) | 6. Duplicate registration - expected 409 |
-| 28 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L208) | 1. Login and save JWT |
-| 29 | [`POST http://localhost:8080/api/auth/logout`](../requests.http#L222) | 2. Logout - expected 204 |
-| 30 | [`POST http://localhost:8080/api/categories`](../requests.http#L227) | 3. Reuse revoked JWT - expected 401 |
-| 31 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L238) | 1. Login as system ADMIN |
-| 32 | [`POST http://localhost:8080/api/categories`](../requests.http#L255) | 2. Create category as ADMIN - expected 201 |
-| 33 | [`POST http://localhost:8080/api/auth/logout`](../requests.http#L266) | 3. Logout ADMIN - expected 204 |
-| 34 | [`POST http://localhost:8080/api/categories`](../requests.http#L271) | 4. Reuse old ADMIN JWT - expected 401 |
-| 35 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L283) | 1. Login as STUDENT |
-| 36 | [`GET http://localhost:8080/api/users/me`](../requests.http#L297) | 2. STUDENT: own profile - expected 200 |
-| 37 | [`GET http://localhost:8080/api/users`](../requests.http#L302) | 3. STUDENT: all users - expected 403 |
-| 38 | [`GET http://localhost:8080/api/users/1`](../requests.http#L307) | 4. STUDENT: another user - expected 403 |
-| 39 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L312) | 5. Login as ADMIN |
-| 40 | [`GET http://localhost:8080/api/users?page=0&size=10`](../requests.http#L326) | 6. ADMIN: all users - expected 200 |
-| 41 | [`GET http://localhost:8080/api/users?q=student1`](../requests.http#L331) | 7. ADMIN: search by email - expected 200 |
-| 42 | [`GET http://localhost:8080/api/users?status=ACTIVE&role=STUDENT`](../requests.http#L336) | 8. ADMIN: filter active students - expected 200 |
-| 43 | [`GET http://localhost:8080/api/users?role=ADMIN`](../requests.http#L341) | 9. ADMIN: list admins - expected 200 |
-| 44 | [`GET http://localhost:8080/api/users?page=0&size=5&sortBy=displayName&direction=desc`](../requests.http#L346) | 10. ADMIN: sorting and pagination - expected 200 |
-| 45 | [`GET http://localhost:8080/api/users/999999`](../requests.http#L351) | 11. ADMIN: nonexistent user - expected 404 |
-| 46 | [`GET http://localhost:8080/api/users/me`](../requests.http#L356) | 12. Without JWT - expected 401 |
-| 47 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L362) | 1. Login ADMIN |
-| 48 | [`POST http://localhost:8080/api/users`](../requests.http#L376) | 2. ADMIN creates TEACHER - expected 201 |
-| 49 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L393) | 3. Login TEACHER - expected 200 |
-| 50 | [`GET http://localhost:8080/api/users`](../requests.http#L407) | 4. TEACHER cannot list users - expected 403 |
-| 51 | [`PUT http://localhost:8080/api/users/{{teacher_id}}/roles`](../requests.http#L412) | 5. ADMIN promotes TEACHER to ADMIN - expected 200 |
-| 52 | [`GET http://localhost:8080/api/users/me`](../requests.http#L422) | 6. Old TEACHER token must be revoked - expected 401 |
-| 53 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L427) | 7. Login TEACHER again - expected 200 |
-| 54 | [`GET http://localhost:8080/api/users`](../requests.http#L441) | 8. New ADMIN can list users - expected 200 |
-| 55 | [`PUT http://localhost:8080/api/users/{{teacher_id}}/roles`](../requests.http#L446) | 9. Empty roles - expected 400 |
-| 56 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L458) | 1. Login ADMIN - expected 200 |
-| 57 | [`POST http://localhost:8080/api/users`](../requests.http#L473) | 2. Create test STUDENT - expected 201 |
-| 58 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L490) | 3. Login STUDENT - expected 200 |
-| 59 | [`PUT http://localhost:8080/api/users/{{demo_user_id}}`](../requests.http#L504) | 4. ADMIN changes student details - expected 200 |
-| 60 | [`GET http://localhost:8080/api/users/me`](../requests.http#L515) | 5. Old JWT after email change - expected 401 |
-| 61 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L520) | 6. Login with new email - expected 200 |
-| 62 | [`POST http://localhost:8080/api/users/{{demo_user_id}}/deactivate`](../requests.http#L534) | 7. ADMIN deactivates student - expected 200 |
-| 63 | [`GET http://localhost:8080/api/users/me`](../requests.http#L539) | 8. Old JWT after deactivation - expected 401 |
-| 64 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L544) | 9. Login of inactive student - expected 401 |
-| 65 | [`POST http://localhost:8080/api/users/{{demo_user_id}}/activate`](../requests.http#L554) | 10. ADMIN activates student - expected 200 |
-| 66 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L559) | 11. Login after activation - expected 200 |
-| 67 | [`POST http://localhost:8080/api/users/{{admin_id}}/deactivate`](../requests.http#L573) | 12. System ADMIN deactivation - expected 409 |
-| 68 | [`POST http://localhost:8080/api/users/{{demo_user_id}}/deactivate`](../requests.http#L578) | 13. STUDENT tries to deactivate a user - expected 403 |
-| 69 | [`POST http://localhost:8080/api/users/999999/deactivate`](../requests.http#L583) | 14. Nonexistent user - expected 404 |
-| 70 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L590) | 1. Login ADMIN - 200 |
-| 71 | [`POST http://localhost:8080/api/users`](../requests.http#L605) | 2. Create user for deletion test - 201 |
-| 72 | [`DELETE http://localhost:8080/api/users/{{archive_user_id}}`](../requests.http#L622) | 3. Delete ACTIVE user - 409 |
-| 73 | [`POST http://localhost:8080/api/users/{{archive_user_id}}/deactivate`](../requests.http#L627) | 4. Deactivate user - 200 |
-| 74 | [`DELETE http://localhost:8080/api/users/{{archive_user_id}}`](../requests.http#L632) | 5. Delete INACTIVE user - 204 |
-| 75 | [`GET http://localhost:8080/api/users/{{archive_user_id}}`](../requests.http#L637) | 6. Read archived User - 200 |
-| 76 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L642) | 7. Login with deleted account - 401 |
-| 77 | [`DELETE http://localhost:8080/api/users/{{archive_user_id}}`](../requests.http#L652) | 8. Repeated DELETE - 204 |
-| 78 | [`POST http://localhost:8080/api/users/{{archive_user_id}}/activate`](../requests.http#L657) | 9. Reactivate deleted user - 409 |
-| 79 | [`DELETE http://localhost:8080/api/users/{{admin_id}}`](../requests.http#L662) | 10. Delete system ADMIN - 409 |
-| 80 | [`DELETE http://localhost:8080/api/users/999999`](../requests.http#L667) | 11. Delete nonexistent user - 404 |
-| 81 | [`GET http://localhost:8080/api/users?status=DELETED`](../requests.http#L672) | 12. List archived users - 200 |
-| 82 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L679) | 1. Login STUDENT - expected 200 |
-| 83 | [`POST http://localhost:8080/api/auth/change-password`](../requests.http#L693) | 2. Change password - expected 204 |
-| 84 | [`GET http://localhost:8080/api/users/me`](../requests.http#L704) | 3. Old JWT must be invalid - expected 401 |
-| 85 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L709) | 4. Login with old password - expected 401 |
-| 86 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L719) | 5. Login with new password - expected 200 |
-| 87 | [`POST http://localhost:8080/api/auth/change-password`](../requests.http#L733) | 6. Restore original password - expected 204 |
-| 88 | [`GET http://localhost:8080/api/users/me`](../requests.http#L744) | 7. JWT after restoration - expected 401 |
-| 89 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L749) | 8. Login with original password - expected 200 |
-| 90 | [`POST http://localhost:8080/api/auth/change-password`](../requests.http#L763) | 9. Incorrect current password - expected 400 |
-| 91 | [`POST http://localhost:8080/api/auth/register`](../requests.http#L778) | 1. Register test user - expected 201 |
-| 92 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L789) | 2. Login with original password - expected 200 |
-| 93 | [`POST http://localhost:8080/api/auth/forgot-password`](../requests.http#L804) | 3. Request password reset - expected 202 |
-| 94 | [`POST http://localhost:8080/api/auth/forgot-password`](../requests.http#L814) | No second email should be issued during cooldown |
-| 95 | [`POST http://localhost:8080/api/auth/forgot-password`](../requests.http#L823) | 5. Unknown email - expected 202 |
-| 96 | [`POST http://localhost:8080/api/auth/reset-password`](../requests.http#L832) | 6. Reset using token from email - expected 204 |
-| 97 | [`POST http://localhost:8080/api/auth/reset-password`](../requests.http#L842) | 7. Reuse the token - expected 400 |
-| 98 | [`GET http://localhost:8080/api/users/me`](../requests.http#L852) | 8. Previously issued JWT - expected 401 |
-| 99 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L857) | 9. Login with old password - expected 401 |
-| 100 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L867) | 10. Login with new password - expected 200 |
-| 101 | [`POST http://localhost:8080/api/auth/reset-password`](../requests.http#L877) | 11. Invalid token - expected 400 |
-| 102 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L890) | ADMIN login - expected 200 |
-| 103 | [`GET http://localhost:8080/api/users?q={{reset_email}}`](../requests.http#L904) | Find user - expected 200 |
-| 104 | [`POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset`](../requests.http#L910) | 1. ADMIN requests password reset - 202 |
-| 105 | [`POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset`](../requests.http#L916) | No second email should be sent during cooldown |
-| 106 | [`POST http://localhost:8080/api/users/999999/password-reset`](../requests.http#L921) | 3. Nonexistent user - 404 |
-| 107 | [`POST http://localhost:8080/api/users/{{reset_user_id}}/password-reset`](../requests.http#L926) | 4. Without authorization - 401 |
-| 108 | [`POST http://localhost:8080/api/auth/reset-password`](../requests.http#L929) | 5. сбрасываем пароль |
-| 109 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L938) | Проверяем вход с новым паролем |
-| 110 | [`GET http://localhost:8080/api/categories`](../requests.http#L954) | Categories |
-| 111 | [`GET http://localhost:8080/api/users?role=TEACHER`](../requests.http#L957) | Teachers |
-| 112 | [`POST http://localhost:8080/api/courses`](../requests.http#L962) | 1. Create course - expected 201 |
-| 113 | [`GET http://localhost:8080/api/courses/{{course_id}}`](../requests.http#L981) | 2. Get course - expected 200 |
-| 114 | [`GET http://localhost:8080/api/courses?page=0&size=10`](../requests.http#L985) | 3. List courses - expected 200 |
-| 115 | [`POST http://localhost:8080/api/courses`](../requests.http#L989) | 4. Category not found - expected 404 |
-| 116 | [`POST http://localhost:8080/api/courses`](../requests.http#L1004) | 5. Invalid duration - expected 400 |
-| 117 | [`GET http://localhost:8080/api/courses/999999`](../requests.http#L1019) | 6. Missing course - expected 404 |
-| 118 | [`PUT http://localhost:8080/api/courses/{{course_id}}`](../requests.http#L1028) | 1. Update course - expected 200 |
-| 119 | [`GET http://localhost:8080/api/courses/{{course_id}}`](../requests.http#L1043) | 2. Read updated course - expected 200 |
-| 120 | [`GET http://localhost:8080/api/courses?q=Java`](../requests.http#L1047) | 3. Search courses - expected 200 |
-| 121 | [`GET http://localhost:8080/api/courses?categoryId=1`](../requests.http#L1051) | 4. Filter by category - expected 200 |
-| 122 | [`GET http://localhost:8080/api/courses?teacherId=3`](../requests.http#L1055) | 5. Filter by teacher - expected 200 |
-| 123 | [`GET http://localhost:8080/api/courses?status=ACTIVE`](../requests.http#L1059) | 6. Filter ACTIVE courses - expected 200 |
-| 124 | [`GET http://localhost:8080/api/courses?sortBy=title&direction=desc`](../requests.http#L1063) | 7. Sort by title descending - expected 200 |
-| 125 | [`GET http://localhost:8080/api/courses?page=0&size=2`](../requests.http#L1067) | 8. Pagination - expected 200 |
-| 126 | [`GET http://localhost:8080/api/courses?q=Java&categoryId=1&status=ACTIVE&sortBy=startDate&direction=asc`](../requests.http#L1071) | 9. Combined filters - expected 200 |
-| 127 | [`GET http://localhost:8080/api/courses?sortBy=unknown`](../requests.http#L1075) | 10. Invalid sort field - expected 400 |
-| 128 | [`PUT http://localhost:8080/api/courses/{{course_id}}`](../requests.http#L1079) | 11. Invalid duration - expected 400 |
-| 129 | [`PUT http://localhost:8080/api/courses/999999`](../requests.http#L1094) | 12. Missing course - expected 404 |
-| 130 | [`POST http://localhost:8080/api/courses`](../requests.http#L1114) | 1. Create a temporary course - 201 |
-| 131 | [`POST http://localhost:8080/api/courses/{{temporary_course_id}}/archive`](../requests.http#L1136) | 2. Archive course - 200 |
-| 132 | [`POST http://localhost:8080/api/courses/{{temporary_course_id}}/archive`](../requests.http#L1141) | 3. Archive again - 200 |
-| 133 | [`GET http://localhost:8080/api/courses/{{temporary_course_id}}`](../requests.http#L1146) | 4. Read archived course - 200 |
-| 134 | [`GET http://localhost:8080/api/courses?status=ARCHIVED&page=0&size=10`](../requests.http#L1150) | 5. Filter archived courses - 200 |
-| 135 | [`DELETE http://localhost:8080/api/courses/{{temporary_course_id}}`](../requests.http#L1154) | 6. Delete course without dependencies - 204 |
-| 136 | [`GET http://localhost:8080/api/courses/{{temporary_course_id}}`](../requests.http#L1159) | 7. Read deleted course - 404 |
-| 137 | [`DELETE http://localhost:8080/api/courses/999999`](../requests.http#L1163) | 8. Delete missing course - 404 |
-| 138 | [`POST http://localhost:8080/api/tags`](../requests.http#L1173) | 1. Create tag - expected 201 |
-| 139 | [`GET http://localhost:8080/api/tags?page=0&size=10`](../requests.http#L1187) | 2. List tags - expected 200 |
-| 140 | [`GET http://localhost:8080/api/tags?q=jpa`](../requests.http#L1191) | 3. Search tags - expected 200 |
-| 141 | [`GET http://localhost:8080/api/tags/{{tag_id}}`](../requests.http#L1195) | 4. Get tag - expected 200 |
-| 142 | [`POST http://localhost:8080/api/tags`](../requests.http#L1199) | 5. Duplicate tag - expected 409 |
-| 143 | [`PUT http://localhost:8080/api/tags/{{tag_id}}`](../requests.http#L1209) | 6. Update tag - expected 200 |
-| 144 | [`GET http://localhost:8080/api/tags?q=hibernate&sortBy=name&direction=asc&page=0&size=5`](../requests.http#L1219) | 7. Search after update - expected 200 |
-| 145 | [`POST http://localhost:8080/api/tags`](../requests.http#L1223) | 8. Invalid name - expected 400 |
-| 146 | [`GET http://localhost:8080/api/tags?page=-1&size=10`](../requests.http#L1233) | 9. Invalid pagination - expected 400 |
-| 147 | [`DELETE http://localhost:8080/api/tags/{{tag_id}}`](../requests.http#L1237) | 10. Delete unused tag - expected 204 |
-| 148 | [`GET http://localhost:8080/api/tags/{{tag_id}}`](../requests.http#L1242) | 11. Read deleted tag - expected 404 |
-| 149 | [`POST http://localhost:8080/api/tags`](../requests.http#L1251) | 1. Create first tag - 201 |
-| 150 | [`POST http://localhost:8080/api/tags`](../requests.http#L1265) | 2. Create second tag - 201 |
-| 151 | [`POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}`](../requests.http#L1279) | 3. Add first tag - 204 |
-| 152 | [`POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_2_id}}`](../requests.http#L1284) | 4. Add second tag - 204 |
-| 153 | [`POST http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}`](../requests.http#L1289) | 5. Add first tag again - 204 |
-| 154 | [`GET http://localhost:8080/api/courses/{{course_id}}/tags?page=0&size=1`](../requests.http#L1294) | 6. List course tags - 200 |
-| 155 | [`DELETE http://localhost:8080/api/tags/{{tag_1_id}}`](../requests.http#L1298) | 7. Try deleting a used tag - 409 |
-| 156 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}`](../requests.http#L1303) | 8. Remove tag from course - 204 |
-| 157 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/tags/{{tag_1_id}}`](../requests.http#L1308) | 9. Remove tag again - 204 |
-| 158 | [`DELETE http://localhost:8080/api/tags/{{tag_1_id}}`](../requests.http#L1313) | 10. Delete unused tag - 204 |
-| 159 | [`GET http://localhost:8080/api/courses/{{course_id}}/tags?page=0&size=10`](../requests.http#L1318) | 11. List remaining tags - 200 |
-| 160 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L1327) | 1. Login ADMIN - 200 |
-| 161 | [`POST http://localhost:8080/api/courses/3/modules`](../requests.http#L1343) | 1. Create module - 201 |
-| 162 | [`POST http://localhost:8080/api/courses/3/modules`](../requests.http#L1355) | 2. Create second module - 201 |
-| 163 | [`GET http://localhost:8080/api/courses/3/modules?page=0&size=10`](../requests.http#L1367) | 3. List modules - 200 |
-| 164 | [`GET http://localhost:8080/api/courses/3/modules?page=0&size=1`](../requests.http#L1371) | 4. Pagination - 200 |
-| 165 | [`POST http://localhost:8080/api/courses/3/modules`](../requests.http#L1375) | 5. Duplicate position - 409 |
-| 166 | [`POST http://localhost:8080/api/courses/3/modules`](../requests.http#L1386) | 6. Invalid position - 400 |
-| 167 | [`GET http://localhost:8080/api/courses/3/modules/1`](../requests.http#L1397) | 1. Get module - 200 |
-| 168 | [`PUT http://localhost:8080/api/courses/3/modules/1`](../requests.http#L1401) | 2. Update module - 200 |
-| 169 | [`PATCH http://localhost:8080/api/courses/3/modules/1/position`](../requests.http#L1412) | 3. Swap positions - 200 |
-| 170 | [`GET http://localhost:8080/api/courses/3/modules?page=0&size=10`](../requests.http#L1422) | 4. Check new order - 200 |
-| 171 | [`PATCH http://localhost:8080/api/courses/3/modules/1/position`](../requests.http#L1426) | 5. Invalid position - 400 |
-| 172 | [`DELETE http://localhost:8080/api/courses/3/modules/2`](../requests.http#L1436) | 6. Delete empty module - 204 |
-| 173 | [`GET http://localhost:8080/api/courses/3/modules/2`](../requests.http#L1441) | 7. Deleted module - 404 |
-| 174 | [`POST http://localhost:8080/api/courses/3/modules/1/lessons`](../requests.http#L1446) | 1. Create lesson - 201 |
-| 175 | [`POST http://localhost:8080/api/courses/3/modules/1/lessons`](../requests.http#L1463) | 2. Create second lesson - 201 |
-| 176 | [`GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=10`](../requests.http#L1476) | 3. Get all lessons - 200 |
-| 177 | [`GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=1`](../requests.http#L1480) | 4. Pagination - 200 |
-| 178 | [`GET http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}`](../requests.http#L1484) | 5. Get lesson by ID - 200 |
-| 179 | [`POST http://localhost:8080/api/courses/3/modules/1/lessons`](../requests.http#L1488) | 6. Duplicate position - 409 |
-| 180 | [`POST http://localhost:8080/api/courses/3/modules/1/lessons`](../requests.http#L1500) | 7. Invalid position - 400 |
-| 181 | [`PUT http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}`](../requests.http#L1513) | 1. Update lesson - 200 |
-| 182 | [`PATCH http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}/position`](../requests.http#L1525) | 2. Swap lesson positions - 200 |
-| 183 | [`GET http://localhost:8080/api/courses/3/modules/1/lessons?page=0&size=10`](../requests.http#L1535) | 3. Verify lesson order - 200 |
-| 184 | [`PATCH http://localhost:8080/api/courses/3/modules/1/lessons/{{lesson_id}}/position`](../requests.http#L1539) | 4. Invalid position - 400 |
-| 185 | [`POST http://localhost:8080/api/courses/3/modules/1/lessons`](../requests.http#L1549) | 5. Create temporary lesson - 201 |
-| 186 | [`DELETE http://localhost:8080/api/courses/3/modules/1/lessons/{{temp_lesson_id}}`](../requests.http#L1565) | 6. Delete temporary lesson - 204 |
-| 187 | [`GET http://localhost:8080/api/courses/3/modules/1/lessons/{{temp_lesson_id}}`](../requests.http#L1570) | 7. Verify deleted lesson - 404 |
-| 188 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L1575) | Create first session - 201 |
-| 189 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L1592) | Create adjacent session - 201 |
-| 190 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L1605) | Overlapping session - 409 |
-| 191 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L1618) | Invalid time range - 400 |
-| 192 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=0&size=10`](../requests.http#L1631) | List sessions - 200 |
-| 193 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=0&size=1`](../requests.http#L1635) | First page - 200 |
-| 194 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions?page=1&size=1`](../requests.http#L1639) | Second page - 200 |
-| 195 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}`](../requests.http#L1643) | Get session by ID - 200 |
-| 196 | [`PUT http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}`](../requests.http#L1650) | Update session - 200 |
-| 197 | [`PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time`](../requests.http#L1663) | Reschedule session - 200 |
-| 198 | [`PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time`](../requests.http#L1674) | Overlapping reschedule - 409 |
-| 199 | [`PATCH http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}/time`](../requests.http#L1684) | Invalid interval - 400 |
-| 200 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L1696) | Create temporary session - 201 |
-| 201 | [`DELETE http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}`](../requests.http#L1713) | Delete temporary session - 204 |
-| 202 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{temp_session_id}}`](../requests.http#L1718) | Verify deletion - 404 |
-| 203 | [`PUT http://localhost:8080/api/courses/1/teacher`](../requests.http#L1721) | Reassign course teacher - 200 |
-| 204 | [`GET http://localhost:8080/api/users?page=0&size=100`](../requests.http#L1730) | Get all users — ADMIN |
-| 205 | [`GET http://localhost:8080/api/courses?page=0&size=10&sortBy=title&direction=desc`](../requests.http#L1734) | Courses sorted by title DESC — 200 |
-| 206 | [`GET http://localhost:8080/api/courses/3/modules/1/lessons`](../requests.http#L1737) | GET lessons without JWT — expected 401 |
-| 207 | [`GET http://localhost:8080/api/users?page=0&size=10`](../requests.http#L1740) | TEACHER cannot list users — expected 403 |
-| 208 | [`GET http://localhost:8080/api/users?page=0&size=10`](../requests.http#L1744) | Users without authorization — expected 401 |
-| 209 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L1763) | 1. Login ADMIN - expected 200 |
-| 210 | [`POST http://localhost:8080/api/users`](../requests.http#L1779) | 1. Create teacher with STUDENT + TEACHER roles — 201 |
-| 211 | [`POST http://localhost:8080/api/users`](../requests.http#L1796) | 2. Create student — 201 |
-| 212 | [`POST http://localhost:8080/api/categories`](../requests.http#L1813) | 3. Create category — 201 |
-| 213 | [`POST http://localhost:8080/api/courses`](../requests.http#L1828) | 4. Create course — 201 |
-| 214 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L1847) | 5. Login as student — 200 |
-| 215 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L1861) | 6. Login as teacher — 200 |
-| 216 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1879) | 7. First enrollment — expected 201 Created |
-| 217 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1889) | Must return the SAME enrollment ID |
-| 218 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me`](../requests.http#L1894) | 9. Get my enrollment — expected 200, ACTIVE |
-| 219 | [`DELETE http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me`](../requests.http#L1899) | 10. Withdraw from course — expected 204 No Content |
-| 220 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me`](../requests.http#L1905) | endedAt must NOT be null |
-| 221 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1911) | Must reuse the SAME enrollment ID |
-| 222 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me`](../requests.http#L1917) | endedAt must be null |
-| 223 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1927) | Teacher has STUDENT + TEACHER roles |
-| 224 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1932) | 15. ADMIN without STUDENT role — expected 403 |
-| 225 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1937) | 16. Enrollment without JWT — expected 401 |
-| 226 | [`POST http://localhost:8080/api/courses/999999/enrollments`](../requests.http#L1941) | 17. Enroll in nonexistent course — expected 404 |
-| 227 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/archive`](../requests.http#L1951) | 18. Archive test course — expected 200 |
-| 228 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}`](../requests.http#L1956) | 19. Check archived course — expected 200, ARCHIVED |
-| 229 | [`POST http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1960) | 20. Enroll in archived course — expected 409 |
-| 230 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments/me`](../requests.http#L1966) | Existing enrollment must remain ACTIVE |
-| 231 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?page=0&size=10`](../requests.http#L1976) | 1. Teacher gets students of own course — 200 |
-| 232 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?status=ACTIVE&page=0&size=10`](../requests.http#L1981) | 2. Teacher gets ACTIVE students — 200 |
-| 233 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments?status=WITHDRAWN`](../requests.http#L1987) | 3. Teacher gets WITHDRAWN students — 200 |
-| 234 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L1992) | 4. ADMIN gets course enrollments — 200 |
-| 235 | [`GET http://localhost:8080/api/users/me/enrollments?page=0&size=10`](../requests.http#L1997) | 5. Student gets own courses — 200 |
-| 236 | [`GET http://localhost:8080/api/users/me/enrollments?status=ACTIVE`](../requests.http#L2002) | 6. Student filters own ACTIVE enrollments — 200 |
-| 237 | [`GET http://localhost:8080/api/users/me/enrollments?status=WITHDRAWN`](../requests.http#L2008) | 7. Student filters own WITHDRAWN enrollments — 200 |
-| 238 | [`GET http://localhost:8080/api/users/me/enrollments?page=0&size=1&sortBy=enrolledAt&direction=desc`](../requests.http#L2013) | 8. Pagination and sorting — 200 |
-| 239 | [`GET http://localhost:8080/api/courses/{{enrollment_course_id}}/enrollments`](../requests.http#L2022) | 9. Student cannot list all course participants — 403 |
-| 240 | [`GET http://localhost:8080/api/courses/3/enrollments`](../requests.http#L2028) | Course 3 belongs to another teacher |
-| 241 | [`GET http://localhost:8080/api/users/me/enrollments`](../requests.http#L2033) | 11. ADMIN without STUDENT role cannot use student endpoint — 403 |
-| 242 | [`GET http://localhost:8080/api/users/me/enrollments`](../requests.http#L2038) | 12. Unauthenticated user — 401 |
-| 243 | [`GET http://localhost:8080/api/users/me/enrollments?page=-1`](../requests.http#L2042) | 13. Invalid page — 400 |
-| 244 | [`GET http://localhost:8080/api/users/me/enrollments?size=101`](../requests.http#L2047) | 14. Invalid size — 400 |
-| 245 | [`GET http://localhost:8080/api/users/me/enrollments?sortBy=passwordHash`](../requests.http#L2052) | 15. Invalid sort field — 400 |
-| 246 | [`GET http://localhost:8080/api/users/me/enrollments?status=UNKNOWN`](../requests.http#L2057) | 16. Invalid status — 400 |
-| 247 | [`GET http://localhost:8080/api/courses/999999/enrollments`](../requests.http#L2062) | 17. Nonexistent course — 404 |
-| 248 | [`POST http://localhost:8080/api/courses`](../requests.http#L2077) | 1. Create ACTIVE course — expected 201 |
-| 249 | [`POST http://localhost:8080/api/courses/{{course_id}}/modules`](../requests.http#L2096) | 2. Create module — expected 201 |
-| 250 | [`POST http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons`](../requests.http#L2112) | 3. Create lesson — expected 201 |
-| 251 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L2129) | 4. Create ONLINE lesson session — expected 201 |
-| 252 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L2150) | 1. Login ADMIN - expected 200 |
-| 253 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L2165) | 5. Login as STUDENT — expected 200 |
-| 254 | [`POST http://localhost:8080/api/auth/login`](../requests.http#L2179) | 6. Login as TEACHER — expected 200 |
-| 255 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons`](../requests.http#L2194) | 1. Guest cannot read lessons — expected 401 |
-| 256 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L2198) | 2. Guest cannot read sessions — expected 401 |
-| 257 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons`](../requests.http#L2202) | 3. ADMIN can read lessons — expected 200 |
-| 258 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`](../requests.http#L2207) | 4. ADMIN can read lesson details — expected 200 |
-| 259 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L2212) | 5. ADMIN can read sessions — expected 200 |
-| 260 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}`](../requests.http#L2217) | 6. ADMIN can read session details — expected 200 |
-| 261 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L2222) | 7. Enroll test student — expected 201 or 200 |
-| 262 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons`](../requests.http#L2227) | 8. Enrolled student reads lessons — expected 200 |
-| 263 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`](../requests.http#L2232) | 9. Enrolled student reads lesson details — expected 200 |
-| 264 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L2237) | 10. Enrolled student reads sessions — expected 200 |
-| 265 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L2242) | 11. Withdraw test student — expected 204 |
-| 266 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons`](../requests.http#L2247) | 12. Withdrawn student cannot read lessons — 403 |
-| 267 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons/{{lesson_id}}`](../requests.http#L2252) | 13. Withdrawn student cannot read lesson details — 403 |
-| 268 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions`](../requests.http#L2257) | 14. Withdrawn student cannot read sessions — 403 |
-| 269 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/sessions/{{session_id}}`](../requests.http#L2262) | 15. Withdrawn student cannot read session details — 403 |
-| 270 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L2267) | 16. Reactivate enrollment — expected 200 |
-| 271 | [`GET http://localhost:8080/api/courses/{{course_id}}/modules/{{module_id}}/lessons`](../requests.http#L2272) | 17. Reactivated student reads lessons — 200 |
-| 272 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments`](../requests.http#L2282) | 1. ADMIN creates assignment — expected 201 |
-| 273 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2302) | 2. Get assignment by ID — expected 200 |
-| 274 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments?page=0&size=10`](../requests.http#L2307) | 3. List assignments — expected 200 |
-| 275 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments`](../requests.http#L2312) | 4. TEACHER creates assignment — expected 201 |
-| 276 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments`](../requests.http#L2325) | 5. STUDENT lists assignments — expected 200 |
-| 277 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2330) | 6. STUDENT reads assignment details — expected 200 |
-| 278 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments`](../requests.http#L2335) | 7. STUDENT cannot create assignment — expected 403 |
-| 279 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments`](../requests.http#L2348) | 8. Guest cannot read assignments — expected 401 |
-| 280 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments`](../requests.http#L2352) | 9. Invalid maxScore — expected 400 |
-| 281 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/999999`](../requests.http#L2365) | 10. Nonexistent assignment — expected 404 |
-| 282 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments?page=0&size=10&sortBy=dueAt&direction=desc`](../requests.http#L2370) | 11. Sort assignments by dueAt DESC — expected 200 |
-| 283 | [`PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2379) | 1. Teacher updates assignment — expected 200 |
-| 284 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2392) | 2. Read updated assignment — expected 200 |
-| 285 | [`PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2397) | 3. Student cannot update assignment — expected 403 |
-| 286 | [`PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2410) | 4. Invalid maxScore — expected 400 |
-| 287 | [`POST http://localhost:8080/api/lessons/{{lesson_id}}/assignments`](../requests.http#L2423) | 5. Create temporary assignment — expected 201 |
-| 288 | [`DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_delete_id}}`](../requests.http#L2440) | 6. Delete temporary assignment — expected 204 |
-| 289 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_delete_id}}`](../requests.http#L2445) | 7. Read deleted assignment — expected 404 |
-| 290 | [`DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2450) | 8. Student cannot delete main assignment — expected 403 |
-| 291 | [`GET http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2455) | 9. Main assignment still exists — expected 200 |
-| 292 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me`](../requests.http#L2464) | 1. No submission yet — expected 404 |
-| 293 | [`POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2469) | 2. Student submits homework — expected 201 |
-| 294 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me`](../requests.http#L2488) | 3. Student reads own submission — expected 200 |
-| 295 | [`POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2493) | 4. Duplicate submission — expected 409 |
-| 296 | [`POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2503) | 5. Teacher without STUDENT role cannot submit — 403 |
-| 297 | [`POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2513) | 6. Guest cannot submit — expected 401 |
-| 298 | [`POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2522) | 7. Empty content — expected 400 |
-| 299 | [`POST http://localhost:8080/api/assignments/999999/submissions`](../requests.http#L2532) | 8. Unknown assignment — expected 404 |
-| 300 | [`PUT http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2542) | 9. Teacher cannot update submitted assignment — 409 |
-| 301 | [`DELETE http://localhost:8080/api/lessons/{{lesson_id}}/assignments/{{assignment_id}}`](../requests.http#L2555) | 10. ADMIN cannot delete submitted assignment — 409 |
-| 302 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L2560) | 11. Withdraw student — expected 204 |
-| 303 | [`POST http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2565) | 12. Withdrawn student cannot submit new work — 403 |
-| 304 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me`](../requests.http#L2575) | 13. Withdrawn student can still read own work — 200 |
-| 305 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L2580) | 14. Restore enrollment — expected 200 |
-| 306 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me`](../requests.http#L2585) | 15. Previously submitted work still exists — 200 |
-| 307 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2595) | 1. TEACHER lists all submissions — 200 |
-| 308 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?status=SUBMITTED&page=0&size=10`](../requests.http#L2600) | 2. TEACHER filters SUBMITTED works — 200 |
-| 309 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2605) | 3. ADMIN lists submissions — 200 |
-| 310 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2610) | 4. STUDENT cannot list all submissions — 403 |
-| 311 | [`PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`](../requests.http#L2615) | 5. TEACHER grades submission — 200 |
-| 312 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me`](../requests.http#L2634) | 6. STUDENT sees own grade — 200 |
-| 313 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?status=GRADED`](../requests.http#L2639) | 7. TEACHER filters GRADED submissions — 200 |
-| 314 | [`PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`](../requests.http#L2644) | 8. Score above maxScore — 400 |
-| 315 | [`PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`](../requests.http#L2655) | 9. Negative score — 400 |
-| 316 | [`PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`](../requests.http#L2666) | 10. STUDENT cannot grade own submission — 403 |
-| 317 | [`PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/{{submission_id}}/grade`](../requests.http#L2677) | 11. TEACHER corrects previous grade — 200 |
-| 318 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions/me`](../requests.http#L2688) | 12. STUDENT sees corrected grade — 200 |
-| 319 | [`PUT http://localhost:8080/api/assignments/{{assignment_id}}/submissions/999999/grade`](../requests.http#L2693) | 13. Nonexistent submission — 404 |
-| 320 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?page=-1`](../requests.http#L2704) | 14. Invalid pagination — 400 |
-| 321 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions?sortBy=unknown`](../requests.http#L2709) | 15. Unknown sort field — 400 |
-| 322 | [`GET http://localhost:8080/api/assignments/{{assignment_id}}/submissions`](../requests.http#L2714) | 16. Guest cannot list submissions — 401 |
-| 323 | [`POST http://localhost:8080/api/modules/{{module_id}}/quiz`](../requests.http#L2723) | 1. ADMIN creates Quiz — expected 201 |
-| 324 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L2742) | 2. ADMIN gets Quiz by ID — expected 200 |
-| 325 | [`GET http://localhost:8080/api/modules/{{module_id}}/quiz`](../requests.http#L2747) | 3. STUDENT gets Quiz by module — expected 200 |
-| 326 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L2752) | 4. STUDENT gets Quiz by ID — expected 200 |
-| 327 | [`POST http://localhost:8080/api/modules/{{module_id}}/quiz`](../requests.http#L2757) | 5. Duplicate Quiz for same module — expected 409 |
-| 328 | [`POST http://localhost:8080/api/modules/{{module_id}}/quiz`](../requests.http#L2768) | 6. STUDENT cannot create Quiz — expected 403 |
-| 329 | [`GET http://localhost:8080/api/modules/{{module_id}}/quiz`](../requests.http#L2779) | 7. Guest cannot access Quiz — expected 401 |
-| 330 | [`POST http://localhost:8080/api/modules/{{module_id}}/quiz`](../requests.http#L2783) | 8. Invalid time limit — expected 400 |
-| 331 | [`POST http://localhost:8080/api/modules/999999/quiz`](../requests.http#L2794) | 9. Unknown module — expected 404 |
-| 332 | [`GET http://localhost:8080/api/quizzes/999999`](../requests.http#L2805) | 10. Unknown Quiz — expected 404 |
-| 333 | [`POST http://localhost:8080/api/courses/{{course_id}}/modules`](../requests.http#L2810) | 11. TEACHER creates second module — expected 201 |
-| 334 | [`POST http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz`](../requests.http#L2829) | 12. TEACHER creates Quiz — expected 201 |
-| 335 | [`GET http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}`](../requests.http#L2847) | 13. STUDENT reads teacher's Quiz — expected 200 |
-| 336 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L2856) | 1. ADMIN creates SINGLE_CHOICE question — 201 |
-| 337 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L2896) | 2. TEACHER creates MULTIPLE_CHOICE question — 201 |
-| 338 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage`](../requests.http#L2945) | 3. ADMIN gets questions with correct answers — 200 |
-| 339 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage`](../requests.http#L2950) | 4. TEACHER gets questions with correct answers — 200 |
-| 340 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L2955) | 5. STUDENT reads questions without correct answers — 200 |
-| 341 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage`](../requests.http#L2974) | 6. STUDENT cannot access management endpoint — 403 |
-| 342 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L2979) | 7. Duplicate question position — 409 |
-| 343 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L2995) | 8. SINGLE_CHOICE with two correct answers — 400 |
-| 344 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L3011) | 9. MULTIPLE_CHOICE with one correct answer — 400 |
-| 345 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L3027) | 10. Question with one option — 400 |
-| 346 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L3042) | 11. STUDENT cannot create question — 403 |
-| 347 | [`GET http://localhost:8080/api/quizzes/999999/questions`](../requests.http#L3058) | 12. Unknown Quiz — 404 |
-| 348 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L3063) | 13. Guest cannot read questions — 401 |
-| 349 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L3067) | 14. Withdraw student — 204 |
-| 350 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L3072) | 15. Withdrawn student cannot read questions — 403 |
-| 351 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L3077) | 16. Reactivate enrollment — 200 |
-| 352 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L3082) | 17. Student can read questions again — 200 |
-| 353 | [`PUT http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L3092) | 1. TEACHER updates Quiz settings — 200 |
-| 354 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L3104) | 2. STUDENT reads updated Quiz — 200 |
-| 355 | [`PUT http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L3117) | 3. Invalid maxAttempts — 400 |
-| 356 | [`PUT http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L3129) | 4. STUDENT cannot update Quiz — 403 |
-| 357 | [`PUT http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L3141) | 5. Restore original Quiz settings — 200 |
-| 358 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/questions`](../requests.http#L3153) | 6. Create temporary question — 201 |
-| 359 | [`PUT http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}`](../requests.http#L3176) | 7. TEACHER updates temporary question — 200 |
-| 360 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage`](../requests.http#L3201) | 8. Read updated questions — 200 |
-| 361 | [`PUT http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}`](../requests.http#L3206) | 9. Update to occupied position — 409 |
-| 362 | [`DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}`](../requests.http#L3222) | 10. STUDENT cannot delete question — 403 |
-| 363 | [`DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/{{question_temp_id}}`](../requests.http#L3227) | 11. TEACHER deletes temporary question — 204 |
-| 364 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage`](../requests.http#L3232) | 12. Main Quiz contains only original two questions — 200 |
-| 365 | [`DELETE http://localhost:8080/api/quizzes/{{quiz_id}}/questions/999999`](../requests.http#L3244) | 13. Delete nonexistent question — 404 |
-| 366 | [`DELETE http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L3249) | 14. STUDENT cannot delete Quiz — 403 |
-| 367 | [`POST http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}/questions`](../requests.http#L3258) | 15. Create question in secondary Quiz — 201 |
-| 368 | [`DELETE http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}`](../requests.http#L3274) | 16. Delete secondary Quiz with questions — 204 |
-| 369 | [`GET http://localhost:8080/api/quizzes/{{quiz_teacher_quiz_id}}`](../requests.http#L3279) | 17. Deleted Quiz is not available — 404 |
-| 370 | [`GET http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz`](../requests.http#L3284) | 18. Secondary module has no Quiz — 404 |
-| 371 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}`](../requests.http#L3289) | 19. Main Quiz still exists — 200 |
-| 372 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/questions/manage`](../requests.http#L3294) | 20. Original questions and answers still exist — 200 |
-| 373 | [`POST http://localhost:8080/api/modules/{{quiz_teacher_module_id}}/quiz`](../requests.http#L3303) | 1. Create Quiz with 1 minute time limit — 201 |
-| 374 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3318) | 2. Cannot start empty Quiz — 409 |
-| 375 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions`](../requests.http#L3323) | 3. Create question for attempt testing — 201 |
-| 376 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3343) | 4. Guest cannot start Quiz — 401 |
-| 377 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3347) | 5. ADMIN without STUDENT role cannot start Quiz — 403 |
-| 378 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L3352) | 6. Withdraw student — 204 |
-| 379 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3357) | 7. Withdrawn student cannot start Quiz — 403 |
-| 380 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L3362) | 8. Restore enrollment — 200 |
-| 381 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3372) | 9. Student starts first attempt — 201 |
-| 382 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3388) | 10. Repeated start returns existing attempt — 200 |
-| 383 | [`GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}`](../requests.http#L3404) | 11. Student reads own attempt — 200 |
-| 384 | [`PUT http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}`](../requests.http#L3413) | 12. Teacher cannot update Quiz after attempt — 409 |
-| 385 | [`DELETE http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}`](../requests.http#L3425) | 13. ADMIN cannot delete Quiz after attempt — 409 |
-| 386 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions`](../requests.http#L3430) | 14. Teacher cannot add question after attempt — 409 |
-| 387 | [`DELETE http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/questions/{{attempt_test_question_id}}`](../requests.http#L3446) | 15. Teacher cannot delete question after attempt — 409 |
-| 388 | [`GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}`](../requests.http#L3456) | 16. Read expired first attempt — 200 |
-| 389 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3468) | 17. Student starts second attempt — 201 |
-| 390 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3483) | 18. Repeated start returns second attempt — 200 |
-| 391 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts`](../requests.http#L3504) | 19. Third attempt is forbidden — 409 |
-| 392 | [`GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_2_id}}`](../requests.http#L3509) | 20. Read expired second attempt — 200 |
-| 393 | [`GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/999999`](../requests.http#L3521) | 21. Nonexistent attempt — 404 |
-| 394 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}`](../requests.http#L3526) | 22. Attempt belongs to another Quiz — 404 |
-| 395 | [`POST http://localhost:8080/api/quizzes/999999/attempts`](../requests.http#L3531) | 23. Unknown Quiz — 404 |
-| 396 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3540) | 1. Start first attempt — expected 201 |
-| 397 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3554) | 2. Answer option belongs to another question — 400 |
-| 398 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3571) | 3. Duplicate question — expected 400 |
-| 399 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3590) | 4. Duplicate answer option — expected 400 |
-| 400 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3608) | 5. SINGLE_CHOICE with two options — expected 400 |
-| 401 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3626) | 6. Unknown question — expected 400 |
-| 402 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}`](../requests.http#L3641) | 7. Attempt is still active — expected 200 |
-| 403 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3658) | 8. Submit correct answers — expected 200, score 100 |
-| 404 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}`](../requests.http#L3691) | 9. Read completed attempt — expected 200 |
-| 405 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3696) | 10. Cannot submit completed attempt again — 409 |
-| 406 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3710) | 11. Start second attempt — expected 201 |
-| 407 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/submit`](../requests.http#L3724) | 12. Submit partially correct answers — 200, score 50 |
-| 408 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}`](../requests.http#L3755) | 13. Read second attempt — expected 200 |
-| 409 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3760) | 14. Third attempt exceeds limit — expected 409 |
-| 410 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3769) | 15. ADMIN without STUDENT role cannot submit — 403 |
-| 411 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/submit`](../requests.http#L3779) | 16. Guest cannot submit — expected 401 |
-| 412 | [`POST http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/{{quiz_attempt_1_id}}/submit`](../requests.http#L3788) | 17. Cannot submit expired attempt — expected 409 |
-| 413 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}/submit`](../requests.http#L3798) | 18. Attempt does not belong to specified Quiz — 404 |
-| 414 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/999999/submit`](../requests.http#L3808) | 19. Nonexistent attempt — expected 404 |
-| 415 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me`](../requests.http#L3823) | 1. STUDENT reads own attempt history — 200 |
-| 416 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?status=SUBMITTED`](../requests.http#L3828) | 2. STUDENT filters submitted attempts — 200 |
-| 417 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?sortBy=score&direction=desc`](../requests.http#L3833) | 3. STUDENT sorts attempts by score DESC — 200 |
-| 418 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/result`](../requests.http#L3838) | 4. STUDENT reads first attempt details — 200 |
-| 419 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/result`](../requests.http#L3856) | 5. STUDENT reads second attempt details — 200 |
-| 420 | [`GET http://localhost:8080/api/quizzes/{{quiz_attempt_test_id}}/attempts/me?status=EXPIRED`](../requests.http#L3869) | 6. STUDENT reads expired attempts — 200 |
-| 421 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3874) | 7. STUDENT cannot list all student results — 403 |
-| 422 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/manage`](../requests.http#L3879) | 8. STUDENT cannot access management details — 403 |
-| 423 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3888) | 9. TEACHER lists Quiz results — 200 |
-| 424 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?studentId={{enrollment_student_id}}`](../requests.http#L3893) | 10. TEACHER filters results by student — 200 |
-| 425 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?status=SUBMITTED&sortBy=score&direction=desc`](../requests.http#L3898) | 11. TEACHER filters submitted attempts — 200 |
-| 426 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?page=0&size=1&sortBy=score&direction=desc`](../requests.http#L3903) | 12. TEACHER reads first page — 200 |
-| 427 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?page=1&size=1&sortBy=score&direction=desc`](../requests.http#L3908) | 13. TEACHER reads second page — 200 |
-| 428 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/manage`](../requests.http#L3913) | 14. TEACHER reads detailed attempt result — 200 |
-| 429 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3918) | 15. ADMIN lists Quiz results — 200 |
-| 430 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_2_id}}/manage`](../requests.http#L3923) | 16. ADMIN reads detailed attempt result — 200 |
-| 431 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?sortBy=unknown`](../requests.http#L3932) | 17. Unknown sort field — 400 |
-| 432 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me?page=-1`](../requests.http#L3937) | 18. Invalid pagination — 400 |
-| 433 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts?status=UNKNOWN`](../requests.http#L3942) | 19. Invalid status — 400 |
-| 434 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/999999/result`](../requests.http#L3947) | 20. Nonexistent attempt — 404 |
-| 435 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{quiz_attempt_1_id}}/result`](../requests.http#L3952) | 21. Attempt belongs to another Quiz — 404 |
-| 436 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3957) | 22. Guest cannot read results — 401 |
-| 437 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L3965) | 23. Withdraw student — 204 |
-| 438 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/me`](../requests.http#L3970) | 24. Withdrawn student can read own history — 200 |
-| 439 | [`GET http://localhost:8080/api/quizzes/{{quiz_id}}/attempts/{{grading_attempt_1_id}}/result`](../requests.http#L3975) | 25. Withdrawn student can read own result — 200 |
-| 440 | [`POST http://localhost:8080/api/quizzes/{{quiz_id}}/attempts`](../requests.http#L3980) | 26. Withdrawn student cannot start Quiz — 403 |
-| 441 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L3985) | 27. Restore enrollment — 200 |
-| 442 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating`](../requests.http#L3995) | 1. Guest reads empty course rating — 200 |
-| 443 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L3999) | 2. Student has no review yet — 404 |
-| 444 | [`POST http://localhost:8080/api/courses/{{course_id}}/reviews`](../requests.http#L4004) | 3. Student creates review — 201 |
-| 445 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4024) | 4. Student reads own review — 200 |
-| 446 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews`](../requests.http#L4029) | 5. Guest reads public reviews — 200 |
-| 447 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating`](../requests.http#L4033) | 6. Guest reads course rating — 200 |
-| 448 | [`POST http://localhost:8080/api/courses/{{course_id}}/reviews`](../requests.http#L4045) | 7. Duplicate review — 409 |
-| 449 | [`PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4056) | 8. Student updates own review — 200 |
-| 450 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating`](../requests.http#L4078) | 9. Course rating is recalculated — 200 |
-| 451 | [`PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4090) | 10. Invalid rating above maximum — 400 |
-| 452 | [`PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4101) | 11. Invalid rating below minimum — 400 |
-| 453 | [`POST http://localhost:8080/api/courses/{{course_id}}/reviews`](../requests.http#L4111) | 12. Guest cannot create review — 401 |
-| 454 | [`POST http://localhost:8080/api/courses/{{course_id}}/reviews`](../requests.http#L4121) | 13. Teacher cannot review own course — 403 |
-| 455 | [`POST http://localhost:8080/api/courses/{{course_id}}/reviews`](../requests.http#L4132) | 14. ADMIN without STUDENT role cannot review — 403 |
-| 456 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews?page=0&size=10&sortBy=rating&direction=desc`](../requests.http#L4142) | 15. Sort reviews by rating — 200 |
-| 457 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews?sortBy=unknown`](../requests.http#L4146) | 16. Invalid sort field — 400 |
-| 458 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews?page=-1`](../requests.http#L4150) | 17. Invalid pagination — 400 |
-| 459 | [`GET http://localhost:8080/api/courses/999999/reviews/rating`](../requests.http#L4154) | 18. Unknown course — 404 |
-| 460 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L4162) | 19. Withdraw student — 204 |
-| 461 | [`PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4167) | 20. Withdrawn student cannot update review — 403 |
-| 462 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4177) | 21. Withdrawn student can read own review — 200 |
-| 463 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L4182) | 22. Restore enrollment — 200 |
-| 464 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4191) | 23. Student deletes own review — 204 |
-| 465 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4196) | 24. Deleted review no longer exists — 404 |
-| 466 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating`](../requests.http#L4201) | 25. Course has no rating after deletion — 200 |
-| 467 | [`POST http://localhost:8080/api/courses/{{course_id}}/reviews`](../requests.http#L4213) | 26. Recreate review without comment — 201 |
-| 468 | [`PUT http://localhost:8080/api/courses/{{course_id}}/reviews/me`](../requests.http#L4227) | 27. Update final review — 200 |
-| 469 | [`GET http://localhost:8080/api/courses/{{course_id}}/reviews/rating`](../requests.http#L4238) | 28. Verify final course rating — 200 |
-| 470 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook`](../requests.http#L4248) | 1. TEACHER reads own course gradebook — 200 |
-| 471 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook`](../requests.http#L4253) | 2. ADMIN reads course gradebook — 200 |
-| 472 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=ASSIGNMENT`](../requests.http#L4258) | 3. Only assignments — expected 200 |
-| 473 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=QUIZ`](../requests.http#L4275) | 4. Only quizzes — expected 200 |
-| 474 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?moduleId={{module_id}}`](../requests.http#L4292) | 5. Filter by module — expected 200 |
-| 475 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE`](../requests.http#L4297) | 6. Filter ACTIVE students — expected 200 |
-| 476 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN`](../requests.http#L4302) | 7. Filter WITHDRAWN students — expected 200 |
-| 477 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=GRADED`](../requests.http#L4307) | 8. Students with graded assignments — 200 |
-| 478 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=SUBMITTED`](../requests.http#L4312) | 9. Students with assignments awaiting review — 200 |
-| 479 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?reviewStatus=NOT_SUBMITTED`](../requests.http#L4317) | 10. Students with unsubmitted assignments — 200 |
-| 480 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?q=NonexistentStudent999999`](../requests.http#L4322) | 11. Search nonexistent student — empty page, 200 |
-| 481 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=studentName&direction=asc`](../requests.http#L4327) | 12. Sort students by name — expected 200 |
-| 482 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=studentId&direction=desc`](../requests.http#L4332) | 13. Sort students by ID descending — 200 |
-| 483 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=0&size=1`](../requests.http#L4337) | 14. First page with one student — 200 |
-| 484 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=1&size=1`](../requests.http#L4342) | 15. Second page — expected 200 |
-| 485 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?page=-1`](../requests.http#L4351) | 16. Invalid page — expected 400 |
-| 486 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?size=101`](../requests.http#L4356) | 17. Invalid page size — expected 400 |
-| 487 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?sortBy=unknown`](../requests.http#L4361) | 18. Unknown sort field — expected 400 |
-| 488 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?direction=unknown`](../requests.http#L4366) | 19. Invalid sort direction — expected 400 |
-| 489 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?moduleId=999999`](../requests.http#L4371) | 20. Unknown module — expected 404 |
-| 490 | [`GET http://localhost:8080/api/courses/999999/gradebook`](../requests.http#L4376) | 21. Unknown course — expected 404 |
-| 491 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?type=QUIZ&reviewStatus=GRADED`](../requests.http#L4381) | 22. Invalid combination of filters — 400 |
-| 492 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook`](../requests.http#L4390) | 23. STUDENT cannot view gradebook — 403 |
-| 493 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook`](../requests.http#L4395) | 24. Guest cannot view gradebook — 401 |
-| 494 | [`GET http://localhost:8080/api/courses/3/gradebook`](../requests.http#L4399) | 25. Teacher cannot view another teacher's course — 403 |
-| 495 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L4408) | 26. Withdraw student — expected 204 |
-| 496 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=WITHDRAWN`](../requests.http#L4413) | 27. Withdrawn student remains in gradebook — 200 |
-| 497 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook?enrollmentStatus=ACTIVE`](../requests.http#L4418) | 28. Student no longer in ACTIVE list — 200 |
-| 498 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L4423) | 29. Restore enrollment — expected 200 |
-| 499 | [`GET http://localhost:8080/api/courses/{{course_id}}/gradebook`](../requests.http#L4428) | 30. Verify final gradebook — expected 200 |
-| 500 | [`GET http://localhost:8080/api/users/me/progress`](../requests.http#L4438) | 1. Student reads progress for all courses — 200 |
-| 501 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}`](../requests.http#L4443) | 2. Student reads progress for specific course — 200 |
-| 502 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}`](../requests.http#L4462) | 3. Verify assignment results — 200 |
-| 503 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}`](../requests.http#L4489) | 4. Verify Quiz best result — 200 |
-| 504 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}`](../requests.http#L4514) | 5. Verify expired Quiz attempts — 200 |
-| 505 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}`](../requests.http#L4539) | 6. Verify upcoming deadlines — 200 |
-| 506 | [`GET http://localhost:8080/api/users/me/progress?enrollmentStatus=ACTIVE`](../requests.http#L4560) | 7. Filter active enrollments — 200 |
-| 507 | [`GET http://localhost:8080/api/users/me/progress?enrollmentStatus=WITHDRAWN`](../requests.http#L4565) | 8. Filter withdrawn enrollments — 200 |
-| 508 | [`GET http://localhost:8080/api/users/me/progress?sortBy=courseTitle&direction=asc`](../requests.http#L4570) | 9. Sort courses by title — 200 |
-| 509 | [`GET http://localhost:8080/api/users/me/progress?sortBy=courseId&direction=desc`](../requests.http#L4575) | 10. Sort courses by ID descending — 200 |
-| 510 | [`GET http://localhost:8080/api/users/me/progress?page=0&size=1`](../requests.http#L4580) | 11. First page — 200 |
-| 511 | [`GET http://localhost:8080/api/users/me/progress?page=1&size=1`](../requests.http#L4585) | 12. Second page — 200 |
-| 512 | [`GET http://localhost:8080/api/users/me/progress?courseId=999999`](../requests.http#L4590) | 13. Unknown course — empty page, 200 |
-| 513 | [`GET http://localhost:8080/api/users/me/progress?courseId=0`](../requests.http#L4607) | 14. Invalid courseId — 400 |
-| 514 | [`GET http://localhost:8080/api/users/me/progress?page=-1`](../requests.http#L4612) | 15. Invalid page — 400 |
-| 515 | [`GET http://localhost:8080/api/users/me/progress?size=101`](../requests.http#L4617) | 16. Invalid page size — 400 |
-| 516 | [`GET http://localhost:8080/api/users/me/progress?sortBy=unknown`](../requests.http#L4622) | 17. Unknown sort field — 400 |
-| 517 | [`GET http://localhost:8080/api/users/me/progress?direction=unknown`](../requests.http#L4627) | 18. Invalid direction — 400 |
-| 518 | [`GET http://localhost:8080/api/users/me/progress?enrollmentStatus=UNKNOWN`](../requests.http#L4632) | 19. Invalid enrollment status — 400 |
-| 519 | [`GET http://localhost:8080/api/users/me/progress`](../requests.http#L4637) | 20. Guest cannot read progress — 401 |
-| 520 | [`GET http://localhost:8080/api/users/me/progress`](../requests.http#L4641) | 21. ADMIN without STUDENT role cannot read progress — 403 |
-| 521 | [`DELETE http://localhost:8080/api/courses/{{course_id}}/enrollments/me`](../requests.http#L4650) | 22. Withdraw student — 204 |
-| 522 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}`](../requests.http#L4655) | 23. Withdrawn student retains educational history — 200 |
-| 523 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}&enrollmentStatus=ACTIVE`](../requests.http#L4674) | 24. Withdrawn course excluded from active filter — 200 |
-| 524 | [`POST http://localhost:8080/api/courses/{{course_id}}/enrollments`](../requests.http#L4686) | 25. Restore enrollment — 200 |
-| 525 | [`GET http://localhost:8080/api/users/me/progress?courseId={{course_id}}`](../requests.http#L4691) | 26. Verify final progress — 200 |
-| 526 | [`POST {{resetBaseUrl}}/api/auth/register`](../requests.http#L4718) | S04-01. Register test user |
-| 527 | [`POST {{resetBaseUrl}}/api/auth/forgot-password`](../requests.http#L4728) | S04-02. Forgot password - existing email |
-| 528 | [`POST {{resetBaseUrl}}/api/auth/forgot-password`](../requests.http#L4736) | S04-02. Forgot password - existing email |
-| 529 | [`POST {{resetBaseUrl}}/api/auth/forgot-password`](../requests.http#L4744) | S04-03. Forgot password - unknown email |
-| 530 | [`POST {{resetBaseUrl}}/api/auth/reset-password`](../requests.http#L4752) | S04-04. Reset password |
-| 531 | [`POST {{resetBaseUrl}}/api/auth/login`](../requests.http#L4761) | S04-05. Login with old password |
-| 532 | [`POST {{resetBaseUrl}}/api/auth/login`](../requests.http#L4770) | S04-06. Login with new password |
-| 533 | [`POST {{resetBaseUrl}}/api/auth/reset-password`](../requests.http#L4779) | S04-07. Reuse reset token |
+[`requests.http`](../requests.http) содержит 109 ручных запросов: авторизация, каталог, управление курсом, обучение, оценивание, отчёты и восстановление пароля. Запросы используют собственный набор тестовых данных. Для проверки истечения времени теста и срока сдачи задания запросы выполняются по отдельности после наступления указанного времени. Для восстановления пароля нужно указать адрес доступного почтового ящика и токены из полученных писем.
+
+| Запрос | Назначение |
+|---|---|
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L44) | Login admin — 200 |
+| [`GET {{baseUrl}}/actuator/health`](../requests.http#L57) | Anonymous actuator health — 200 |
+| [`GET {{baseUrl}}/api/system/status`](../requests.http#L60) | System status (ADMIN) — 200 |
+| [`GET {{baseUrl}}/api/system/info`](../requests.http#L64) | Admin system diagnostics — 200 |
+| [`POST {{baseUrl}}/api/auth/register`](../requests.http#L68) | Register student — 201 |
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L84) | Login student with initial password — 200 |
+| [`GET {{baseUrl}}/api/users/me`](../requests.http#L100) | Own user profile — 200 |
+| [`POST {{baseUrl}}/api/users`](../requests.http#L104) | Create teacher — 201 |
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L129) | Login teacher — 200 |
+| [`PUT {{baseUrl}}/api/users/me/profile`](../requests.http#L145) | Create own profile — 200 |
+| [`GET {{baseUrl}}/api/users/me/profile`](../requests.http#L152) | Read persisted profile — 200 |
+| [`GET {{baseUrl}}/api/users?q={{manual_run_id}}&status=ACTIVE&role=STUDENT&page=0&size=10&sortBy=displayName&direction=asc`](../requests.http#L156) | Admin filters and sorts users — 200 |
+| [`GET {{baseUrl}}/api/users/me`](../requests.http#L160) | Guest cannot read own user data — 401 |
+| [`GET {{baseUrl}}/api/users`](../requests.http#L163) | Student cannot list users — 403 |
+| [`POST {{baseUrl}}/api/categories`](../requests.http#L169) | Create category — 201 |
+| [`GET {{baseUrl}}/api/categories?q=Manual%20{{manual_run_id}}&page=0&size=5&sortBy=name&direction=desc`](../requests.http#L186) | Public category list and search — 200 |
+| [`GET {{baseUrl}}/api/categories/{{manual_category_id}}`](../requests.http#L189) | Public category detail — 200 |
+| [`POST {{baseUrl}}/api/tags`](../requests.http#L192) | Create tag — 201 |
+| [`POST {{baseUrl}}/api/courses`](../requests.http#L208) | Create main course — 201 |
+| [`PUT {{baseUrl}}/api/courses/{{manual_course_id}}`](../requests.http#L231) | Update main course — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}`](../requests.http#L251) | Public course detail — 200 |
+| [`GET {{baseUrl}}/api/courses?q={{manual_run_id}}&categoryId={{manual_category_id}}&teacherId={{manual_teacher_id}}&status=ACTIVE&page=0&size=10`](../requests.http#L260) | Public filtered course list — 200 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/tags/{{manual_tag_id}}`](../requests.http#L263) | Attach tag to course — 204 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/tags`](../requests.http#L267) | List attached tags — 200 |
+| [`GET {{baseUrl}}/api/teachers?q=Manual%20teacher%20{{manual_run_id}}&page=0&size=10`](../requests.http#L270) | Public teacher search — 200 |
+| [`GET {{baseUrl}}/api/teachers/{{manual_teacher_id}}`](../requests.http#L273) | Public teacher identity — 200 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/modules`](../requests.http#L278) | Create module — 201 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/modules/{{manual_module_id}}/lessons`](../requests.http#L298) | Create lesson — 201 |
+| [`POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/sessions`](../requests.http#L319) | Create session — 201 |
+| [`GET {{baseUrl}}/api/lessons/{{manual_lesson_id}}/sessions/{{manual_session_id}}`](../requests.http#L340) | Session detail — 200 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments`](../requests.http#L344) | Enroll student — 201 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments`](../requests.http#L354) | Repeat enrollment idempotently — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments/me`](../requests.http#L358) | My enrollment — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments?status=ACTIVE&page=0&size=10`](../requests.http#L362) | Course roster — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/modules`](../requests.http#L366) | Student reads enrolled modules — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/modules/{{manual_module_id}}/lessons`](../requests.http#L370) | Student reads enrolled lessons — 200 |
+| [`GET {{baseUrl}}/api/lessons/{{manual_lesson_id}}/sessions`](../requests.http#L374) | Student reads schedule — 200 |
+| [`POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments`](../requests.http#L380) | Create assignment — 201 |
+| [`PUT {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments/{{manual_assignment_id}}`](../requests.http#L401) | Update assignment — 200 |
+| [`POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments`](../requests.http#L419) | Create second assignment — 201 |
+| [`GET {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments`](../requests.http#L437) | List assignments — 200 |
+| [`POST {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions`](../requests.http#L441) | Submit homework — 201 |
+| [`GET {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions/me`](../requests.http#L459) | Read own submission — 200 |
+| [`GET {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions?status=SUBMITTED`](../requests.http#L463) | Teacher lists pending work — 200 |
+| [`PUT {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions/{{manual_submission_id}}/grade`](../requests.http#L467) | Grade homework — 200 |
+| [`PATCH {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments/{{manual_assignment_id}}/deadline`](../requests.http#L483) | Admin extends deadline — 200 |
+| [`PUT {{baseUrl}}/api/assignments/{{manual_assignment_id}}/submissions/{{manual_submission_id}}/grade`](../requests.http#L494) | Teacher regrades an already graded submission — 200 |
+| [`POST {{baseUrl}}/api/modules/{{manual_module_id}}/quiz`](../requests.http#L507) | Create quiz — 201 |
+| [`PUT {{baseUrl}}/api/quizzes/{{manual_quiz_id}}`](../requests.http#L526) | Update quiz settings — 200 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions`](../requests.http#L543) | Create single choice question — 201 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions`](../requests.http#L576) | Create multiple choice question — 201 |
+| [`GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions/manage`](../requests.http#L609) | Teacher reads questions with answers — 200 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts`](../requests.http#L613) | Start first attempt — 201 |
+| [`GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/questions`](../requests.http#L623) | Student reads questions without correct flags — 200 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt1_id}}/submit`](../requests.http#L627) | Submit perfect attempt — 200 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts`](../requests.http#L650) | Start second attempt — 201 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt2_id}}/submit`](../requests.http#L660) | Submit partial result — 200 |
+| [`GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/me?status=SUBMITTED&page=0&size=10`](../requests.http#L683) | Student attempt history — 200 |
+| [`GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts?status=SUBMITTED`](../requests.http#L687) | Teacher quiz results — 200 |
+| [`GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt1_id}}/result`](../requests.http#L691) | Own attempt detail — 200 |
+| [`GET {{baseUrl}}/api/quizzes/{{manual_quiz_id}}/attempts/{{manual_attempt1_id}}/manage`](../requests.http#L695) | Management attempt detail — 200 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/reviews`](../requests.http#L701) | Create review — 201 |
+| [`PUT {{baseUrl}}/api/courses/{{manual_course_id}}/reviews/me`](../requests.http#L717) | Update own review — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/reviews/me`](../requests.http#L727) | Read own review — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/reviews?page=0&size=10`](../requests.http#L731) | Public course reviews — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/reviews/rating`](../requests.http#L734) | Public aggregate rating — 200 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/gradebook?enrollmentStatus=ACTIVE&page=0&size=10`](../requests.http#L737) | Gradebook with both assessment types — 200 |
+| [`GET {{baseUrl}}/api/users/me/progress?courseId={{manual_course_id}}`](../requests.http#L741) | Student progress — 200 |
+| [`GET {{baseUrl}}/api/dashboard/student`](../requests.http#L745) | Student dashboard — 200 |
+| [`GET {{baseUrl}}/api/dashboard/teacher`](../requests.http#L749) | Teacher dashboard — 200 |
+| [`GET {{baseUrl}}/api/dashboard/admin`](../requests.http#L753) | Admin dashboard — 200 |
+| [`GET {{baseUrl}}/api/users/me/assignments?courseId={{manual_course_id}}`](../requests.http#L764) | My current assignments — 200 |
+| [`GET {{baseUrl}}/api/users/me/submissions?courseId={{manual_course_id}}&status=GRADED`](../requests.http#L768) | My graded submissions — 200 |
+| [`GET {{baseUrl}}/api/users/me/quiz-attempts?courseId={{manual_course_id}}&status=SUBMITTED&page=0&size=1`](../requests.http#L772) | My quiz attempt history — 200 |
+| [`DELETE {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments/me`](../requests.http#L776) | Withdraw from course — 204 |
+| [`GET {{baseUrl}}/api/users/me/progress?courseId={{manual_course_id}}`](../requests.http#L780) | Progress history retained — 200 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/enrollments`](../requests.http#L784) | Restore enrollment — 200 |
+| [`GET {{baseUrl}}/v3/api-docs`](../requests.http#L790) | OpenAPI document — 200 |
+| [`GET {{baseUrl}}/swagger-ui/index.html`](../requests.http#L794) | Swagger UI static page — 200 |
+| [`POST {{baseUrl}}/api/courses/{{manual_course_id}}/modules`](../requests.http#L800) | Create module for expiration test — 201 |
+| [`POST {{baseUrl}}/api/modules/{{manual_expiry_module_id}}/quiz`](../requests.http#L811) | Create one-minute quiz — 201 |
+| [`PUT {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}`](../requests.http#L825) | Set one permitted attempt — 200 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/questions`](../requests.http#L832) | Create question for timed quiz — 201 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts`](../requests.http#L839) | Start timed attempt — 201 |
+| [`GET {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts/{{manual_expiry_attempt_id}}`](../requests.http#L849) | Read expired attempt — 200, EXPIRED |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts/{{manual_expiry_attempt_id}}/submit`](../requests.http#L853) | Reject submission after expiry — 409 |
+| [`POST {{baseUrl}}/api/quizzes/{{manual_expiry_quiz_id}}/attempts`](../requests.http#L860) | Reject new attempt after limit is exhausted — 409 |
+| [`POST {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments`](../requests.http#L869) | Create assignment with a near deadline — 201 |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=OVERDUE&moduleId={{manual_module_id}}`](../requests.http#L883) | Gradebook before deadline — 200, no overdue assignment |
+| [`GET {{baseUrl}}/api/courses/{{manual_course_id}}/gradebook?type=ASSIGNMENT&reviewStatus=OVERDUE&moduleId={{manual_module_id}}`](../requests.http#L889) | Gradebook after deadline — 200, assignment overdue |
+| [`PATCH {{baseUrl}}/api/lessons/{{manual_lesson_id}}/assignments/{{manual_overdue_assignment_id}}/deadline`](../requests.http#L893) | Reopen assignment by extending deadline — 200 |
+| [`POST {{baseUrl}}/api/assignments/{{manual_overdue_assignment_id}}/submissions`](../requests.http#L900) | Submit homework after deadline extension — 201 |
+| [`POST {{baseUrl}}/api/auth/change-password`](../requests.http#L909) | Change student password — 204 |
+| [`GET {{baseUrl}}/api/users/me`](../requests.http#L916) | Previous JWT rejected after password change — 401 |
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L920) | Login with changed password — 200 |
+| [`POST {{baseUrl}}/api/auth/logout`](../requests.http#L930) | Logout student — 204 |
+| [`GET {{baseUrl}}/api/users/me`](../requests.http#L934) | Logged out JWT rejected — 401 |
+| [`POST {{baseUrl}}/api/auth/register`](../requests.http#L941) | Register password recovery user — 201 |
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L951) | Login before password reset — 200 |
+| [`POST {{baseUrl}}/api/auth/forgot-password`](../requests.http#L961) | Request password reset email — 202 |
+| [`POST {{baseUrl}}/api/auth/forgot-password`](../requests.http#L967) | Request reset for unknown email — 202 |
+| [`POST {{baseUrl}}/api/auth/reset-password`](../requests.http#L973) | Reset password using the token from email — 204 |
+| [`GET {{baseUrl}}/api/users/me`](../requests.http#L979) | Reject previously issued JWT — 401 |
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L983) | Reject old password after reset — 401 |
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L989) | Login with reset password — 200 |
+| [`POST {{baseUrl}}/api/auth/reset-password`](../requests.http#L995) | Reject used reset token — 400 |
+| [`POST {{baseUrl}}/api/users/{{manual_reset_user_id}}/password-reset`](../requests.http#L1003) | Admin sends password reset email — 202 |
+| [`POST {{baseUrl}}/api/auth/reset-password`](../requests.http#L1007) | Reset password using the administrator-requested link — 204 |
+| [`POST {{baseUrl}}/api/auth/login`](../requests.http#L1013) | Login after administrator-requested reset — 200 |
