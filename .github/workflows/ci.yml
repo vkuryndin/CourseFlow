@@ -74,6 +74,9 @@ jobs:
   publish-images:
     name: Publish Docker images (GHCR)
     needs: [backend, frontend]
+    concurrency:
+      group: courseflow-publish-images
+      cancel-in-progress: false
     if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-24.04
     permissions:
@@ -110,4 +113,8 @@ jobs:
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
           docker push "$backend"
           docker push "$frontend"
+          docker tag "$backend" "${prefix}-backend:latest"
+          docker tag "$frontend" "${prefix}-frontend:latest"
+          docker push "${prefix}-backend:latest"
+          docker push "${prefix}-frontend:latest"
           printf '### Published Docker images\n- `%s`\n- `%s`\n' "$backend" "$frontend" >> "$GITHUB_STEP_SUMMARY"

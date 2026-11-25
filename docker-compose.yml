@@ -41,7 +41,7 @@ services:
     logging: *bounded-logging
 
   backend:
-    image: ${COURSEFLOW_IMAGE_PREFIX:-ghcr.io/vkuryndin/courseflow}-backend:${COURSEFLOW_IMAGE_TAG:?Set COURSEFLOW_IMAGE_TAG in .env}
+    image: ${COURSEFLOW_IMAGE_PREFIX:-ghcr.io/vkuryndin/courseflow}-backend:latest
     restart: unless-stopped
     mem_limit: 512m
     environment:
@@ -79,7 +79,7 @@ services:
     logging: *bounded-logging
 
   frontend:
-    image: ${COURSEFLOW_IMAGE_PREFIX:-ghcr.io/vkuryndin/courseflow}-frontend:${COURSEFLOW_IMAGE_TAG:?Set COURSEFLOW_IMAGE_TAG in .env}
+    image: ${COURSEFLOW_IMAGE_PREFIX:-ghcr.io/vkuryndin/courseflow}-frontend:latest
     restart: unless-stopped
     ports:
       - "${COURSEFLOW_BIND_ADDRESS:-127.0.0.1}:8081:80"
