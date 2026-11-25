@@ -1,0 +1,32 @@
+name: CourseFlow Performance Tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  performance:
+    name: Performance and load tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Run performance tests
+        run: bash ./gradlew --no-daemon performanceTest
+      - name: Upload performance reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: performance-reports
+          path: |
+            build/reports/
+            build/test-results/performanceTest/
+          if-no-files-found: warn
