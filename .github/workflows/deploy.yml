@@ -1,0 +1,60 @@
+name: CourseFlow Deploy to AWS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-aws:
+    name: Deploy to AWS
+    if: ${{ github.ref == 'refs/heads/master' }}
+    concurrency:
+      group: courseflow-publish-images
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Update CourseFlow and verify health
+        shell: bash
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+          AWS_SSH_KNOWN_HOSTS: ${{ secrets.AWS_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${AWS_HOST:?Missing AWS_HOST}" "${AWS_SSH_KEY:?Missing AWS_SSH_KEY}" "${AWS_SSH_KNOWN_HOSTS:?Missing AWS_SSH_KNOWN_HOSTS}"
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$AWS_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$AWS_SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          ssh -T -F /dev/null \
+            -i "$ssh_dir/key" \
+            -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+            "ubuntu@$AWS_HOST" "bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$HOME/courseflow"
+          # Resolve the latest published pair, not the current (possibly untested) master HEAD.
+          docker pull ghcr.io/vkuryndin/courseflow-backend:latest
+          docker pull ghcr.io/vkuryndin/courseflow-frontend:latest
+          revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' ghcr.io/vkuryndin/courseflow-backend:latest)
+          frontend_revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' ghcr.io/vkuryndin/courseflow-frontend:latest)
+          [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || { echo "Missing or invalid backend revision" >&2; exit 1; }
+          test "$frontend_revision" = "$revision" || { echo "Latest image revisions do not match" >&2; exit 1; }
+          git fetch origin master
+          git merge-base --is-ancestor "$revision" origin/master
+          git merge --ff-only "$revision"
+          test "$(git rev-parse HEAD)" = "$revision"
+          docker compose -p courseflow config --quiet
+          # Do not recreate PostgreSQL or touch Hotel Booking.
+          docker compose -p courseflow up -d --no-deps --no-build --pull never --wait --wait-timeout 600 backend
+          docker compose -p courseflow up -d --no-deps --no-build --pull never --wait --wait-timeout 240 frontend
+          docker compose -p courseflow ps
+          REMOTE
