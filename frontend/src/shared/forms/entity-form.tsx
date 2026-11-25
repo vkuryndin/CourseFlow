@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Alert, Box, Button, Checkbox, FormControlLabel, IconButton, InputAdornment, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material';
-import { Eye, EyeOff } from 'lucide-react';
+import { Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material';
+import { PasswordField } from '../password-field';
 import { AccountRoles } from './account-fields';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -21,8 +21,9 @@ export type FormSpec = {
     method: string;
     title: string;
     initial?: Data;
+    params?: Data;
     hidden?: string[];
-    after?: (r: Data) => void;
+    after?: (r: Data, submitted: Data) => void;
     rich?: boolean;
     maxScore?: number;
     confirm?: string;
@@ -34,7 +35,7 @@ export function EntityForm({ spec, onDone, onCancel }: {
     spec: FormSpec;
     onDone?: () => void;
     onCancel?: () => void;
-}) { const s = schema(spec.schema); const [err, E] = useState(''), [busy, B] = useState(false), [showPassword, setShowPassword] = useState(false); const accountForm = spec.schema === 'AdminCreateUserRequest'; const refresh = useRefresh(); const form = useForm<Data>({ defaultValues: initialValues(spec.schema, spec.initial || {}), resolver: zodResolver(z.object({}).passthrough()) }); const sessionForm = spec.schema === 'CreateLessonSessionRequest'; const sessionFormat = form.watch('format'); useEffect(() => { if (sessionForm && sessionFormat === 'OFFLINE')
+}) { const s = schema(spec.schema); const [err, E] = useState(''), [busy, B] = useState(false); const accountForm = spec.schema === 'AdminCreateUserRequest'; const refresh = useRefresh(); const form = useForm<Data>({ defaultValues: initialValues(spec.schema, spec.initial || {}), resolver: zodResolver(z.object({}).passthrough()) }); const sessionForm = spec.schema === 'CreateLessonSessionRequest'; const sessionFormat = form.watch('format'); useEffect(() => { if (sessionForm && sessionFormat === 'OFFLINE')
     form.setValue('meetingUrl', '', { shouldValidate: false }); }, [sessionForm, sessionFormat, form.setValue]); const submit = form.handleSubmit(async (values) => { if (busy || spec.disabled)
     return; E(''); form.clearErrors(); if (sessionForm || spec.schema === 'RescheduleLessonSessionRequest') {
     const start = parseLocal(String(values.startsAt || ''), true), end = parseLocal(String(values.endsAt || ''), true);
@@ -65,9 +66,9 @@ export function EntityForm({ spec, onDone, onCancel }: {
         throw new Error('Оценка выше максимального балла');
     if (spec.confirm && !window.confirm(spec.confirm))
         return;
-    const r = await request(spec.method, spec.path, body);
+    const r = await request(spec.method, spec.path, body, spec.params);
     await refresh();
-    spec.after?.(r);
+    spec.after?.(r, body);
     onDone?.();
 }
 catch (e) {
@@ -81,7 +82,11 @@ finally {
     e.returnValue = '';
 } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [form.formState.isDirty]); return <Suspense fallback={<Box role="status" sx={{py:3}}><Typography color="text.secondary">Загрузка редактора…</Typography></Box>}><Box component="form" className={accountForm ? "entity-form account-create-form" : "entity-form"} onSubmit={submit} noValidate><Stack gap={2.5}>{err && <Alert severity="error">{err}</Alert>}{accountForm && <Box><Typography color="text.secondary" variant="body2">{spec.requiredRole === "TEACHER" ? "Создание учётной записи преподавателя CourseFlow" : "Создание новой учётной записи CourseFlow"}</Typography><Typography variant="subtitle1" fontWeight={600} mt={2}>Основная информация</Typography></Box>}{Object.entries(s.properties as Data).sort(([a], [b]) => accountForm ? ['displayName','email','password','passwordChangeRequired','roles'].indexOf(a) - ['displayName','email','password','passwordChangeRequired','roles'].indexOf(b) : 0).filter(([k]) => k !== 'version' && !spec.hidden?.includes(k) && !(sessionForm && k === 'meetingUrl' && sessionFormat === 'OFFLINE')).map(([k, p]) => <Controller key={k} name={k} control={form.control} render={({ field, fieldState }) => { const title = names[k] || k;
     if (accountForm && k === 'roles') return <AccountRoles value={field.value || []} onChange={field.onChange} requiredRole={spec.requiredRole}/>;
-    if (accountForm && k === 'password') return <Stack gap={1}><Typography variant="subtitle1" fontWeight={600}>Безопасность</Typography><TextField {...field} value={field.value ?? ''} fullWidth size="small" label="Пароль" required type={showPassword ? 'text' : 'password'} autoComplete="new-password" helperText="От 8 до 72 символов, не более 72 байт UTF-8." error={!!fieldState.error} slotProps={{htmlInput:{maxLength:p.maxLength},input:{endAdornment:<InputAdornment position="end"><IconButton aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'} onClick={() => setShowPassword(v => !v)} onMouseDown={e => e.preventDefault()} edge="end">{showPassword ? <EyeOff size={19}/> : <Eye size={19}/>}</IconButton></InputAdornment>}}}/></Stack>;
+    if (['password', 'currentPassword', 'newPassword'].includes(k)) {
+        const {ref, ...inputField} = field;
+        const input = <PasswordField {...inputField} inputRef={ref} value={field.value ?? ''} fullWidth size="small" label={title} required={!!s.required?.includes(k)} autoComplete={k === 'currentPassword' || spec.schema === 'LoginRequest' ? 'current-password' : 'new-password'} helperText={fieldState.error?.message || (accountForm ? 'От 8 до 72 символов, не более 72 байт UTF-8.' : undefined)} error={!!fieldState.error} slotProps={{inputLabel:{shrink:true},htmlInput:{maxLength:p.maxLength}}}/>;
+        return accountForm ? <Stack gap={1}><Typography variant="subtitle1" fontWeight={600}>Безопасность</Typography>{input}</Stack> : input;
+    }
     if (accountForm && k === 'passwordChangeRequired') return <Box><FormControlLabel label={title} control={<Checkbox checked={!!field.value} onChange={(_, checked) => field.onChange(checked)}/>}/><Typography variant="caption" color="text.secondary" display="block">При первом входе пользователь должен будет установить новый пароль, если эта настройка включена.</Typography></Box>;
     if (p.format === 'date-time' || p.format === 'date')
     return <DateField value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} title={title} required={!!s.required?.includes(k)} withTime={p.format === 'date-time'} error={!!fieldState.error} helperText={fieldState.error?.message}/>; if (k === 'roles')
@@ -90,7 +95,7 @@ finally {
     return <RichEditor value={field.value} onChange={field.onChange}/>; if (p.type === 'boolean')
     return <FormControlLabel label={title} control={<Checkbox checked={!!field.value} onChange={(_, b) => field.onChange(b)}/>}/>; if (k === 'categoryId' || k === 'teacherId')
     return <NamedSearch path={k === 'categoryId' ? '/api/categories' : '/api/teachers'} field={k === 'categoryId' ? 'name' : 'displayName'} id={field.value} onChange={field.onChange} label={title} fullWidth required={!!s.required?.includes(k)} error={!!fieldState.error} helperText={fieldState.error?.message} placeholder="Выберите"/>; if (k === 'score' && spec.maxScore != null)
-    return <Stack gap={1}><TextField {...field} value={field.value ?? ''} type="number" label={`Балл (из ${spec.maxScore})`} required size="small" slotProps={{ htmlInput: { min: 0, max: spec.maxScore, step: 1 } }}/><Slider aria-label="Выбрать балл" min={0} max={Math.max(1, spec.maxScore)} step={1} value={Math.max(0, Math.min(spec.maxScore, Number(field.value) || 0))} onChange={(_, v) => field.onChange(v)} disabled={spec.maxScore === 0} valueLabelDisplay="auto"/><Typography variant="caption" color="text.secondary">Введите балл или выберите его на шкале.</Typography></Stack>; const list = p.enum?.map((v: string) => ({ value: v, label: label(v) })); const type = k.toLowerCase().includes('password') ? 'password' : k === 'email' ? 'email' : p.type === 'integer' || p.type === 'number' ? 'number' : 'text'; return <TextField {...field} value={field.value ?? ''} fullWidth size="small" label={accountForm && k === "displayName" ? "Имя и фамилия" : title} required={s.required?.includes(k) || (sessionForm && k === 'meetingUrl' && sessionFormat === 'ONLINE')} error={!!fieldState.error} helperText={fieldState.error?.message || (sessionForm && k === 'meetingUrl' ? 'Ссылка на онлайн-встречу (https://...)' : undefined)} select={!!list} type={list ? 'text' : type} multiline={!list && ['description', 'bio', 'content', 'feedback', 'comment', 'text'].includes(k)} minRows={k === 'description' ? 5 : 3} slotProps={{ inputLabel: { shrink: true }, htmlInput: { maxLength: p.maxLength, min: p.minimum, max: k === 'score' && spec.maxScore != null ? spec.maxScore : p.maximum } }}>{list && [<MenuItem key="empty" value="">Выберите</MenuItem>, ...list.map((o: Data) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)]}</TextField>; }}/>)}<Stack className="entity-form-actions" direction="row" gap={2}><BusyButton busy={busy} disabled={spec.disabled} type="submit">{spec.submitLabel || 'Сохранить'}</BusyButton>{onCancel && <Button disabled={busy} onClick={cancel}>Отмена</Button>}</Stack></Stack></Box></Suspense>; }
+    return <Stack gap={1}><TextField {...field} value={field.value ?? ''} type="number" label={`Балл (из ${spec.maxScore})`} required size="small" slotProps={{ htmlInput: { min: 0, max: spec.maxScore, step: 1 } }}/><Slider aria-label="Выбрать балл" min={0} max={Math.max(1, spec.maxScore)} step={1} value={Math.max(0, Math.min(spec.maxScore, Number(field.value) || 0))} onChange={(_, v) => field.onChange(v)} disabled={spec.maxScore === 0} valueLabelDisplay="auto"/><Typography variant="caption" color="text.secondary">Введите балл или выберите его на шкале.</Typography></Stack>; const list = p.enum?.map((v: string) => ({ value: v, label: label(v) })); const type = k === 'email' ? 'email' : p.type === 'integer' || p.type === 'number' ? 'number' : 'text'; return <TextField {...field} value={field.value ?? ''} fullWidth size="small" label={accountForm && k === "displayName" ? "Имя и фамилия" : title} required={s.required?.includes(k) || (sessionForm && k === 'meetingUrl' && sessionFormat === 'ONLINE')} error={!!fieldState.error} helperText={fieldState.error?.message || (sessionForm && k === 'meetingUrl' ? 'Ссылка на онлайн-встречу (https://...)' : undefined)} select={!!list} type={list ? 'text' : type} multiline={!list && ['description', 'bio', 'content', 'feedback', 'comment', 'text'].includes(k)} minRows={k === 'description' ? 5 : 3} slotProps={{ inputLabel: { shrink: true }, htmlInput: { maxLength: p.maxLength, min: p.minimum, max: k === 'score' && spec.maxScore != null ? spec.maxScore : p.maximum } }}>{list && [<MenuItem key="empty" value="">Выберите</MenuItem>, ...list.map((o: Data) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)]}</TextField>; }}/>)}<Stack className="entity-form-actions" direction="row" gap={2}><BusyButton busy={busy} disabled={spec.disabled} type="submit">{spec.submitLabel || 'Сохранить'}</BusyButton>{onCancel && <Button disabled={busy} onClick={cancel}>Отмена</Button>}</Stack></Stack></Box></Suspense>; }
 export function EditPanel({ spec, onClose }: {
     spec: FormSpec | null;
     onClose: () => void;

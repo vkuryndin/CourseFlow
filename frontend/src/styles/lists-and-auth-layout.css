@@ -134,3 +134,6 @@
 .admin-teachers th:nth-child(3) { width: 20%; }
 .admin-teachers th:nth-child(5) { width: 132px; }
 .admin-accounts td:last-child > .MuiStack-root { flex-wrap: nowrap; gap: 4px; }
+
+/* Keep the admin course actions compact without changing other tables. */
+.admin-course-list th:last-child,.admin-course-list td:last-child{width:96px;white-space:nowrap}

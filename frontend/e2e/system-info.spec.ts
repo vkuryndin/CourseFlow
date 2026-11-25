@@ -42,3 +42,16 @@ test('monitoring KPI fits a large disk value without truncation',async({page})=>
     await expect(disk).toHaveText('38608.5 МБ');
     expect(await disk.evaluate(el=>{const s=getComputedStyle(el);return parseFloat(s.fontSize)<=20&&el.scrollWidth<=el.clientWidth+1&&s.overflowWrap==='normal'})).toBe(true);
 });
+
+
+test('monitoring status cards distinguish database, application and Actuator health',async({page})=>{
+    await page.addInitScript(s=>{sessionStorage.setItem('courseflow.session',JSON.stringify(s));sessionStorage.setItem('courseflow.role','ADMIN')},session);
+    await page.route('**/actuator/**',r=>r.fulfill({json:new URL(r.request().url()).pathname==='/actuator/health'?{status:'DOWN'}:{names:[]}}));
+    await page.route('**/api/system/status',r=>r.fulfill({json:{application:'CourseFlow',status:'UP',database:'CONNECTED'}}));
+    await page.goto('/admin/monitoring');
+    const panel=page.getByRole('group',{name:'Состояние системы'});
+    await expect(panel.getByText('CourseFlow',{exact:true})).toBeVisible();
+    await expect(panel.getByText('● Доступен',{exact:true})).toBeVisible();
+    await expect(panel.getByText('● Подключена',{exact:true})).toBeVisible();
+    await expect(panel.getByText('● Недоступен',{exact:true})).toBeVisible();
+});
