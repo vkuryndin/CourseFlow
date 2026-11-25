@@ -8,7 +8,18 @@ plugins {
 }
 
 group = "org.courseflow"
-version = "0.1.0-SNAPSHOT"
+version = rootProject.file("VERSION").readText().trim()
+
+springBoot {
+    buildInfo {
+        properties {
+            val gitCommit = providers.environmentVariable("GITHUB_SHA").orNull
+            if (gitCommit != null) {
+                additional.set(mapOf("git.commit" to gitCommit))
+            }
+        }
+    }
+}
 
 java {
     toolchain {

@@ -11,7 +11,10 @@ import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.springframework.boot.info.BuildProperties;
 
 class OpenApiConfigTest {
   private final OpenApiConfig config = new OpenApiConfig();
@@ -23,7 +26,12 @@ class OpenApiConfigTest {
 
   @Test
   void declaresBearerSecurityAndErrorContract() {
-    var api = config.courseFlowOpenApi();
+    var properties = new Properties();
+    properties.setProperty("version", "9.8.7");
+    var factory = new StaticListableBeanFactory();
+    factory.addBean("buildProperties", new BuildProperties(properties));
+    var api = config.courseFlowOpenApi(factory.getBeanProvider(BuildProperties.class));
+    assertEquals("9.8.7", api.getInfo().getVersion());
     assertEquals("CourseFlow REST API", api.getInfo().getTitle());
     assertEquals("bearer", api.getComponents().getSecuritySchemes().get("bearerAuth").getScheme());
     assertTrue(

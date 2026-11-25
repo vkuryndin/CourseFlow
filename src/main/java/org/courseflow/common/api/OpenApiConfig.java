@@ -21,7 +21,9 @@ import java.util.TreeSet;
 import org.courseflow.security.PublicEndpoints;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.utils.SpringDocUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
@@ -33,7 +35,12 @@ public class OpenApiConfig {
   private static final String BEARER = "bearerAuth";
 
   @Bean
-  public OpenAPI courseFlowOpenApi() {
+  public OpenAPI courseFlowOpenApi(ObjectProvider<BuildProperties> buildProperties) {
+    BuildProperties build = buildProperties.getIfAvailable();
+    String version =
+        build == null
+            ? OpenApiConfig.class.getPackage().getImplementationVersion()
+            : build.getVersion();
     SpringDocUtils.getConfig().addRequestWrapperToIgnore(Jwt.class, Authentication.class);
     Components components =
         new Components()
@@ -49,7 +56,7 @@ public class OpenApiConfig {
         .info(
             new Info()
                 .title("CourseFlow REST API")
-                .version("0.1.0")
+                .version(version == null ? "unknown" : version)
                 .description(
                     "Образовательная платформа. Для защищённых операций войдите и укажите JWT в Authorize. "
                         + "Нумерация страниц с 0, размер страницы — до 100."))

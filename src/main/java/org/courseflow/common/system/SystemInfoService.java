@@ -81,7 +81,9 @@ public class SystemInfoService {
         List.of(environment.getDefaultProfiles()),
         environment.getProperty("spring.jpa.hibernate.ddl-auto"),
         build.getProperty("build.time"),
-        git.getProperty("git.commit.id", git.getProperty("git.commit.id.abbrev")));
+        git.getProperty(
+            "git.commit.id",
+            git.getProperty("git.commit.id.abbrev", build.getProperty("build.git.commit"))));
   }
 
   private SystemInfoResponse.RuntimeInfo runtimeInfo() {

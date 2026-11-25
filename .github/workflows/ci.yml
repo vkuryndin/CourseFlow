@@ -60,6 +60,8 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Verify release version
+        run: node scripts/sync-version.mjs --check
       - name: Install dependencies
         run: npm ci
       - name: Lint
@@ -109,9 +111,13 @@ jobs:
           backend="${prefix}-backend:${GITHUB_SHA}"
           frontend="${prefix}-frontend:${GITHUB_SHA}"
           source="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          version=$(tr -d '\r\n' < VERSION)
+          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           docker build --label "org.opencontainers.image.source=${source}" \
+            --label "org.opencontainers.image.version=${version}" \
             --label "org.opencontainers.image.revision=${GITHUB_SHA}" -t "$backend" .
           docker build --label "org.opencontainers.image.source=${source}" \
+            --label "org.opencontainers.image.version=${version}" \
             --label "org.opencontainers.image.revision=${GITHUB_SHA}" -t "$frontend" frontend
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
@@ -122,8 +128,12 @@ jobs:
             echo "Master has advanced; refusing to replace latest with an older revision." >&2
             exit 1
           fi
+          docker tag "$backend" "${prefix}-backend:${version}"
+          docker tag "$frontend" "${prefix}-frontend:${version}"
+          docker push "${prefix}-backend:${version}"
+          docker push "${prefix}-frontend:${version}"
           docker tag "$backend" "${prefix}-backend:latest"
           docker tag "$frontend" "${prefix}-frontend:latest"
           docker push "${prefix}-backend:latest"
           docker push "${prefix}-frontend:latest"
-          printf '### Published Docker images\n- `%s`\n- `%s`\n' "$backend" "$frontend" >> "$GITHUB_STEP_SUMMARY"
+          printf '### Published Docker images — %s\n- `%s`\n- `%s`\n- Tags: `%s`, `latest`, commit SHA\n' "$version" "$backend" "$frontend" "$version" >> "$GITHUB_STEP_SUMMARY"
