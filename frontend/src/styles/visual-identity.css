@@ -301,3 +301,13 @@
     transform: none;
   }
 }
+
+/* Monitoring KPIs: keep full precision, let the value use the entire card width. */
+.system-monitoring .visual-stats { grid-template-columns: repeat(auto-fit,minmax(min(190px,100%),1fr)); }
+.system-monitoring .visual-stat { padding: 14px; }
+.system-monitoring .stat-top { display: block; }
+.system-monitoring .stat-icon { position: absolute; right: 14px; top: 14px; width: 30px; height: 30px; }
+.system-monitoring .stat-icon svg { width: 19px; height: 19px; }
+.system-monitoring .stat-text > :first-child { min-height: 36px; padding-right: 38px; }
+.system-monitoring .stat-text h4 { font-size: clamp(1.05rem,1.35vw,1.25rem); line-height: 1.35; overflow-wrap: normal; word-break: normal; }
+.system-monitoring .monitor-gauge h5 { font-size: 1.125rem; overflow-wrap: normal; word-break: normal; }

@@ -31,3 +31,14 @@ test('student cannot open admin monitoring',async({page})=>{
  await page.goto('/admin/monitoring');
  await expect(page).toHaveURL(/\/403$/);
 });
+
+test('monitoring KPI fits a large disk value without truncation',async({page})=>{
+    await page.setViewportSize({width:1440,height:900});
+    await page.addInitScript(s=>{sessionStorage.setItem('courseflow.session',JSON.stringify(s));sessionStorage.setItem('courseflow.role','ADMIN')},session);
+    await page.route('**/actuator/**',r=>{const p=new URL(r.request().url()).pathname;return r.fulfill({json:p==='/actuator/metrics'?{names:['disk.free','disk.total']}:p==='/actuator/health'?{status:'UP'}:{name:p.split('/').at(-1),measurements:[{statistic:'VALUE',value:(p.endsWith('disk.free')?22616.2:38608.5)*1048576}],availableTags:[]}})});
+    await page.route('**/api/system/status',r=>r.fulfill({json:{status:'UP',database:'CONNECTED'}}));
+    await page.goto('/admin/monitoring');await page.getByRole('tab',{name:'JVM и ресурсы'}).click();
+    const disk=page.locator('.visual-stat').filter({hasText:'Диск всего'}).locator('h4');
+    await expect(disk).toHaveText('38608.5 МБ');
+    expect(await disk.evaluate(el=>{const s=getComputedStyle(el);return parseFloat(s.fontSize)<=20&&el.scrollWidth<=el.clientWidth+1&&s.overflowWrap==='normal'})).toBe(true);
+});

@@ -104,3 +104,33 @@
     justify-content: flex-start;
   }
 }
+
+/* Compact administrator account lists and a shared account creation form. */
+.admin-accounts table { table-layout: fixed; min-width: 740px; }
+.admin-accounts th, .admin-accounts td { padding: 8px 12px; vertical-align: middle; }
+.admin-accounts th:last-child, .admin-accounts td:last-child { width: 100px; }
+.admin-accounts th:nth-child(1) { width: 24%; }
+.admin-accounts th:nth-child(2) { width: 26%; }
+.admin-accounts th:nth-child(3) { width: 22%; }
+.admin-accounts th:nth-child(4) { width: 112px; }
+.admin-accounts tbody tr { height: 56px; }
+.admin-accounts .account-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-roles { display:flex; flex-wrap:wrap; gap:4px; }
+.account-role { padding:3px 7px; border-radius:5px; color:#475569; background:#f1f5f9; font-size:.75rem; line-height:1.4; }
+.account-role.role-teacher { background:#dbeafe; color:#1d4ed8; }
+.account-role.role-admin { background:#f3e8ff; color:#7e22ce; }
+.account-status { display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color:#64748b; white-space:nowrap; }
+.account-status > span { width:8px; height:8px; border-radius:50%; background:currentColor; }
+.account-status.status-active { color:#15803d; }
+.account-status.status-inactive { color:#b45309; }
+.account-role-options { border:1px solid #dbe3ef; border-radius:10px; padding:4px 12px; }
+.account-role-options .account-role-option { display:flex; margin:0; padding:10px 0; align-items:flex-start; }
+.account-role-options .account-role-option + .account-role-option { border-top:1px solid #e2e8f0; }
+.account-create-form .MuiTypography-subtitle1 { margin-bottom:2px; }
+
+.admin-teachers table { min-width: 890px; }
+.admin-teachers th:nth-child(1) { width: 20%; }
+.admin-teachers th:nth-child(2) { width: 24%; }
+.admin-teachers th:nth-child(3) { width: 20%; }
+.admin-teachers th:nth-child(5) { width: 132px; }
+.admin-accounts td:last-child > .MuiStack-root { flex-wrap: nowrap; gap: 4px; }
