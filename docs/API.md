@@ -4,11 +4,11 @@
 
 ## 1. Общие сведения
 
-API использует REST и JSON. Базовый путь `/api`. В dev backend доступен на `http://localhost:8080`, через Vite — `http://localhost:5173`, через Nginx на AWS — `http://3.79.152.70:8081`. OpenAPI в dev: `/v3/api-docs`, `/v3/api-docs.yaml`; Swagger UI: `/swagger-ui/index.html`. В aws документация отключена.
+API использует REST и JSON. Базовый путь `/api`. В dev backend доступен на `http://localhost:8080`, через Vite — `http://localhost:5173`, через Nginx на AWS — `http://3.79.152.70:8081`. OpenAPI в dev: `/v3/api-docs`, `/v3/api-docs.yaml`; Swagger UI: `/swagger-ui/index.html`. В профиле `aws` Swagger UI и OpenAPI отключены.
 
 ## 2. Аутентификация и авторизация
 
-`POST /api/auth/login` принимает `email` и `password`. Ответ `LoginResponse`: accessToken, tokenType, expiresAt, userId, displayName, roles, passwordChangeRequired. Access JWT действует 1 час; сервер проверяет состояние сессии. Неавторизованным доступны только явно разрешённые маршруты. Роли STUDENT, TEACHER, ADMIN могут сочетаться. Владение курсом, запись на него и доступ к объектам проверяются отдельно; роль сама по себе не гарантирует доступ.
+`POST /api/auth/login` принимает `email` и `password`. Ответ `LoginResponse`: accessToken, tokenType, expiresAt, userId, displayName, roles, passwordChangeRequired. Сервер проверяет состояние JWT-сессии. Неавторизованным доступны только явно разрешённые маршруты. Роли STUDENT, TEACHER, ADMIN могут сочетаться. Владение курсом, запись на него и доступ к объектам проверяются отдельно; роль сама по себе не гарантирует доступ.
 
 ```http
 POST http://localhost:8080/api/auth/login
@@ -16,7 +16,7 @@ Content-Type: application/json
 
 {
   "email": "admin@courseflow.local",
-  "password": "<локальный тестовый пароль из README>"
+  "password": "<пароль системного администратора>"
 }
 ```
 
@@ -25,7 +25,7 @@ GET http://localhost:8080/api/users/me
 Authorization: Bearer <accessToken>
 ```
 
-При `passwordChangeRequired=true` защищённые операции ограничены сменой пароля и выходом. Восстановление пароля: forgot-password → письмо → reset-password; токен восстановления действителен 30 минут. Login и восстановление защищены rate limiting. JWT действует один час с момента выпуска; продления по активности и refresh token нет.
+При `passwordChangeRequired=true` защищённые операции ограничены сменой пароля и выходом. Восстановление пароля: forgot-password → письмо → reset-password; токен восстановления действителен 30 минут. Вход и восстановление пароля защищены ограничением частоты запросов. JWT действует один час с момента выпуска; продления по активности и refresh token нет.
 
 После успешного `POST /api/auth/reset-password` (204) клиент выполняет обычный `POST /api/auth/login` с email и новым паролем. Ответ восстановления не содержит email владельца токена. Клиент использует временную подсказку из `localStorage` (30 минут) либо запрашивает адрес. Если вход не выполнен, повторно менять пароль не требуется.
 

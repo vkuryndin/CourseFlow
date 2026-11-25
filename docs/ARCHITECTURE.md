@@ -26,6 +26,22 @@
 
 Типовые подкаталоги: `controller`, `dto`, `service`, `repository`, `entity`, `api`. `ArchitectureTest` проверяет правила зависимостей, слои и границы модулей. Подробности проверок — в [TESTING.md](TESTING.md).
 
+### Логическая архитектура backend
+
+```mermaid
+flowchart TD
+    Client[REST-клиент] --> Security[Spring Security / JWT]
+    subgraph Backend[Spring Boot / org.courseflow]
+        Security --> Controllers[REST-контроллеры / DTO]
+        Controllers --> Services[Сервисный слой / транзакции]
+        Services --> Repositories[Spring Data JPA / репозитории]
+        Repositories --> Hibernate[Hibernate / ORM]
+    end
+    Hibernate -->|JDBC| Database[(PostgreSQL)]
+```
+
+Сервисный слой объединяет предметные модули `identity`, `auth`, `catalog`, `content`, `learning`, `assessment`, `review` и агрегирующий модуль `dashboard`. Схема показывает основные слои обработки REST-запросов, а не граф зависимостей между предметными модулями. Общие компоненты `common` и демонстрационное наполнение `demo` используются внутри приложения.
+
 ### Публичные контракты модулей
 
 | Модуль | Контракты |
@@ -77,7 +93,7 @@ flowchart TD
 
 ## 4. ORM и модель данных
 
-20 сущностей, 20 репозиториев; 22 бизнес-таблицы с учётом `user_roles` и `course_tag`. Для однократной загрузки демонстрационных данных используется отдельная последовательность PostgreSQL.
+20 JPA-сущностей, 22 таблицы с учётом `user_roles` и `course_tag`, 20 репозиториев Spring Data JPA и два репозитория специализированных запросов для электронного журнала и прогресса. Для однократной загрузки демонстрационных данных используется отдельная последовательность PostgreSQL.
 
 | Модуль | Сущность | Таблица / назначение |
 |---|---|---|
@@ -104,37 +120,37 @@ flowchart TD
 
 ### ER-диаграмма
 
-Диаграмма отражает связи таблиц, включая необязательные связи 1:1 и две таблицы связей.
+Диаграмма отражает связи таблиц, включая необязательные связи 1:1 и две таблицы связей. Пунктиром обозначены неидентифицирующие связи: у зависимой сущности собственный первичный ключ. Сплошные линии используются для таблиц связей `user_roles` и `course_tag`.
 
 ```mermaid
 erDiagram
-    USERS ||--o| PROFILES : profile
-    USERS ||--o| USER_ACCOUNTS : account
+    USERS ||..o| PROFILES : profile
+    USERS ||..o| USER_ACCOUNTS : account
     USERS ||--o{ USER_ROLES : roles
-    USER_ACCOUNTS ||--o{ AUTH_SESSIONS : sessions
-    USER_ACCOUNTS ||--o{ PASSWORD_RESET_TOKENS : reset
-    USERS ||--o{ COURSES : teaches
-    CATEGORIES ||--o{ COURSES : category
+    USER_ACCOUNTS ||..o{ AUTH_SESSIONS : sessions
+    USER_ACCOUNTS ||..o{ PASSWORD_RESET_TOKENS : reset
+    USERS ||..o{ COURSES : teaches
+    CATEGORIES ||..o{ COURSES : category
     COURSES ||--o{ COURSE_TAG : tags
     TAGS ||--o{ COURSE_TAG : courses
-    COURSES ||--o{ MODULES : contains
-    MODULES ||--o{ LESSONS : contains
-    LESSONS ||--o{ LESSON_SESSIONS : schedule
-    LESSONS ||--o{ ASSIGNMENTS : tasks
-    ASSIGNMENTS ||--o{ SUBMISSIONS : submissions
-    USERS ||--o{ SUBMISSIONS : submits
-    USERS ||--o{ ENROLLMENTS : enrolls
-    COURSES ||--o{ ENROLLMENTS : enrollments
-    MODULES ||--o| QUIZZES : quiz
-    QUIZZES ||--o{ QUESTIONS : questions
-    QUESTIONS ||--o{ ANSWER_OPTIONS : options
-    QUIZZES ||--o{ QUIZ_SUBMISSIONS : attempts
-    USERS ||--o{ QUIZ_SUBMISSIONS : takes
-    QUIZ_SUBMISSIONS ||--o{ QUIZ_ANSWER_SELECTIONS : answers
-    QUESTIONS ||--o{ QUIZ_ANSWER_SELECTIONS : question
-    ANSWER_OPTIONS ||--o{ QUIZ_ANSWER_SELECTIONS : option
-    USERS ||--o{ COURSE_REVIEWS : writes
-    COURSES ||--o{ COURSE_REVIEWS : reviews
+    COURSES ||..o{ MODULES : contains
+    MODULES ||..o{ LESSONS : contains
+    LESSONS ||..o{ LESSON_SESSIONS : schedule
+    LESSONS ||..o{ ASSIGNMENTS : tasks
+    ASSIGNMENTS ||..o{ SUBMISSIONS : submissions
+    USERS ||..o{ SUBMISSIONS : submits
+    USERS ||..o{ ENROLLMENTS : enrolls
+    COURSES ||..o{ ENROLLMENTS : enrollments
+    MODULES ||..o| QUIZZES : quiz
+    QUIZZES ||..o{ QUESTIONS : questions
+    QUESTIONS ||..o{ ANSWER_OPTIONS : options
+    QUIZZES ||..o{ QUIZ_SUBMISSIONS : attempts
+    USERS ||..o{ QUIZ_SUBMISSIONS : takes
+    QUIZ_SUBMISSIONS ||..o{ QUIZ_ANSWER_SELECTIONS : answers
+    QUESTIONS ||..o{ QUIZ_ANSWER_SELECTIONS : question
+    ANSWER_OPTIONS ||..o{ QUIZ_ANSWER_SELECTIONS : option
+    USERS ||..o{ COURSE_REVIEWS : writes
+    COURSES ||..o{ COURSE_REVIEWS : reviews
 ```
 
 ## 5. ORM-механизмы
@@ -159,21 +175,29 @@ erDiagram
 
 ## 7. Безопасность
 
-JWT HS256, проверка срока действия/issuer/сессии; Spring Security работает без HTTP-сессии, но состояние авторизации хранится в БД (`AuthSession`). BCrypt; роли STUDENT/TEACHER/ADMIN, проверка владения и доступа к данным. Отзыв сессий при изменении учётных данных и деактивации; защита системного и последнего администратора. Восстановление пароля через Gmail SMTP и асинхронную обработку, rate limiting. CORS с явными origin, без credentials; CSRF отключён для bearer-only API, не использующего cookie для аутентификации. Nginx заменяет входящие proxy-заголовки, добавляет CSP и защитные заголовки.
+JWT HS256 со сроком действия один час, проверка срока действия, издателя и сессии; Spring Security работает без HTTP-сессии, но состояние авторизации хранится в БД (`AuthSession`). BCrypt; роли STUDENT/TEACHER/ADMIN, проверка владения и доступа к данным. Отзыв сессий при изменении учётных данных и деактивации; защита системного и последнего администратора. Восстановление пароля через Gmail SMTP и асинхронную обработку, rate limiting. CORS с явными origin, без credentials; CSRF отключён для bearer-only API, не использующего cookie для аутентификации. Nginx заменяет входящие proxy-заголовки, добавляет CSP и защитные заголовки.
 
 ## 8. Развёртывание
 
 ```mermaid
 flowchart TD
-    U[Browser] -->|8081 HTTP| F[Nginx / React :80]
-    subgraph EC2[EC2 / Compose courseflow]
-        F -->|8080| B[Spring Boot]
-        B -->|5432| P[(PostgreSQL)]
-        P --> V[(postgres-data)]
-        B --> D[(demo-credentials)]
+    U[Браузер] -->|HTTP 8081| F
+    subgraph EC2[AWS EC2 / Docker Compose courseflow]
+        F[Nginx / React :80] -->|HTTP 8080| B[Spring Boot :8080]
+        B -->|JDBC 5432| P[(PostgreSQL :5432)]
+        P --- V[(postgres-data)]
+        B --- D[(demo-credentials)]
+        Host[Хост EC2 / Docker Compose]
+        Host -.-> F
+        Host -.-> B
     end
-    G[GHCR] -. images .-> F
-    G -. images .-> B
+    B -->|SMTP 587 / STARTTLS| M[Gmail SMTP]
+    CI[GitHub Actions / CI] -->|Публикация образов| G[GHCR]
+    G -.-> F
+    G -.-> B
+    CD[GitHub Actions / Deploy] -->|SSH| Host
 ```
 
-Три контейнера работают в отдельной bridge-сети; данные сохраняются в постоянных томах. Внешний доступ осуществляется через Nginx по HTTP на порту 8081. Backend и PostgreSQL доступны внутри сети Docker. Настроены health checks, graceful shutdown backend, политика перезапуска `unless-stopped`, ограничения памяти и ротация логов. TLS в учебной среде не настроен. Детали — [SETUP.md](SETUP.md).
+Три контейнера работают в отдельной bridge-сети. PostgreSQL и backend используют постоянные тома. Nginx публикует HTTP-порт 8081 на адресе, заданном `COURSEFLOW_BIND_ADDRESS` (по умолчанию `127.0.0.1`); backend и PostgreSQL доступны внутри сети Docker. Ограничение учебного развёртывания — HTTP без TLS. Настроены health checks, graceful shutdown backend, политика перезапуска `unless-stopped`, ограничения памяти и ротация логов.
+
+GitHub Actions выполняет сборку и публикует образы backend и frontend в GitHub Container Registry (GHCR). Развёртывание запускается отдельным workflow вручную: через SSH на EC2 загружаются образы и обновляются соответствующие контейнеры Docker Compose. Backend отправляет письма восстановления пароля через Gmail SMTP с STARTTLS. Детали — [SETUP.md](SETUP.md).

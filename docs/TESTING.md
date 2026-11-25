@@ -12,7 +12,7 @@
 | Интеграционный | Spring Boot, PostgreSQL Testcontainers | REST API, CRUD, бизнес-операции, ограничения БД |
 | ORM | JPA, Hibernate, PostgreSQL | Связи, каскады, ленивая загрузка, число запросов |
 | Конкурентный | JUnit, PostgreSQL | Блокировки, изоляция, параллельные операции, откат |
-| Архитектурный | ArchUnit, Node.js Test Runner | Границы модулей, зависимости слоёв, циклы и HTTP-транспорт |
+| Архитектурный | ArchUnit, Node.js Test Runner | Границы модулей, зависимости слоёв, циклы конструкторных зависимостей backend и циклы импортов frontend, HTTP-транспорт |
 | Нагрузочный | JUnit, параллельные HTTP-клиенты | Задержки, пропускная способность, устойчивость |
 | Клиентский | Vitest | Формы, календарь, пагинация, контракты, электронный журнал |
 | Браузерный (E2E) | Playwright | Пользовательские сценарии с управляемыми ответами API |
@@ -37,7 +37,7 @@ Testcontainers запускает PostgreSQL 18 в Docker и передаёт п
 
 `AdvancedPerformanceIT` добавляет пять сценариев: ступенчатое увеличение нагрузки, насыщение без пауз между запросами, резкий всплеск и восстановление, продолжительную нагрузку и интенсивную аутентификацию с действующим ограничителем запросов.
 
-Набор проверяет HTTP-статусы и содержимое ответов, задержки, пропускную способность, конкурентность, сохранность данных и восстановление после нагрузки. Расширенные сценарии контролируют также ошибки телеметрии, взаимные блокировки PostgreSQL и состояние пула соединений. Телеметрия записывается в CSV примерно каждые 2 секунды, прогресс длительных сценариев выводится примерно каждые 30 секунд. Отчёты находятся в `build/reports/performance/`. Нагрузочные испытания проводятся в тестовой среде с PostgreSQL Testcontainers, а не на AWS.
+Набор проверяет HTTP-статусы и содержимое ответов, задержки, пропускную способность, конкурентность, сохранность данных и восстановление после нагрузки. Расширенные сценарии контролируют также ошибки телеметрии, взаимные блокировки PostgreSQL и состояние пула соединений. Телеметрия записывается в CSV примерно каждые 2 секунды, прогресс длительных сценариев выводится примерно каждые 30 секунд. При запуске нагрузочных тестов создаются CSV-отчёты в `build/reports/performance/` относительно рабочего каталога тестов. Нагрузочные испытания проводятся в тестовой среде с PostgreSQL Testcontainers, а не на AWS.
 
 ### Результаты контрольного прогона 25.11.2026
 
@@ -74,17 +74,33 @@ Checkstyle формирует отчёт о предупреждениях; те
 
 ## 5. Запуск проверок
 
-Backend из корня проекта (PowerShell):
+### Backend
+
+При локальной разработке серверные тесты запускаются из IntelliJ IDEA. Настройка подключения Testcontainers описана в [SETUP.md](SETUP.md).
+
+| Набор | Запуск |
+|---|---|
+| Модульные и архитектурные | JUnit; отдельные классы или задача Gradle `test` |
+| Интеграционные | Конфигурация `CourseFlow Integration Tests`, пакет `org.courseflow.integration` |
+| Нагрузочные | Конфигурация `CourseFlow Performance Tests`, пакет `org.courseflow.performance`, VM option `-Dcourseflow.performance=true` |
+
+Результаты запуска через JUnit отображаются в окне Run IntelliJ IDEA. Запуск пакета в IDEA включает и находящиеся в нём модульные тесты вспомогательных классов; распределение по наборам в разделе 6 основано на тегах Gradle. При работе с удалённым Docker интеграционные и нагрузочные наборы запускаются последовательно.
+
+Проверка модульных и архитектурных тестов через Gradle (PowerShell, из корня проекта):
 
 ```powershell
-.\gradlew.bat clean test spotlessCheck spotbugsMain checkstyleMain bootJar
-.\gradlew.bat integrationTest
-.\gradlew.bat performanceTest
+.\gradlew.bat test
 ```
 
-Для Linux/macOS используется `bash ./gradlew` с теми же задачами. `test` исключает теги `integration` и `performance`. Отдельные задачи Gradle запускают соответствующие наборы. Форматирование Java выполняется задачей `spotlessApply`.
+Проверка качества Java-кода:
 
-Frontend:
+```powershell
+.\gradlew.bat spotlessCheck checkstyleMain checkstyleTest spotbugsMain spotbugsTest --continue
+```
+
+В Gradle также зарегистрированы задачи `integrationTest` и `performanceTest`. Они используются в GitHub Actions и доступны для альтернативного запуска из терминала при настроенном Docker. Задача `test` исключает теги `integration` и `performance`; задача `performanceTest` включает нагрузочный режим автоматически. Для Linux/macOS вместо `gradlew.bat` используется `./gradlew`.
+
+### Frontend
 
 ```bash
 cd frontend
@@ -129,25 +145,9 @@ python3 scripts/check-proxy.py
 
 Состав серверного набора: 870 методов `@Test` (614 модульных, 17 архитектурных, 225 интеграционных, 14 нагрузочных), 394 динамических сценария REST-регрессии, 59 динамических проверок rate limiting и один унаследованный интеграционный сценарий. Playwright содержит 39 объявлений тестов, два из которых разворачиваются в четыре и два сценария. Dev и production используют одинаковый набор. Проверки реального Nginx и статический анализ контракта/манифеста не входят в 94 теста frontend.
 
-Количество выполненных, упавших и пропущенных серверных тестов определяется по JUnit XML. Сводка результатов задач Gradle (PowerShell, из корня проекта):
+Количество сценариев в таблице определено по исходному коду. Фактическое число выполненных, неуспешных и пропущенных тестов определяется по результату конкретного запуска.
 
-```powershell
-foreach ($task in 'test','integrationTest','performanceTest') {
-    $dir = "build/test-results/$task"
-    if (Test-Path $dir) {
-        $suites = @(Get-ChildItem $dir -Filter 'TEST-*.xml' | ForEach-Object {
-            ([xml](Get-Content $_.FullName -Raw)).testsuite
-        })
-        $result = [ordered]@{ Task = $task }
-        foreach ($key in 'tests','failures','errors','skipped') {
-            $result[$key] = ($suites | ForEach-Object { [int]($_.GetAttribute($key)) } | Measure-Object -Sum).Sum
-        }
-        [pscustomobject]$result
-    }
-}
-```
-
-Показатели покрытия JaCoCo для контрольного прогона задачи `test` приведены справочно. Текущие значения формируются при запуске `jacocoTestReport`:
+Покрытие серверного кода модульными и архитектурными тестами (задача `test`, ранее выполненный контрольный прогон):
 
 | Метрика | Покрыто | Всего | Покрытие |
 |---|---:|---:|---:|
@@ -159,18 +159,27 @@ foreach ($task in 'test','integrationTest','performanceTest') {
 
 ## 7. Отчёты и автоматизация
 
-| Отчёт | Расположение |
-|---|---|
-| Модульные и архитектурные тесты | `build/reports/tests/test/index.html` |
-| Интеграционные тесты | `build/reports/tests/integrationTest/index.html` |
-| Нагрузочные тесты | `build/reports/tests/performanceTest/index.html`, `build/reports/performance/` |
-| JaCoCo | `build/reports/jacoco/test/html/index.html`, `build/reports/jacoco/test/jacocoTestReport.xml` |
-| Checkstyle и SpotBugs | `build/reports/checkstyle/`, `build/reports/spotbugs/` |
-| JUnit XML | `build/test-results/<task>/` |
-| Playwright HTML (CI) | `frontend/playwright-report/index.html` |
-| Артефакты браузерных тестов | `frontend/test-results/` |
+При локальном запуске через JUnit результаты серверных тестов доступны в окне Run IntelliJ IDEA. Нагрузочные тесты самостоятельно записывают результаты и телеметрию в CSV. Отчёты Gradle формируются при выполнении соответствующих задач Gradle.
 
-[CI](https://github.com/vkuryndin/CourseFlow/actions/workflows/ci.yml) автоматически выполняет серверные модульные, архитектурные и интеграционные тесты, клиентские тесты, линтеры и сборку. Отчёты backend доступны в артефакте `backend-reports`. [Нагрузочные тесты](https://github.com/vkuryndin/CourseFlow/actions/workflows/performance.yml) запускаются вручную и сохраняют `performance-reports`. [CodeQL](https://github.com/vkuryndin/CourseFlow/actions/workflows/codeql.yml) анализирует обе части приложения отдельным процессом. CI также выполняет все семь архитектурных проверок frontend, три теста анализатора, статическую проверку API-контракта, анализ production-чанков и Playwright на свежей сборке. JUnit XML backend сохраняется в `backend-test-results`, браузерные отчёты — в `frontend-e2e-reports`. Проверка Nginx и dev-режим Playwright остаются отдельными локальными проверками.
+| Отчёт | Расположение / способ получения |
+|---|---|
+| Модульные, архитектурные и интеграционные тесты в IDEA | Окно Run |
+| Нагрузочные тесты | Окно Run; CSV в `build/reports/performance/` |
+| Модульные и архитектурные тесты через `test` | `build/reports/tests/test/index.html` |
+| JaCoCo (задача `test`) | `build/reports/jacoco/test/` |
+| Checkstyle и SpotBugs | Вывод соответствующих задач Gradle и отчёты в `build/reports/` |
+
+JaCoCo показывает покрытие серверного кода модульными и архитектурными тестами задачи `test`, а не совокупное покрытие всех наборов. CSV содержат результаты отдельных нагрузочных сценариев и телеметрию расширенного набора. Каталог `build` и находящиеся в нём отчёты удаляются при выполнении `clean`.
+
+### GitHub Actions
+
+| Workflow | Проверки | Артефакты |
+|---|---|---|
+| [CI](https://github.com/vkuryndin/CourseFlow/actions/workflows/ci.yml) | Серверные модульные, архитектурные и интеграционные тесты, анализ качества; клиентские тесты, контракт, production-сборка и Playwright | `backend-reports`, `backend-test-results`, `frontend-e2e-reports` |
+| [Performance Tests](https://github.com/vkuryndin/CourseFlow/actions/workflows/performance.yml) | Нагрузочные испытания (ручной запуск) | `performance-reports` |
+| [CodeQL](https://github.com/vkuryndin/CourseFlow/actions/workflows/codeql.yml) | Анализ Java/Kotlin и JavaScript/TypeScript | Результаты анализа CodeQL |
+
+CI сохраняет отчёты Gradle и JUnit XML, а для Playwright явно включает HTML-отчёт. Проверки реального Nginx и dev-режим Playwright запускаются отдельно.
 
 ## 8. Каталог тестов
 
@@ -1273,7 +1282,7 @@ foreach ($task in 'test','integrationTest','performanceTest') {
 |---|---|
 | [studentAndTeacherUseDifferentScopeAndMapRows](../src/test/java/org/courseflow/dashboard/service/UpcomingSessionsTest.java#L25) | Student and teacher use different scope and map rows. `service.forStudent(10L, NOW, 5).get(0).format() = "ONLINE"`; `service.forTeacher(20L, NOW, 5).size() = 1`; Вызов `query.setParameter()` |
 
-### 8.9. Общая инфраструктура, валидация и обработка ошибок (66)
+### 8.9. Общая инфраструктура, валидация, обработка ошибок и тестовые утилиты (79)
 
 #### [SpotBugsRegressionTest](../src/test/java/org/courseflow/common/SpotBugsRegressionTest.java)
 
@@ -1500,7 +1509,7 @@ foreach ($task in 'test','integrationTest','performanceTest') {
 |---|---|
 | [registersPublicHealthProtectedGradingAndDefaultDeny](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L46) | Registers public health protected grading and default deny. Вызов `registry.requestMatchers()`; Вызов `grading.hasAnyRole()`; Вызов `fallback.denyAll()` |
 | [swaggerRouteIsRegisteredOnlyWhenEnabled](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L108) | Swagger route is registered only when enabled. Вызов `docs.permitAll()` |
-| [temporaryPasswordMatcherDeniesAllExceptPasswordChangeAndLogout](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L126) | Temporary password matcher denies all except password change and logout. `matcher.matches(new MockHttpServletRequest("GET", "/api/courses"))` — ложь; `matcher.matches(new MockHttpServletRequest("GET", "/api/courses"))` — истина; `matcher.matches(new MockHttpServletRequest("GET", "…"))` — истина |
+| [temporaryPasswordMatcherDeniesAllExceptPasswordChangeAndLogout](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L126) | При обязательной смене пароля блокируются защищённые операции, кроме POST-запросов смены пароля и выхода. Проверяется также маршрут с префиксом контекста приложения. |
 | [criticalRoutesKeepTheirOwnAuthorization](../src/test/java/org/courseflow/security/EndpointAuthorizationTest.java#L80) | Критические маршруты сохраняют собственные ограничения авторизации. |
 
 #### [JwtConfigTest](../src/test/java/org/courseflow/security/JwtConfigTest.java)
