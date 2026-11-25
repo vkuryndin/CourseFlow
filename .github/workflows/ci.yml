@@ -4,13 +4,25 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      deploy_to_aws:
+        description: Deploy latest images to AWS only (skip CI)
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: read
 
+# Keep publication and deployment of latest images in the same serialized run.
+concurrency:
+  group: courseflow-ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   backend:
     name: Backend
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.deploy_to_aws }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -43,6 +55,7 @@ jobs:
 
   frontend:
     name: Frontend
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.deploy_to_aws }}
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -77,7 +90,7 @@ jobs:
     concurrency:
       group: courseflow-publish-images
       cancel-in-progress: false
-    if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.deploy_to_aws)) }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -113,8 +126,62 @@ jobs:
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
           docker push "$backend"
           docker push "$frontend"
+          master_head=$(git ls-remote origin refs/heads/master | cut -f1)
+          if [ "$master_head" != "$GITHUB_SHA" ]; then
+            echo "Master has advanced; refusing to replace latest with an older revision." >&2
+            exit 1
+          fi
           docker tag "$backend" "${prefix}-backend:latest"
           docker tag "$frontend" "${prefix}-frontend:latest"
           docker push "${prefix}-backend:latest"
           docker push "${prefix}-frontend:latest"
           printf '### Published Docker images\n- `%s`\n- `%s`\n' "$backend" "$frontend" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-aws:
+    name: Deploy to AWS
+    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_dispatch' && inputs.deploy_to_aws }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Update CourseFlow and verify health
+        shell: bash
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+          AWS_SSH_KNOWN_HOSTS: ${{ secrets.AWS_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${AWS_HOST:?Missing AWS_HOST}" "${AWS_SSH_KEY:?Missing AWS_SSH_KEY}" "${AWS_SSH_KNOWN_HOSTS:?Missing AWS_SSH_KNOWN_HOSTS}"
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$AWS_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$AWS_SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          ssh -T -F /dev/null \
+            -i "$ssh_dir/key" \
+            -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+            "ubuntu@$AWS_HOST" "bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$HOME/courseflow"
+          # Resolve the latest published pair, not the current (possibly untested) master HEAD.
+          docker pull ghcr.io/vkuryndin/courseflow-backend:latest
+          docker pull ghcr.io/vkuryndin/courseflow-frontend:latest
+          revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' ghcr.io/vkuryndin/courseflow-backend:latest)
+          frontend_revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' ghcr.io/vkuryndin/courseflow-frontend:latest)
+          [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || { echo "Missing or invalid backend revision" >&2; exit 1; }
+          test "$frontend_revision" = "$revision" || { echo "Latest image revisions do not match" >&2; exit 1; }
+          git fetch origin master
+          git merge-base --is-ancestor "$revision" origin/master
+          git merge --ff-only "$revision"
+          test "$(git rev-parse HEAD)" = "$revision"
+          docker compose -p courseflow config --quiet
+          # Do not recreate PostgreSQL or touch Hotel Booking.
+          docker compose -p courseflow up -d --no-deps --no-build --pull never --wait --wait-timeout 600 backend
+          docker compose -p courseflow up -d --no-deps --no-build --pull never --wait --wait-timeout 240 frontend
+          docker compose -p courseflow ps
+          REMOTE
