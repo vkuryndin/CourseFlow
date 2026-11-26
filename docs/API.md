@@ -63,7 +63,7 @@ GET http://localhost:8080/api/courses?page=0&size=20&q=Java&sortBy=id&direction=
 | 403 | Недостаточно прав |
 | 404 | Ресурс или маршрут не найден (для разрешённого запроса) |
 | 405 / 406 / 415 | Метод / формат ответа / Content-Type не поддерживается |
-| 409 | Бизнес-конфликт, конфликт обновления или ограничение целостности |
+| 409 | Нарушение бизнес-правил, конфликт при обновлении данных или нарушение ограничений целостности |
 | 429 | Превышен лимит запросов; интервал повторной попытки указан в Retry-After |
 | 500 / 503 | Внутренняя ошибка / недоступность сервиса |
 
@@ -119,7 +119,7 @@ GET http://localhost:8080/api/courses?page=0&size=20&q=Java&sortBy=id&direction=
 | POST | `/api/courses/{courseId}/tags/{tagId}` | Добавить тег к курсу. Повторный запрос безопасен. | ADMIN или преподаватель курса | 204 |
 | DELETE | `/api/courses/{courseId}/tags/{tagId}` | Удалить тег курса | ADMIN или преподаватель курса | 204 |
 | GET | `/api/courses/{courseId}/tags` | Теги курса | Без JWT | 200 |
-| PUT | `/api/courses/{courseId}/teacher` | Назначить преподавателя | ADMIN | 200 |
+| PUT | `/api/courses/{courseId}/teacher` | Сменить преподавателя курса | ADMIN | 200 |
 | GET | `/api/tags` | Список тегов | Без JWT | 200 |
 | GET | `/api/tags/{id}` | Получить тег | Без JWT | 200 |
 | POST | `/api/tags` | Создать тег | ADMIN | 201 |
